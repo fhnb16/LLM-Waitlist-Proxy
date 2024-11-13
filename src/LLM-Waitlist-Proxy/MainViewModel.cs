@@ -359,6 +359,8 @@ namespace LLM_Waitlist_Proxy
                 string llmResponseText = jsonResponse/*parser.GetContentFromJson()*/;
 
                 String escapedText = llmResponseText
+    .Replace("__", "_")
+    .Replace("**", "_")
     .Replace("*", "_")
     .Replace("</s>", "")
     .Replace("<|eot_id|>", "");

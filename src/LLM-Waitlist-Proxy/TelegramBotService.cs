@@ -17,7 +17,7 @@ namespace LLM_Waitlist_Proxy
 
         public TelegramBotService()
         {
-            //_botToken = "6709758051:AAFuPj7IBXXR6gPOHNwMx0n8G66egfaUzlA";
+            //_botToken = "";
             _httpClient = new HttpClient();
         }
 
@@ -87,7 +87,7 @@ namespace LLM_Waitlist_Proxy
         public static string EscapeMarkdownV2(string text)
         {
             // Список специальных символов для MarkdownV2
-            char[] specialChars = { '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!' };
+            char[] specialChars = { /*'_',*/ '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!' };
 
             var escapedText = new StringBuilder(text.Length);
 
@@ -110,7 +110,7 @@ namespace LLM_Waitlist_Proxy
             // Символы, которые нужно экранировать (включая символы с кодами от 1 до 126)
             string[] EscapeCharacters = new string[]
             {
-        /*"_", */"*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"
+        "_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"
             };
             StringBuilder escapedString = new StringBuilder();
 
