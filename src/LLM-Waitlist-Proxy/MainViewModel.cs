@@ -180,6 +180,7 @@ namespace LLM_Waitlist_Proxy
                 {
                     _queue.Enqueue(request);
                     Application.Current.Dispatcher.Invoke(() => Requests.Add(request));
+                    AppendConsoleOutput("Request: " + request.LastMessageContent);
                 }
             }
 

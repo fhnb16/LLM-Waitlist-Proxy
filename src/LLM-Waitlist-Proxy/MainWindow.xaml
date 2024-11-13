@@ -46,9 +46,9 @@
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="250"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Grid MaxHeight="100" Margin="2,4,4,2">
                     <Grid.ColumnDefinitions>
@@ -64,8 +64,8 @@
                     <ui:Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="2" Margin="1,0,2,0">Settings</ui:Button>
                 </Grid>
                 <TextBox Grid.RowSpan="1" IsReadOnly="True" Text="{Binding SelectedRequestJsonContent, Mode=OneWay}" 
-                 TextWrapping="Wrap" AcceptsReturn="True" Margin="2,2,4,2" ScrollViewer.CanContentScroll="True" VerticalScrollBarVisibility="Visible" Grid.Row="1"/>
-                <TextBlock Grid.Row="2" Text="Console Log:" FontSize="14" FontWeight="Bold" Margin="6,2,4,2"/>
+                 TextWrapping="Wrap" AcceptsReturn="True" Margin="2,2,4,2" ScrollViewer.CanContentScroll="True" VerticalScrollBarVisibility="Visible" Grid.Row="1" MinHeight="200"/>
+                <TextBlock Grid.Row="2" Text="Log:" FontSize="14" FontWeight="Bold" Margin="6,2,4,2"/>
                 <TextBox Grid.Row="3" x:Name="ConsoleOutput" Text="{Binding ConsoleOutput, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" VerticalScrollBarVisibility="Visible" TextWrapping="Wrap" Background="#28000000" Foreground="DarkOrange" Margin="2,2,4,4" Grid.RowSpan="2" SelectionTextBrush="#A3FFFFFF" ScrollViewer.CanContentScroll="True">
                     <TextBox.BorderBrush>
                         <LinearGradientBrush EndPoint="0,2">
