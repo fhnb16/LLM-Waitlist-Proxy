@@ -32,6 +32,7 @@ namespace LLM_Waitlist_Proxy
         private TelegramBotService telegramService;
 
         public ObservableCollection<JsonRequest> Requests { get; set; } = new ObservableCollection<JsonRequest>();
+        public ObservableCollection<JsonRequest> FailedRequests { get; set; } = new ObservableCollection<JsonRequest>();
         public event PropertyChangedEventHandler PropertyChanged;
 
         public MainViewModel()
@@ -63,7 +64,34 @@ namespace LLM_Waitlist_Proxy
             }
         }
 
-        public string SelectedRequestJsonContent => SelectedRequest != null ? SelectedRequest.ToString() : string.Empty;
+        private string _selectedRequestJsonContent;
+        public string SelectedRequestJsonContent
+        {
+            get
+            {
+                if (SelectedRequest != null)
+                {
+                    return SelectedRequest.ToString();
+                }
+                else
+                {
+                    if (_selectedRequestJsonContent != null)
+                    {
+                        return _selectedRequestJsonContent;
+                    }
+                    else
+                    {
+                        return string.Empty;
+                    }
+                }
+                //return _selectedRequestJsonContent; // SelectedRequest != null ? SelectedRequest.ToString() : string.Empty
+            }
+            set
+            {
+                _selectedRequestJsonContent = value;
+                OnPropertyChanged(nameof(SelectedRequestJsonContent));
+            }
+        }
 
         // Статус сервера и текст кнопки
         public bool IsServerRunning
@@ -200,6 +228,7 @@ namespace LLM_Waitlist_Proxy
             _isProcessingQueue = true;
             while (_queue.TryDequeue(out JsonRequest request))
             {
+                Application.Current.Dispatcher.Invoke(() => SelectedRequestJsonContent = string.Empty);
                 AppendConsoleOutput("Request to LLM.");
                 var responseJson = await SendRequest(request);
                 AppendConsoleOutput("Request to Telegram.");
@@ -241,6 +270,8 @@ namespace LLM_Waitlist_Proxy
                             telegramService = new TelegramBotService();
                             await telegramService.SendStatusAsync(request.ChatID);
 
+                            //Application.Current.Dispatcher.Invoke(() => SelectedRequest = null);
+
                             // Чтение данных построчно
                             while ((line = await reader.ReadLineAsync()) != null)
                             {
@@ -266,6 +297,7 @@ namespace LLM_Waitlist_Proxy
                                     {
                                         //AppendConsoleOutput(ParsedLine);
                                         buffer.Append(ParsedLine);
+                                        Application.Current.Dispatcher.Invoke(() => SelectedRequestJsonContent = buffer.ToString());
                                     }
                                 }
                             }
