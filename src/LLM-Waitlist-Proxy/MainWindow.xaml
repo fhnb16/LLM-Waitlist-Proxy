@@ -21,7 +21,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <ui:ListView ItemsSource="{Binding Requests}" SelectedItem="{Binding SelectedRequest}" MinWidth="180" MaxWidth="256" av:ItemsSource="{av:SampleData ItemCount=5}" Margin="4,4,2,4" Foreground="#28000000" BorderBrush="#00000000">
+            <ui:ListView x:Name="RequestsQueueView" ItemsSource="{Binding Requests}" SelectedIndex="{Binding SelectedRequestIndex}" SelectedItem="{Binding SelectedRequest}" MinWidth="180" MaxWidth="256" av:ItemsSource="{av:SampleData ItemCount=5}" Margin="4,4,2,4" Foreground="#28000000" BorderBrush="#00000000">
                 <ui:ListView.Resources>
                     <Style TargetType="GridViewColumnHeader">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -55,13 +55,15 @@
                         <ColumnDefinition Width="1*"/>
                         <ColumnDefinition Width="1*"/>
                         <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <ui:Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="0" Margin="0,0,2,0" Content="{Binding ServerButtonText}" Command="{Binding StartCommand}"></ui:Button>
                     <ui:Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="1" Margin="2,0,2,0" Content="Reset Queue" Command="{Binding ResetQueueCommand}"></ui:Button>
-                    <ui:Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="2" Margin="1,0,2,0">Settings</ui:Button>
+                    <ui:Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="2" Margin="2,0,2,0" Content="Unselect item" Command="{Binding UnselectQueueItemCommand}"></ui:Button>
+                    <ui:Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="3" Margin="1,0,2,0" IsEnabled="False">Settings</ui:Button>
                 </Grid>
                 <TextBox Grid.RowSpan="1" IsReadOnly="True" Text="{Binding SelectedRequestJsonContent, Mode=OneWay}" 
                  TextWrapping="Wrap" AcceptsReturn="True" Margin="2,2,4,2" ScrollViewer.CanContentScroll="True" VerticalScrollBarVisibility="Visible" Grid.Row="1"/>

@@ -39,6 +39,7 @@ namespace LLM_Waitlist_Proxy
         {
             StartCommand = new RelayCommand(StartStopServer);
             ResetQueueCommand = new RelayCommand(ResetQueue);
+            UnselectQueueItemCommand = new RelayCommand(UnselectQueueItem);
         }
 
         // Свойство SelectedRequest и его содержимое для отображения в UI
@@ -50,6 +51,17 @@ namespace LLM_Waitlist_Proxy
                 _selectedRequest = value;
                 OnPropertyChanged(nameof(SelectedRequest));
                 OnPropertyChanged(nameof(SelectedRequestJsonContent));
+            }
+        }
+
+        private int _selectedRequestIndex;
+        public int SelectedRequestIndex
+        {
+            get => _selectedRequestIndex;
+            set
+            {
+                _selectedRequestIndex = value;
+                OnPropertyChanged(nameof(SelectedRequestIndex)); // Уведомление об изменении
             }
         }
 
@@ -112,6 +124,7 @@ namespace LLM_Waitlist_Proxy
         // Команды для кнопок
         public ICommand StartCommand { get; }
         public ICommand ResetQueueCommand { get; }
+        public ICommand UnselectQueueItemCommand { get; }
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
@@ -137,6 +150,11 @@ namespace LLM_Waitlist_Proxy
             {
                 StartServer();
             }
+        }
+
+        private void UnselectQueueItem()
+        {
+            SelectedRequestIndex = -1;
         }
 
         private void StartServer()
