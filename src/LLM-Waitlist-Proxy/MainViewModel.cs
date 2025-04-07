@@ -268,6 +268,9 @@ namespace LLM_Waitlist_Proxy
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", this.Bearer);
 
                     var content = new StringContent(request.ToString(), Encoding.UTF8, "application/json");
+
+                    //AppendConsoleOutput(request.ToString());
+
                     var requestMessage = new HttpRequestMessage(HttpMethod.Post, "http://127.0.0.1:8080/v1/chat/completions")
                     {
                         Content = content
@@ -276,6 +279,7 @@ namespace LLM_Waitlist_Proxy
                     // Используем SendAsync с опцией ResponseHeadersRead для начала обработки данных в стриминге
                     using (var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead))
                     {
+
                         response.EnsureSuccessStatusCode();
 
                         // Стрим для асинхронного чтения данных
@@ -473,6 +477,7 @@ public class JsonParser
             try
             {
                 JObject json = JObject.Parse(jsonString);
+                //MessageBox.Show(jsonString);
 
                 string finish_reason = json["choices"]?[0]?["finish_reason"]?.ToString();
 

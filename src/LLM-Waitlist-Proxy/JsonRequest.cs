@@ -52,14 +52,14 @@ namespace LLM_Waitlist_Proxy
             [JsonProperty("role")]
             public string Role { get; set; }
 
-            [JsonProperty("name")]
+            /*[JsonProperty("name")]
             public string Name { get; set; }
 
             [JsonProperty("id")]
             public string ID { get; set; }
 
             [JsonProperty("tag")]
-            public string Tag { get; set; }
+            public string Tag { get; set; }*/
 
             [JsonProperty("content")]
             public string Content { get; set; }
