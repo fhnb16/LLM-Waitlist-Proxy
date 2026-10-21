@@ -1,0 +1,69 @@
+[package]
+name = "lmq-core"
+description = "LMQ: queue server between UniversalBot and local OpenAI-compatible models"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+default = ["gpu"]
+# NVIDIA GPU monitoring through NVML (nvml.dll / libnvidia-ml.so is loaded at runtime).
+gpu = ["dep:nvml-wrapper"]
+
+[dependencies]
+anyhow = "1"
+arc-swap = "1"
+argon2 = "0.5"
+async-stream = "0.3"
+axum = { version = "0.8", features = ["macros"] }
+base64 = "0.22"
+bytes = "1"
+chacha20poly1305 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+directories = "6"
+futures = "0.3"
+hex = "0.4"
+http = "1"
+mime_guess = "2"
+minisign-verify = "0.2"
+nvml-wrapper = { version = "0.11", optional = true }
+parking_lot = "0.12"
+rand = "0.8"
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "http2", "rustls"] }
+rust-embed = { version = "8", features = ["include-exclude", "mime-guess", "interpolate-folder-path"] }
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_yaml = "0.9"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio", "derive"] }
+subtle = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["limit", "timeout", "trace", "cors"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "fmt", "registry"] }
+url = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Cryptography",
+  "Win32_System_JobObjects",
+  "Win32_System_Threading",
+  "Win32_System_Memory",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+wiremock = "0.6"

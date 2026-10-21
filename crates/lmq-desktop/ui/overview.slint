@@ -1,0 +1,171 @@
+import { ScrollView, Button } from "std-widgets.slint";
+import { Theme, Glyph } from "theme.slint";
+import { UiData, UiActions } from "store.slint";
+import { Card, PageHeader, SectionTitle, KpiTile, ChartCard, Segmented, ListRow, Slots, Meter, StatusChip, Banner, Divider, IconButton } from "widgets.slint";
+
+component ModelsCard inherits Card {
+    VerticalLayout {
+        padding: 8px;
+        spacing: 2px;
+        HorizontalLayout {
+            padding: 8px;
+            padding-bottom: 4px;
+            SectionTitle { text: @tr("Модели"); horizontal-stretch: 1; }
+        }
+        for m in UiData.models: ListRow {
+            title: m.name;
+            sub: m.state + " · " + @tr("очередь {}", m.queued) + " · " + m.running + "/" + m.slots;
+            dot: m.kind;
+            clickable: true;
+            clicked => { UiActions.navigate(2); }
+            VerticalLayout {
+                alignment: center;
+                Slots { total: m.slots; busy: m.busy; }
+            }
+        }
+        if UiData.models.length == 0: ListRow {
+            title: @tr("Моделей нет");
+            sub: @tr("Добавьте модель и апстрим — например, llama.cpp на 127.0.0.1:8080.");
+            Button {
+                text: @tr("Добавить модель");
+                primary: true;
+                clicked => { UiActions.open-panel("#/models?new=1"); }
+            }
+        }
+    }
+}
+
+component SideCards inherits VerticalLayout {
+    spacing: 16px;
+    if UiData.running.length > 0: Card {
+        VerticalLayout {
+            padding: 8px;
+            spacing: 2px;
+            HorizontalLayout {
+                padding: 8px;
+                padding-bottom: 4px;
+                SectionTitle { text: @tr("Выполняются"); }
+            }
+            for r in UiData.running: ListRow {
+                title: r.id;
+                sub: r.meta;
+                dot: "run";
+                Text {
+                    text: r.elapsed;
+                    font-size: 13px;
+                    color: Theme.text-2;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+    if UiData.engines.length > 0: Card {
+        VerticalLayout {
+            padding: 8px;
+            spacing: 2px;
+            HorizontalLayout {
+                padding: 8px;
+                padding-bottom: 4px;
+                SectionTitle { text: @tr("Движки"); }
+            }
+            for e[i] in UiData.engines: ListRow {
+                title: e.name;
+                sub: e.meta;
+                clickable: true;
+                clicked => {
+                    UiActions.engine-select(i);
+                    UiActions.navigate(3);
+                }
+                StatusChip { kind: e.kind; label: e.state; }
+            }
+        }
+    }
+    if UiData.gpus.length > 0: Card {
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            SectionTitle { text: @tr("Видеокарты"); }
+            for g in UiData.gpus: VerticalLayout {
+                spacing: 10px;
+                Text { text: g.name; font-size: 13px; color: Theme.text; overflow: elide; }
+                Meter { label: @tr("загрузка"); value: g.util; fraction: g.util-f; }
+                Meter { label: @tr("память"); value: g.mem; fraction: g.mem-f; bad: g.mem-f > 0.92; }
+                if g.temp != "": Meter { label: @tr("температура"); value: g.temp; fraction: g.temp-f; bad: g.hot; }
+            }
+        }
+    }
+}
+
+export component OverviewPage inherits Rectangle {
+    property <bool> wide: self.width >= 1060px;
+    property <int> kpi-cols: self.width >= 1180px ? 6 : self.width >= 620px ? 3 : 2;
+    property <int> chart-cols: self.width >= 900px ? 2 : 1;
+    sv := ScrollView {
+        content-width: self.visible-width;
+        content-height: content.preferred-height;
+        content := VerticalLayout {
+            width: sv.visible-width;
+            padding: 28px;
+            padding-top: 20px;
+            spacing: 16px;
+            PageHeader {
+                title: @tr("Обзор");
+                subtitle: UiData.status-line;
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: UiData.paused ? @tr("Возобновить") : @tr("Пауза");
+                        primary: UiData.paused;
+                        clicked => { UiActions.toggle-pause(); }
+                    }
+                }
+            }
+            for b in UiData.banners: Banner {
+                kind: b.kind;
+                title: b.title;
+                text: b.text;
+            }
+            for r in Math.ceil(6 / kpi-cols): HorizontalLayout {
+                spacing: 12px;
+                for c in kpi-cols: KpiTile {
+                    data: UiData.kpis[r * kpi-cols + c];
+                }
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                Text {
+                    text: @tr("Период");
+                    font-size: 13px;
+                    color: Theme.text-2;
+                    vertical-alignment: center;
+                }
+                Segmented {
+                    horizontal-stretch: 1;
+                    max-width: 520px;
+                    items: [@tr("5 мин"), @tr("1 ч"), @tr("24 ч"), @tr("7 дн"), @tr("30 дн")];
+                    current <=> UiData.range;
+                    selected(i) => { UiActions.set-range(i); }
+                }
+                Rectangle { horizontal-stretch: 1; }
+            }
+            for r in Math.ceil(UiData.charts.length / chart-cols): HorizontalLayout {
+                spacing: 12px;
+                for c in chart-cols: ChartCard {
+                    data: UiData.charts[r * chart-cols + c];
+                    visible: r * chart-cols + c < UiData.charts.length;
+                }
+            }
+            if wide: HorizontalLayout {
+                spacing: 16px;
+                alignment: stretch;
+                ModelsCard { horizontal-stretch: 3; }
+                SideCards { horizontal-stretch: 2; }
+            }
+            if !wide: VerticalLayout {
+                spacing: 16px;
+                ModelsCard { }
+                SideCards { }
+            }
+        }
+    }
+}

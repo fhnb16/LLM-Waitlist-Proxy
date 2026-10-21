@@ -1,0 +1,165 @@
+/*!theme
+id: material
+name: Material 3
+mode: light
+accent: #6750a4
+barsLight: #f7f2fa, 0.9, #f7f2fa
+barsDark: #141218, 0.9, #141218
+description: капсула 40 с контуром; главная — заливка; призрачная — текст | текст
+*/
+
+/* -------------------------------------------------------- Material ------- */
+:root[data-skin="material"] {
+  --font: Roboto, "Roboto Flex", "Google Sans Text", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif;
+  --bg: #f7f2fa;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #ece6f0;
+  --sep: #e3dce6;
+  --sep-strong: #cac4d0;
+  --text: #1d1b20;
+  --text-2: #49454f;
+  --text-3: #79747e;
+  --bar: rgba(247, 242, 250, 0.9);
+  --bar-line: rgba(0, 0, 0, 0.06);
+  --radius: 12px;
+  --radius-lg: 20px;
+  --card-radius: 20px;
+  --bar-blur: blur(18px);
+  --bar-h: 56px;
+  --tab-h: 62px;
+  --tab-indicator: 2;
+  --hero-size: 32px;
+  --hero-weight: 400;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 500;
+  --sw-w: 52px;
+  --sw-h: 32px;
+  --sw-r: 16px;
+  --sw-thumb: 16px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 8px;
+  --sw-off: var(--surface-press);
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 999px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text);
+  --seg-on: var(--tint-soft);
+  --seg-on-text: var(--text);
+  --danger: #b3261e;
+  --ok: #386a20;
+  --thumb: #79747e;
+  --on-danger: #ffffff;
+  --toast-bg: #313033;
+  --toast-text: #f4eff4;
+  --shadow-soft: rgba(0, 0, 0, 0.15);
+  --chip-r: 8px;
+}
+:root[data-skin="material"].theme--dark {
+  --bg: #141218;
+  --bg-elev: #211f26;
+  --surface: #211f26;
+  --surface-press: #2b2930;
+  --sep: #322f37;
+  --sep-strong: #49454f;
+  --text: #e6e0e9;
+  --text-2: #cac4d0;
+  --text-3: #938f99;
+  --bar: rgba(20, 18, 24, 0.9);
+  --bar-line: rgba(255, 255, 255, 0.06);
+  --danger: #f2b8b5;
+  --ok: #9ccf7f;
+  --thumb: #938f99;
+  --on-danger: #601410;
+  --toast-bg: #e6e1e5;
+  --toast-text: #313033;
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+}
+:root[data-skin="material"] .list {
+  border: 0;
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  margin: 0 12px;
+}
+:root[data-skin="material"] .list__cell,
+:root[data-skin="material"] .card,
+:root[data-skin="material"] .reply { border-bottom-color: var(--sep); }
+:root[data-skin="material"] .hero__title { font-weight: 400; font-size: 32px; letter-spacing: 0; }
+:root[data-skin="material"] .nav-bar__title { font-weight: 500; font-size: 20px; }
+:root[data-skin="material"] .card__title { font-weight: 500; }
+:root[data-skin="material"] .segmented { border-radius: 20px; }
+:root[data-skin="material"] .tag { border-radius: 8px; }
+:root[data-skin="material"] .switch { width: 52px; height: 32px; }
+:root[data-skin="material"] .switch__track { border-radius: 16px; border: 2px solid var(--sep-strong); background: var(--surface-press); }
+:root[data-skin="material"] .switch__thumb { width: 16px; height: 16px; top: 8px; left: 8px; background: var(--text-3); box-shadow: none; }
+:root[data-skin="material"] .switch__input:checked ~ .switch__track { background: var(--tint); border-color: var(--tint); }
+:root[data-skin="material"] .switch__input:checked ~ .switch__thumb { width: 24px; height: 24px; top: 4px; left: 4px; transform: translateX(20px); background: var(--on-tint); }
+/* Активный раздел — «пилюля» под иконкой. */
+:root[data-skin="material"] .tab-bar__icon { position: relative; z-index: 1; }
+:root[data-skin="material"] .tab-bar__item { justify-content: flex-start; padding: 7px 2px 6px; }
+:root[data-skin="material"] .tab-bar__label { margin-top: 4px; }
+:root[data-skin="material"] .tab-bar__item--active::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  width: 56px;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--tint-soft);
+}
+:root[data-skin="material"] .tab-bar__item--active { color: var(--text); }
+:root[data-skin="material"] .tab-bar__item--active .tab-bar__icon { color: var(--tint); }
+:root[data-skin="material"] .article__title { font-weight: 600; letter-spacing: 0; }
+/* ------------------------------------------------------------ Material ---
+   Капсулы высотой 40: обычная — с контуром, главная — заливка,
+   «призрачная» — текстовая. Подпись 14, начертание 500. Нажатие — слой
+   акцента поверх. Мелкая кнопка — «чип» со скруглением 8.                 */
+:root[data-skin="material"] .btn {
+  min-height: 40px;
+  padding: 8px 24px;
+  border: 1px solid #79747e;
+  border-radius: 20px;
+  background: none;
+  color: var(--tint);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+:root[data-skin="material"] .btn:active { background: var(--tint-soft); color: var(--tint); }
+:root[data-skin="material"] .btn--filled { border-color: transparent; background: var(--tint); color: var(--on-tint); }
+:root[data-skin="material"] .btn--filled:active { background: var(--tint-press); color: var(--on-tint); }
+:root[data-skin="material"] .btn--ghost { border-color: transparent; }
+:root[data-skin="material"] .btn--danger { border-color: var(--danger); color: var(--danger); }
+:root[data-skin="material"] .trbar__btn {
+  border: 1px solid #79747e;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+}
+:root[data-skin="material"] .nav-bar__btn { font-size: 15px; font-weight: 500; }
+:root[data-skin="material"] { --group-mx: 12px; }
+:root[data-skin="material"] { --group-r: var(--card-radius); }
+
+/* Компьютер: выделение как в навигационной панели Material 3 — индикатор во
+   всю строку «пилюлей» высотой 56px (на телефоне пилюля 56×30 у значка над
+   подписью — в строке она съезжала). Подпись и значок — над индикатором. */
+@media (min-width: 1024px) {
+  :root[data-skin="material"] .tab-bar { gap: 4px; padding-left: calc(12px + var(--safe-l)) !important; padding-right: 12px !important; }
+  :root[data-skin="material"] .tab-bar__item { min-height: 56px; border-radius: 28px; padding: 0 16px !important; gap: 12px !important; }
+  :root[data-skin="material"] .tab-bar__label { position: relative; z-index: 1; margin-top: 0; font-size: 14px; font-weight: 500; letter-spacing: 0.01em; }
+  :root[data-skin="material"] .tab-bar__item--active { background: none; }
+  :root[data-skin="material"] .tab-bar__item--active::before { top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; border-radius: 28px; }
+}
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="material"] { --modal-r: 28px; --modal-head-border: 0; --modal-shadow: 0 8px 28px rgba(0, 0, 0, 0.28); --toast-r: 4px; --callout-r: 12px; }
+/* Диалог Material 3: заголовок крупный и светлый, кнопки без разделителя. */
+:root[data-skin="material"] .modal__head { padding-top: 22px; }
+:root[data-skin="material"] .modal__title { font-size: 22px; font-weight: 400; }
+:root[data-skin="material"] .modal__foot { border-top: 0; padding-bottom: 20px; }

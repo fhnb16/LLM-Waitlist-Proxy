@@ -1,0 +1,879 @@
+/*!theme
+id: vapor
+name: Vapor
+mode: dark
+accent: #2d73ff
+barsLight: #e9ecf0, 0.94, #dde1e6
+barsDark: #171a1f, 0.94, #25282e
+description: Диалоги десктопного игрового клиента 2020-х — графитовые окна #25282E с радиальным бликом из левого верхнего угла, шрифт Motiva Sans, плоские кнопки #3D4450 с всплывающей тенью при наведении, главная кнопка — градиент из акцента, который «переливается» при наведении и нажатии; утопленные дорожки переключателей и прогресса со светящимся заполнением, сегменты капсом, тонкая полоса акцента над шапкой и красный крестик закрытия.
+*/
+
+/* ==========================================================================
+   Vapor — тема по референсу stRefLib.css (общая библиотека диалогов
+   игрового клиента: DialogButton, DialogToggleField, DialogSlider,
+   DialogCheckbox, ModalPosition_TopBar, title-area-highlight).
+
+   Почему так:
+   - Основной режим тёмный: в референсе есть только тёмные окна (#25282E,
+     #23262E, #0E141B). Светлый режим выведен из той же схемы: холодный
+     серо-голубой «бумажный» вариант с теми же приёмами и тем же акцентом.
+   - Акцент #2D73FF — цвет включённой опции DialogToggleField. Все градиенты
+     референса (#00CCFF → #2D73FF у ползунка, #47BFFF → #1A44C2 у главной
+     кнопки) пересобраны из --tint через color-mix: тема не держит ни одного
+     захардкоженного «акцентного» цвета и живёт с любым акцентом.
+   - Шрифт: Motiva Sans, если установлен; иначе Segoe UI / Helvetica / Arial.
+   - Главный приём — «переливающаяся» главная кнопка: градиент шириной 330 %,
+     наведение сдвигает его к светлому краю (0 %), нажатие — к тёмному (40 %).
+   - Второй приём — полоса акцента в 1px над шапкой и угасающий блик под ней
+     (ModalPosition_TopBar + title-area-highlight).
+   - Подписи групп, сегменты, подписи вкладок и заголовок экрана — капсом,
+     как DialogLabel, DialogToggleField_Option и DialogSubHeader.
+   - Высокий контраст (prefers-contrast: more) — чёрно-белые кнопки, как в
+     референсе.
+   ========================================================================== */
+
+/* ------------------------------------------------------- Токены: Тёмный --- */
+:root[data-skin="vapor"] {
+  /* 1. Типографика */
+  --font: "Motiva Sans", "Segoe UI", "Helvetica Neue", Arial, Helvetica, sans-serif;
+  --hero-size: 26px;
+  --hero-weight: 300;
+  --hero-tracking: 0.08em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+
+  /* 2. Геометрия и радиусы — почти прямые углы, как у диалогов */
+  --radius: 3px;
+  --radius-lg: 4px;
+  --card-radius: 4px;
+  --chip-r: 2px;
+  --bar-h: 46px;
+  --tab-h: 52px;
+  --bar-blur: saturate(140%) blur(16px);
+
+  /* 3. Переключатель — утопленная дорожка DialogSlider */
+  --sw-w: 44px;
+  --sw-h: 22px;
+  --sw-r: 11px;
+  --sw-thumb: 16px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 3px;
+  --sw-off: #202226;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 0 2px 2px rgba(0, 0, 0, 0.2);
+
+  /* 4. Сегменты — DialogToggleField */
+  --seg-r: 3px;
+  --seg-line: #3a3f48;
+  --seg-text: #9ea4ab;
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+
+  /* 5. Палитра и поверхности */
+  --bg: #25282e;
+  --bg-elev: #2a2e35;
+  --surface: #2e323a;
+  --surface-press: #393f49;
+  --sep: #3a3f48;
+  --sep-strong: #4a515c;
+  --text: #dfe3e6;
+  --text-2: #acb2b8;
+  --text-3: #7e848b;
+  --bar: rgba(23, 26, 31, 0.94);
+  --bar-line: rgba(0, 0, 0, 0.5);
+  --danger: #c9433f;
+  --on-danger: #ffffff;
+  --ok: #8ac329;
+  --thumb: #dfe3e6;
+  --toast-bg: rgba(14, 20, 27, 0.96);
+  --toast-text: #dfe3e6;
+  --shadow-soft: rgba(0, 0, 0, 0.5);
+
+  /* 6. Необязательные токены каркаса */
+  --group-r: 3px;
+  --group-bg: var(--surface);
+  --group-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --field-bg: rgba(59, 63, 72, 0.5);
+  --field-line: transparent;
+  --field-shadow: none;
+  --focus-bg: color-mix(in srgb, var(--tint) 8%, transparent);
+  --tint-text: color-mix(in srgb, var(--tint) 60%, #ffffff);
+  --seg-pad: 0px;
+  --seg-item-r: 0px;
+  --dur: 0.2s;
+  --modal-r: 3px;
+  --modal-bg: var(--bg-elev);
+  --modal-shadow: 0 8px 38px 5px rgba(0, 0, 0, 0.75);
+  --overlay: rgba(0, 0, 0, 0.8);
+  --toast-r: 3px;
+  --callout-r: 3px;
+
+  /* 7. Собственные токены темы */
+  --vp-head: #ffffff;
+  --vp-btn: #3d4450;
+  --vp-btn-hover: #464d58;
+  --vp-btn-press: #393f49;
+  --vp-btn-text: #dfe3e6;
+  --vp-btn-hover-text: #ffffff;
+  --vp-btn-off: rgba(61, 67, 77, 0.35);
+  --vp-btn-off-text: #5a626e;
+  --vp-btn-lift: 0 8px 16px rgba(0, 0, 0, 0.3);
+  --vp-btn-sink: 0 1px 4px rgba(0, 0, 0, 0.6);
+  --vp-row-hover: #363b44;
+  --vp-well: #202226;
+  --vp-well-rim: #2a2d33;
+  --vp-well-shade: #131313;
+  --vp-field-focus: #23262e;
+  --vp-field-focus-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.67);
+  --vp-placeholder: #969696;
+  --vp-close: #788a92;
+  --vp-close-hover: #e22a27;
+  --vp-link-hover: color-mix(in srgb, var(--tint) 30%, #ffffff);
+  --vp-danger-text: color-mix(in srgb, var(--danger) 55%, #ffffff);
+  --vp-glow: color-mix(in srgb, var(--tint) 22%, transparent);
+  --vp-line: linear-gradient(to right, color-mix(in srgb, var(--tint) 50%, #ffffff), var(--tint));
+  --vp-fill: linear-gradient(to bottom, color-mix(in srgb, var(--tint) 50%, #ffffff) 0%, var(--tint) 80%);
+  --vp-grab: linear-gradient(to bottom, color-mix(in srgb, var(--tint) 35%, #ffffff) 0%, color-mix(in srgb, var(--tint) 55%, #ffffff) 80%);
+  --vp-primary: linear-gradient(to right, color-mix(in srgb, var(--tint) 60%, #ffffff) 0%, color-mix(in srgb, var(--tint) 72%, #000000) 60%);
+  --vp-page: radial-gradient(circle at top left, rgba(74, 81, 92, 0.4) 0%, rgba(75, 81, 92, 0) 60%), #25282e;
+  --vp-sheen: radial-gradient(circle at top left, rgba(74, 81, 92, 0.4) 0%, rgba(75, 81, 92, 0) 60%);
+
+  color-scheme: dark;
+  scrollbar-color: rgba(180, 192, 201, 0.4) transparent;
+}
+
+/* ------------------------------------------------------ Токены: Светлый --- */
+:root[data-skin="vapor"]:not(.theme--dark) {
+  --sw-off: #c3c9d1;
+  --sw-shadow: 0 1px 2px rgba(20, 26, 34, 0.35);
+  --seg-line: #d3d8de;
+  --seg-text: #565e69;
+
+  --bg: #dde1e6;
+  --bg-elev: #f3f5f7;
+  --surface: #f7f8fa;
+  --surface-press: #e1e5ea;
+  --sep: #dde1e6;
+  --sep-strong: #b5bcc5;
+  --text: #1c2026;
+  --text-2: #565e69;
+  --text-3: #8a929c;
+  --bar: rgba(233, 236, 240, 0.94);
+  --bar-line: rgba(28, 32, 38, 0.16);
+  --danger: #c23b37;
+  --ok: #4a7a16;
+  --thumb: #ffffff;
+  --toast-bg: rgba(37, 40, 46, 0.96);
+  --toast-text: #f3f5f7;
+  --shadow-soft: rgba(25, 30, 40, 0.18);
+
+  --group-shadow: 0 1px 4px rgba(25, 30, 40, 0.14);
+  --field-bg: #e8ebef;
+  --tint-text: color-mix(in srgb, var(--tint) 50%, #000000);
+  --modal-shadow: 0 8px 38px 5px rgba(25, 30, 40, 0.3);
+  --overlay: rgba(20, 24, 30, 0.55);
+
+  --vp-head: #12161b;
+  --vp-btn: #d8dde3;
+  --vp-btn-hover: #cdd3da;
+  --vp-btn-press: #c2c9d1;
+  --vp-btn-text: #1c2026;
+  --vp-btn-hover-text: #0b0e12;
+  --vp-btn-off: rgba(200, 206, 214, 0.45);
+  --vp-btn-off-text: #9aa2ac;
+  --vp-btn-lift: 0 6px 12px rgba(25, 30, 40, 0.16);
+  --vp-btn-sink: inset 0 1px 3px rgba(25, 30, 40, 0.3);
+  --vp-row-hover: #eceff3;
+  --vp-well: #c9cfd6;
+  --vp-well-rim: #e3e7eb;
+  --vp-well-shade: #9aa2ac;
+  --vp-field-focus: #ffffff;
+  --vp-field-focus-shadow: inset 1px 1px 3px rgba(25, 30, 40, 0.28);
+  --vp-placeholder: #8a929c;
+  --vp-close: #6b7680;
+  --vp-link-hover: color-mix(in srgb, var(--tint) 40%, #000000);
+  --vp-danger-text: var(--danger);
+  --vp-glow: color-mix(in srgb, var(--tint) 14%, transparent);
+  --vp-page: radial-gradient(circle at top left, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 60%), #dde1e6;
+  --vp-sheen: radial-gradient(circle at top left, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 60%);
+
+  color-scheme: light;
+  scrollbar-color: rgba(86, 94, 105, 0.45) transparent;
+}
+
+/* ==========================================================================
+   Правила темы
+   ========================================================================== */
+
+/* Подложка страницы: графит с бликом из левого верхнего угла (DialogContent) */
+:root[data-skin="vapor"] body::before {
+  background: var(--vp-page);
+}
+
+/* ---------------------------------------------------------------- Шапка --- */
+/* Полоса акцента в 1px сверху и угасающий блик под ней */
+:root[data-skin="vapor"] .nav-bar {
+  background:
+    var(--vp-line) top left / 100% 1px no-repeat,
+    linear-gradient(to bottom, var(--vp-glow) 0, transparent 24px),
+    var(--bar);
+  box-shadow: 0 2px 10px var(--shadow-soft);
+}
+
+:root[data-skin="vapor"] .nav-bar__title {
+  color: var(--vp-head);
+}
+
+:root[data-skin="vapor"] .nav-bar__btn {
+  border-radius: var(--radius);
+  color: var(--tint-text);
+  transition: background var(--dur) ease-out, color var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .nav-bar__btn:active {
+  background: var(--vp-btn-press);
+  color: var(--vp-head);
+  transition-duration: 0.04s;
+}
+
+:root[data-skin="vapor"] .nav-bar__btn:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .nav-bar__btn:hover {
+    background: var(--vp-btn);
+    color: var(--vp-head);
+  }
+}
+
+/* ------------------------------------------------- Заголовки и подписи --- */
+/* Заголовок экрана — DialogSubHeader: тонкий, капсом, с разрядкой */
+:root[data-skin="vapor"] .hero__title {
+  color: var(--vp-head);
+  text-transform: uppercase;
+}
+
+:root[data-skin="vapor"] .hero__sub {
+  color: var(--text-2);
+}
+
+/* Подпись группы — DialogLabel */
+:root[data-skin="vapor"] .group__title {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 300;
+  text-transform: uppercase;
+}
+
+:root[data-skin="vapor"] .group__note {
+  color: var(--text-3);
+}
+
+:root[data-skin="vapor"] .post__title,
+:root[data-skin="vapor"] .article__title,
+:root[data-skin="vapor"] .modal__title,
+:root[data-skin="vapor"] .card__title {
+  color: var(--vp-head);
+}
+
+:root[data-skin="vapor"] .state__title {
+  color: var(--vp-head);
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+:root[data-skin="vapor"] .state__text,
+:root[data-skin="vapor"] .post__meta {
+  color: var(--text-2);
+}
+
+/* ------------------------------------------------------ Группы и строки --- */
+:root[data-skin="vapor"] .list {
+  background: var(--surface);
+  box-shadow: var(--group-shadow);
+}
+
+:root[data-skin="vapor"] .list__chevron {
+  color: var(--text-3);
+}
+
+:root[data-skin="vapor"] .list__cell--link {
+  transition: background var(--dur) ease-out, color var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .list__cell--link:active {
+  background: var(--surface-press);
+  transition-duration: 0.04s;
+}
+
+:root[data-skin="vapor"] .list__cell--link:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: -2px;
+}
+
+:root[data-skin="vapor"] .list__cell--tint {
+  color: var(--tint-text);
+}
+
+:root[data-skin="vapor"] .list__cell--danger {
+  color: var(--vp-danger-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .list__cell--link:hover {
+    background: var(--vp-row-hover);
+  }
+
+  :root[data-skin="vapor"] .list__cell--link:hover .list__label {
+    color: var(--vp-head);
+  }
+}
+
+/* ------------------------------------------------------------- Кнопки --- */
+/* DialogButton: плоская плашка, при наведении светлеет и «всплывает» тенью */
+:root[data-skin="vapor"] .btn,
+:root[data-skin="vapor"] .trbar__btn {
+  border-color: transparent;
+  border-radius: 2px;
+  background: var(--vp-btn);
+  box-shadow: none;
+  color: var(--vp-btn-text);
+  font-weight: 400;
+  text-shadow: none;
+  transition: background var(--dur) ease-out, background-position var(--dur) ease-out,
+    color var(--dur) ease-out, box-shadow var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .btn:active,
+:root[data-skin="vapor"] .trbar__btn:active {
+  background: var(--vp-btn-press);
+  box-shadow: var(--vp-btn-sink);
+  color: var(--vp-btn-hover-text);
+  transition-duration: 0.04s;
+}
+
+:root[data-skin="vapor"] .btn:focus-visible,
+:root[data-skin="vapor"] .trbar__btn:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: 2px;
+}
+
+:root[data-skin="vapor"] .btn:disabled,
+:root[data-skin="vapor"] .trbar__btn:disabled {
+  background: var(--vp-btn-off);
+  box-shadow: none;
+  color: var(--vp-btn-off-text);
+  cursor: default;
+}
+
+/* Главная кнопка: градиент из акцента шириной 330 %; позиция — состояние */
+:root[data-skin="vapor"] .btn--filled {
+  background: var(--vp-primary);
+  background-position: 25% 0;
+  background-size: 330% 100%;
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-skin="vapor"] .btn--filled:active {
+  background: var(--vp-primary);
+  background-position: 40% 0;
+  background-size: 330% 100%;
+  color: #ffffff;
+}
+
+/* Опасное действие — тот же приём на цвете опасности */
+:root[data-skin="vapor"] .btn--danger {
+  background: linear-gradient(to right, color-mix(in srgb, var(--danger) 65%, #ffffff) 0%, color-mix(in srgb, var(--danger) 70%, #000000) 60%);
+  background-position: 25% 0;
+  background-size: 330% 100%;
+  color: var(--on-danger);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-skin="vapor"] .btn--danger:active {
+  background: linear-gradient(to right, color-mix(in srgb, var(--danger) 65%, #ffffff) 0%, color-mix(in srgb, var(--danger) 70%, #000000) 60%);
+  background-position: 40% 0;
+  background-size: 330% 100%;
+  color: var(--on-danger);
+}
+
+:root[data-skin="vapor"] .btn--filled:disabled,
+:root[data-skin="vapor"] .btn--danger:disabled {
+  background: var(--vp-btn-off);
+  color: var(--vp-btn-off-text);
+  text-shadow: none;
+}
+
+/* Кнопка-текст — TextButton: без плашки, пунктир снизу при наведении */
+:root[data-skin="vapor"] .btn--ghost {
+  background: transparent;
+  color: var(--tint-text);
+  text-decoration: underline dotted transparent;
+  text-underline-offset: 3px;
+}
+
+:root[data-skin="vapor"] .btn--ghost:active {
+  background: transparent;
+  box-shadow: none;
+  color: var(--vp-link-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .btn:hover:not(:disabled),
+  :root[data-skin="vapor"] .trbar__btn:hover:not(:disabled) {
+    background: var(--vp-btn-hover);
+    box-shadow: var(--vp-btn-lift);
+    color: var(--vp-btn-hover-text);
+  }
+
+  :root[data-skin="vapor"] .btn--filled:hover:not(:disabled) {
+    background: var(--vp-primary);
+    background-position: 0% 0;
+    background-size: 330% 100%;
+    color: #ffffff;
+  }
+
+  :root[data-skin="vapor"] .btn--danger:hover:not(:disabled) {
+    background: linear-gradient(to right, color-mix(in srgb, var(--danger) 65%, #ffffff) 0%, color-mix(in srgb, var(--danger) 70%, #000000) 60%);
+    background-position: 0% 0;
+    background-size: 330% 100%;
+    color: var(--on-danger);
+  }
+
+  :root[data-skin="vapor"] .btn--ghost:hover:not(:disabled) {
+    background: transparent;
+    box-shadow: none;
+    color: var(--vp-link-hover);
+    text-decoration-color: currentColor;
+  }
+
+  :root[data-skin="vapor"] .btn,
+  :root[data-skin="vapor"] .trbar__btn,
+  :root[data-skin="vapor"] .segmented__item,
+  :root[data-skin="vapor"] .hot__chip,
+  :root[data-skin="vapor"] .card {
+    cursor: pointer;
+  }
+}
+
+/* -------------------------------------------------------- Переключатель --- */
+/* Дорожка — утопленный жёлоб DialogSlider, заполнение и бегунок — из акцента */
+:root[data-skin="vapor"] .switch__track {
+  background: var(--vp-well);
+  box-shadow: 0 0 0 1px var(--vp-well-rim), inset 0 6px 6px -5px var(--vp-well-shade);
+}
+
+:root[data-skin="vapor"] .switch__thumb {
+  background: linear-gradient(to bottom, #ffffff 0%, var(--thumb) 80%);
+}
+
+:root[data-skin="vapor"] .switch__input:checked ~ .switch__track {
+  background: var(--vp-fill);
+  box-shadow: 0 0 0 1px var(--vp-well-rim), 0 0 8px var(--vp-glow);
+}
+
+:root[data-skin="vapor"] .switch__input:checked ~ .switch__thumb {
+  background: var(--vp-grab);
+}
+
+:root[data-skin="vapor"] .switch__input:focus-visible ~ .switch__track {
+  outline: 2px solid var(--tint-text);
+  outline-offset: 3px;
+}
+
+:root[data-skin="vapor"] .switch__input:disabled ~ .switch__track,
+:root[data-skin="vapor"] .switch__input:disabled ~ .switch__thumb {
+  opacity: 0.5;
+  filter: saturate(0.35);
+}
+
+/* ------------------------------------------------------------- Сегменты --- */
+/* DialogToggleField: плашка, подписи капсом, выбранный — заливка акцентом */
+:root[data-skin="vapor"] .segmented {
+  background: var(--vp-btn);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-skin="vapor"] .segmented__item {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 250ms, color 250ms;
+}
+
+:root[data-skin="vapor"] .segmented__item--active {
+  background: var(--seg-on);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--tint) 60%, #000000);
+  color: var(--seg-on-text);
+  font-weight: 700;
+}
+
+:root[data-skin="vapor"] .segmented__item:active:not(.segmented__item--active) {
+  background: var(--vp-btn-press);
+}
+
+:root[data-skin="vapor"] .segmented__item:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .segmented__item:not(.segmented__item--active):hover {
+    background: var(--vp-btn-hover);
+    color: var(--vp-btn-hover-text);
+  }
+}
+
+/* --------------------------------------------------------- Поля формы --- */
+/* DialogTextInputBase: полупрозрачная плашка; в фокусе — темнее и утоплена */
+:root[data-skin="vapor"] .field__input,
+:root[data-skin="vapor"] .field__select,
+:root[data-skin="vapor"] .search__box {
+  border-radius: var(--radius);
+  background: var(--field-bg);
+  color: var(--text);
+  font-weight: 300;
+  transition: background var(--dur) ease-out, box-shadow var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .field__input:focus,
+:root[data-skin="vapor"] .field__select:focus,
+:root[data-skin="vapor"] .search__box:focus-within {
+  background: var(--vp-field-focus);
+  box-shadow: var(--vp-field-focus-shadow);
+}
+
+:root[data-skin="vapor"] .field__input::placeholder,
+:root[data-skin="vapor"] .search__input::placeholder {
+  color: var(--vp-placeholder);
+  font-style: italic;
+}
+
+:root[data-skin="vapor"] .field__label {
+  color: var(--text-2);
+}
+
+:root[data-skin="vapor"] .field__hint {
+  color: var(--text-3);
+}
+
+/* --------------------------------------------------------- Карточки --- */
+:root[data-skin="vapor"] .card,
+:root[data-skin="vapor"] .post,
+:root[data-skin="vapor"] .article {
+  border-color: transparent;
+  border-radius: var(--card-radius);
+  background: var(--vp-sheen), var(--surface);
+  box-shadow: 0 2px 8px var(--shadow-soft);
+}
+
+:root[data-skin="vapor"] .card {
+  transition: background var(--dur) ease-out, box-shadow var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .card:active {
+  background: var(--surface-press);
+  box-shadow: var(--vp-btn-sink);
+  transition-duration: 0.04s;
+}
+
+:root[data-skin="vapor"] .card:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: 2px;
+}
+
+:root[data-skin="vapor"] .card--pinned {
+  box-shadow: inset 3px 0 0 var(--tint), 0 2px 8px var(--shadow-soft);
+}
+
+:root[data-skin="vapor"] .card__author,
+:root[data-skin="vapor"] .reply__author,
+:root[data-skin="vapor"] .post__author {
+  color: var(--tint-text);
+}
+
+:root[data-skin="vapor"] .card__time,
+:root[data-skin="vapor"] .card__seq,
+:root[data-skin="vapor"] .card__foot {
+  color: var(--text-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .card:hover {
+    background: var(--vp-sheen), var(--vp-row-hover);
+    box-shadow: var(--vp-btn-lift);
+  }
+
+  :root[data-skin="vapor"] .card--pinned:hover {
+    box-shadow: inset 3px 0 0 var(--tint), var(--vp-btn-lift);
+  }
+}
+
+/* ----------------------------------------------------------- Теги, чипы --- */
+:root[data-skin="vapor"] .tag {
+  border-radius: var(--chip-r);
+  background: var(--vp-btn);
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+:root[data-skin="vapor"] .tag--warn {
+  background: color-mix(in srgb, var(--warn) 24%, transparent);
+  color: var(--text);
+}
+
+/* Чип — метка магазина: полупрозрачный акцент */
+:root[data-skin="vapor"] .hot__chip {
+  border-color: transparent;
+  border-radius: var(--chip-r);
+  background: color-mix(in srgb, var(--tint) 18%, transparent);
+  color: var(--tint-text);
+  transition: background var(--dur) ease-out, color var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .hot__chip:active {
+  background: var(--tint-press);
+  color: var(--on-tint);
+}
+
+:root[data-skin="vapor"] .hot__chip:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: 2px;
+}
+
+/* «Живой» чип — зелёная кнопка запуска (GreenPlay) из цвета успеха */
+:root[data-skin="vapor"] .hot__chip--live {
+  background: linear-gradient(to right, var(--ok) 0%, color-mix(in srgb, var(--ok) 45%, #000000) 60%);
+  background-position: 25% 0;
+  background-size: 330% 100%;
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .hot__chip:not(.hot__chip--live):hover {
+    background: var(--tint);
+    color: var(--on-tint);
+  }
+
+  :root[data-skin="vapor"] .hot__chip--live:hover {
+    background-position: 0% 0;
+  }
+}
+
+/* ------------------------------------------------------- Индикаторы --- */
+/* Жёлоб с ободком и внутренней тенью, заполнение светится из акцента */
+:root[data-skin="vapor"] .meter__track,
+:root[data-skin="vapor"] .chart__track {
+  border-radius: 10px;
+  background: var(--vp-well);
+  box-shadow: 0 0 0 2px var(--vp-well-rim), inset 0 6px 6px -5px var(--vp-well-shade);
+}
+
+:root[data-skin="vapor"] .meter__fill,
+:root[data-skin="vapor"] .chart__bar {
+  border-radius: 10px;
+  background: var(--vp-fill);
+}
+
+:root[data-skin="vapor"] .meter__fill--warn {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--warn) 50%, #ffffff) 0%, var(--warn) 80%);
+}
+
+/* ------------------------------------------------- Баннер, уведомление --- */
+/* Полоса сверху — ModalPosition_TopBar; у опасного — красная (Destructive) */
+:root[data-skin="vapor"] .banner {
+  border-color: transparent;
+  background: var(--vp-line) top left / 100% 2px no-repeat, var(--vp-sheen), var(--surface);
+  box-shadow: 0 2px 8px var(--shadow-soft);
+}
+
+:root[data-skin="vapor"] .banner--warn {
+  background: linear-gradient(var(--warn), var(--warn)) top left / 100% 2px no-repeat,
+    color-mix(in srgb, var(--warn) 10%, var(--surface));
+}
+
+:root[data-skin="vapor"] .banner--danger {
+  background: linear-gradient(var(--danger), var(--danger)) top left / 100% 2px no-repeat,
+    color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+:root[data-skin="vapor"] .toast {
+  background: var(--vp-line) top left / 100% 1px no-repeat, var(--toast-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--toast-text);
+}
+
+:root[data-skin="vapor"] .toast--ok {
+  background: linear-gradient(var(--ok), var(--ok)) top left / 100% 2px no-repeat, var(--toast-bg);
+}
+
+:root[data-skin="vapor"] .toast--warn {
+  background: linear-gradient(var(--warn), var(--warn)) top left / 100% 2px no-repeat, var(--toast-bg);
+}
+
+:root[data-skin="vapor"] .toast--error {
+  background: linear-gradient(var(--danger), var(--danger)) top left / 100% 2px no-repeat, var(--toast-bg);
+}
+
+/* ------------------------------------------------------ Модальное окно --- */
+:root[data-skin="vapor"] .modal__panel {
+  background: var(--vp-line) top left / 100% 1px no-repeat, var(--vp-sheen), var(--modal-bg);
+  box-shadow: var(--modal-shadow);
+}
+
+:root[data-skin="vapor"] .modal__close {
+  border-radius: var(--radius);
+  color: var(--vp-close);
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+:root[data-skin="vapor"] .modal__close:active {
+  background: var(--vp-close-hover);
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* Красный крестик закрытия, как у заголовка окна клиента */
+  :root[data-skin="vapor"] .modal__close:hover {
+    background: var(--vp-close-hover);
+    color: #ffffff;
+  }
+}
+
+/* ------------------------------------------------------------- Текст --- */
+:root[data-skin="vapor"] .rich a {
+  color: var(--tint-text);
+  text-decoration: none;
+}
+
+:root[data-skin="vapor"] .rich a:active {
+  color: var(--vp-link-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .rich a:hover {
+    color: var(--vp-link-hover);
+    text-decoration: underline;
+  }
+}
+
+:root[data-skin="vapor"] .rich code {
+  border-radius: 2px;
+  background: var(--vp-well);
+  color: var(--text);
+}
+
+:root[data-skin="vapor"] .rich pre {
+  border-radius: var(--radius);
+  background: var(--vp-well);
+  box-shadow: inset 0 6px 6px -5px var(--vp-well-shade);
+}
+
+:root[data-skin="vapor"] .rich pre code {
+  background: transparent;
+}
+
+:root[data-skin="vapor"] .rich blockquote {
+  border-left-color: var(--tint);
+  background: color-mix(in srgb, var(--tint) 7%, transparent);
+  color: var(--text-2);
+}
+
+/* ------------------------------------------------------ Нижняя панель --- */
+/* Подписи капсом, выбранная вкладка — полоса акцента сверху и блик под ней */
+:root[data-skin="vapor"] .tab-bar {
+  background: var(--bar);
+  box-shadow: 0 -2px 10px var(--shadow-soft);
+}
+
+:root[data-skin="vapor"] .tab-bar__item {
+  color: var(--text-3);
+  transition: background var(--dur) ease-out, color var(--dur) ease-out;
+}
+
+:root[data-skin="vapor"] .tab-bar__label {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+:root[data-skin="vapor"] .tab-bar__item--active {
+  background: linear-gradient(to bottom, var(--vp-glow), transparent 70%);
+  box-shadow: inset 0 2px 0 var(--tint);
+  color: var(--vp-head);
+}
+
+:root[data-skin="vapor"] .tab-bar__item--active .tab-bar__icon {
+  color: var(--tint-text);
+}
+
+:root[data-skin="vapor"] .tab-bar__item:active {
+  color: var(--vp-head);
+}
+
+:root[data-skin="vapor"] .tab-bar__item:focus-visible {
+  outline: 2px solid var(--tint-text);
+  outline-offset: -3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="vapor"] .tab-bar__item:not(.tab-bar__item--active):hover {
+    color: var(--text);
+  }
+}
+
+/* ------------------------------------------------- Высокий контраст --- */
+@media (prefers-contrast: more) {
+  :root[data-skin="vapor"] .btn,
+  :root[data-skin="vapor"] .btn--filled,
+  :root[data-skin="vapor"] .btn--danger,
+  :root[data-skin="vapor"] .trbar__btn {
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--text);
+    color: var(--text);
+    text-shadow: none;
+  }
+
+  :root[data-skin="vapor"] .btn:active,
+  :root[data-skin="vapor"] .trbar__btn:active {
+    background: var(--text);
+    color: var(--bg);
+  }
+}
+
+/* ==========================================================================
+   Компьютер (от 1024px): боковая навигация.
+   Выделение вкладки — не псевдоэлемент, а фон и box-shadow, но их
+   направление завязано на нижнюю панель (полоса сверху, блик вниз),
+   поэтому в боковой панели полоса переезжает к левому краю, блик — вправо.
+   Геометрию панели не трогаем.
+   ========================================================================== */
+@media (min-width: 1024px) {
+  :root[data-skin="vapor"] .tab-bar {
+    background: var(--vp-sheen), var(--bar);
+    box-shadow: inset -1px 0 0 var(--bar-line), 2px 0 10px var(--shadow-soft);
+  }
+
+  :root[data-skin="vapor"] .tab-bar__item {
+    border-radius: 2px;
+  }
+
+  :root[data-skin="vapor"] .tab-bar__item--active {
+    background: linear-gradient(to right, color-mix(in srgb, var(--tint) 26%, transparent), color-mix(in srgb, var(--tint) 6%, transparent));
+    box-shadow: inset 3px 0 0 var(--tint);
+    color: var(--vp-head);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    :root[data-skin="vapor"] .tab-bar__item:not(.tab-bar__item--active):hover {
+      background: color-mix(in srgb, var(--text) 7%, transparent);
+      color: var(--vp-head);
+    }
+  }
+}

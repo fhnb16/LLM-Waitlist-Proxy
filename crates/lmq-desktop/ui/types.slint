@@ -1,0 +1,133 @@
+// Данные, которые Rust передаёт окну.
+
+export struct Kpi {
+    title: string,
+    value: string,
+    unit: string,
+    sub: string,
+    spark: string,
+    bad: bool,
+}
+
+/// Пути `p1`/`p2`/`a1` — в координатах 1000×100. `status` — серии «успех/ошибка».
+export struct Chart {
+    title: string,
+    summary: string,
+    empty: bool,
+    bars: bool,
+    status: bool,
+    y-max: string,
+    y-mid: string,
+    x0: string,
+    x1: string,
+    x2: string,
+    l1: string,
+    l2: string,
+    p1: string,
+    a1: string,
+    p2: string,
+    n: int,
+    tips: [string],
+}
+
+export struct UpstreamRow {
+    id: string,
+    url: string,
+    slots: int,
+    busy: int,
+    kind: string,
+    state: string,
+    error: string,
+}
+
+export struct ModelRow {
+    name: string,
+    description: string,
+    queued: int,
+    running: int,
+    slots: int,
+    busy: int,
+    kind: string,
+    state: string,
+    enabled: bool,
+    aliases: string,
+    fallback: string,
+    upstreams: [UpstreamRow],
+    test: string,
+    testing: bool,
+}
+
+export struct RunRow {
+    id: string,
+    meta: string,
+    elapsed: string,
+}
+
+export struct JobRow {
+    id: string,
+    model: string,
+    meta: string,
+    kind: string,
+    state: string,
+    when: string,
+    timing: string,
+    error: string,
+    can-cancel: bool,
+    can-redeliver: bool,
+}
+
+export struct EngineRow {
+    id: string,
+    name: string,
+    kind: string,
+    state: string,
+    meta: string,
+    endpoint: string,
+    command: string,
+    last-exit: string,
+    running: bool,
+}
+
+export struct LogLine {
+    time: string,
+    level: string,
+    text: string,
+}
+
+export struct ClientRow {
+    name: string,
+    note: string,
+    enabled: bool,
+    created: string,
+    from-env: bool,
+}
+
+export struct GpuRow {
+    name: string,
+    util: string,
+    util-f: float,
+    mem: string,
+    mem-f: float,
+    temp: string,
+    temp-f: float,
+    hot: bool,
+}
+
+/// Поле настроек. `kind`: header | text | number | bool | select | secret.
+export struct FieldRow {
+    kind: string,
+    path: string,
+    label: string,
+    hint: string,
+    value: string,
+    checked: bool,
+    locked: bool,
+    options: [string],
+    index: int,
+}
+
+export struct BannerRow {
+    kind: string,
+    title: string,
+    text: string,
+}

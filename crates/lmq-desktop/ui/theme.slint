@@ -1,0 +1,84 @@
+// Токены нативного окна поверх палитры Fluent. Поверхности полупрозрачные, чтобы
+// сквозь них читалась подложка Mica/Acrylic; при `solid` — непрозрачные.
+
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    in-out property <bool> dark;
+    in-out property <bool> solid;
+    /// "Segoe Fluent Icons" (Windows 11) или "Segoe MDL2 Assets" (Windows 10).
+    in-out property <string> icon-font: "Segoe Fluent Icons";
+
+    out property <brush> window-solid: dark ? #202020 : #f3f3f3;
+    out property <brush> card: solid ? (dark ? #2b2b2b : #ffffff) : (dark ? #ffffff0d : #ffffffb3);
+    out property <brush> card-hover: solid ? (dark ? #323232 : #f9f9f9) : (dark ? #ffffff15 : #ffffffd9);
+    out property <brush> pane: dark ? #00000026 : #ffffff33;
+    out property <brush> stroke: dark ? #ffffff14 : #0000000f;
+    out property <brush> divider: dark ? #ffffff14 : #00000014;
+    out property <brush> grid: dark ? #ffffff12 : #00000012;
+    out property <brush> subtle: dark ? #ffffff0f : #0000000a;
+    out property <brush> subtle-2: dark ? #ffffff0a : #00000006;
+    out property <brush> text: Palette.foreground;
+    out property <brush> text-2: dark ? #ffffffc9 : #00000099;
+    out property <brush> text-3: dark ? #ffffff8a : #00000073;
+    out property <brush> accent: Palette.accent-background;
+    out property <brush> on-accent: Palette.accent-foreground;
+    // Статусы Windows (зарезервированы, всегда с подписью).
+    out property <brush> ok: dark ? #6ccb5f : #0f7b0f;
+    out property <brush> warn: dark ? #fce100 : #9d5d00;
+    out property <brush> danger: dark ? #ff99a4 : #c42b1c;
+    out property <brush> off: dark ? #ffffff5e : #0000005e;
+    /// Акцент Windows тёплый (красный, оранжевый, жёлтый) — задаёт Rust по оттенку.
+    in-out property <bool> warm-accent;
+    // Вторая серия графиков — противоположная акценту пара «синий ↔ оранжевый»,
+    // различимая и при дальтонизме.
+    out property <brush> series-2: warm-accent ? (dark ? #60cdff : #005fb8) : (dark ? #ffb463 : #c25e00);
+    out property <brush> tooltip: dark ? #2c2c2c : #f9f9f9;
+
+    public pure function tone(kind: string) -> brush {
+        if (kind == "ok" || kind == "run") {
+            return ok;
+        }
+        if (kind == "busy" || kind == "warn") {
+            return warn;
+        }
+        if (kind == "bad") {
+            return danger;
+        }
+        return off;
+    }
+}
+
+// Коды глифов Segoe Fluent Icons / MDL2.
+export global Glyph {
+    out property <string> home: "\u{E80F}";
+    out property <string> queue: "\u{E8FD}";
+    out property <string> models: "\u{E8F1}";
+    out property <string> engines: "\u{E950}";
+    out property <string> clients: "\u{E716}";
+    out property <string> logs: "\u{E8A5}";
+    out property <string> settings: "\u{E713}";
+    out property <string> info: "\u{E946}";
+    out property <string> play: "\u{E768}";
+    out property <string> pause: "\u{E769}";
+    out property <string> stop: "\u{E71A}";
+    out property <string> refresh: "\u{E72C}";
+    out property <string> copy: "\u{E8C8}";
+    out property <string> delete: "\u{E74D}";
+    out property <string> add: "\u{E710}";
+    out property <string> cancel: "\u{E711}";
+    out property <string> open: "\u{E8A7}";
+    out property <string> globe: "\u{E774}";
+    out property <string> folder: "\u{E8B7}";
+    out property <string> search: "\u{E721}";
+    out property <string> retry: "\u{E8EE}";
+    out property <string> send: "\u{E724}";
+    out property <string> check: "\u{E73E}";
+    out property <string> warning: "\u{E7BA}";
+    out property <string> key: "\u{E8D7}";
+    out property <string> color: "\u{E790}";
+    out property <string> gpu: "\u{E7F4}";
+    out property <string> nav: "\u{E700}";
+    out property <string> lock: "\u{E72E}";
+    out property <string> down: "\u{E74B}";
+}

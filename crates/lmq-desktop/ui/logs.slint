@@ -1,0 +1,47 @@
+import { Button, ComboBox, LineEdit, Switch } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { UiData, UiActions } from "store.slint";
+import { PageHeader, LogView } from "widgets.slint";
+
+export component LogsPage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        padding-top: 20px;
+        spacing: 16px;
+        PageHeader {
+            title: @tr("Журнал");
+            subtitle: @tr("События сервера в реальном времени. Тексты сообщений не пишутся.");
+            VerticalLayout {
+                alignment: center;
+                Button {
+                    text: @tr("Папка журналов");
+                    clicked => { UiActions.open-folder("logs"); }
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            ComboBox {
+                min-width: 140px;
+                model: ["trace", "debug", "info", "warn", "error"];
+                current-index <=> UiData.log-level;
+                selected => { UiActions.logs-reload(); }
+            }
+            LineEdit {
+                horizontal-stretch: 1;
+                placeholder-text: @tr("Поиск: job_id, модель, текст");
+                text <=> UiData.log-query;
+                edited => { UiActions.logs-reload(); }
+            }
+            Switch {
+                text: @tr("Следить за концом");
+                checked <=> UiData.log-follow;
+            }
+        }
+        LogView {
+            vertical-stretch: 1;
+            lines: UiData.logs;
+            follow: UiData.log-follow;
+        }
+    }
+}

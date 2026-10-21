@@ -1,0 +1,99 @@
+import { ScrollView, Button, LineEdit, Switch } from "std-widgets.slint";
+import { Theme, Glyph } from "theme.slint";
+import { UiData, UiActions } from "store.slint";
+import { Card, PageHeader, SectionTitle, ListRow, IconButton, Divider } from "widgets.slint";
+
+export component ClientsPage inherits Rectangle {
+    property <bool> narrow: self.width < 640px;
+    sv := ScrollView {
+        content-width: self.visible-width;
+        content-height: content.preferred-height;
+        content := VerticalLayout {
+            width: sv.visible-width;
+            padding: 28px;
+            padding-top: 20px;
+            spacing: 16px;
+            PageHeader {
+                title: @tr("Клиенты API");
+                subtitle: @tr("Ключи для бота и других клиентов. Ключ показывается один раз.");
+            }
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    SectionTitle { text: @tr("Новый ключ"); }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        name := LineEdit {
+                            horizontal-stretch: 1;
+                            placeholder-text: @tr("Имя, например bot");
+                        }
+                        note := LineEdit {
+                            horizontal-stretch: narrow ? 1 : 2;
+                            placeholder-text: @tr("Заметка (необязательно)");
+                        }
+                        Button {
+                            text: @tr("Создать ключ");
+                            primary: true;
+                            enabled: name.text != "";
+                            clicked => {
+                                UiActions.client-create(name.text, note.text);
+                                name.text = "";
+                                note.text = "";
+                            }
+                        }
+                    }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 6px;
+                    for c[i] in UiData.clients: VerticalLayout {
+                        if i > 0: Divider { }
+                        ListRow {
+                            title: c.name;
+                            sub: (c.from-env ? @tr("из окружения (API_KEYS)") : @tr("создан {}", c.created)) + (c.note != "" ? " · " + c.note : "");
+                            dot: c.enabled ? "ok" : "off";
+                            VerticalLayout {
+                                alignment: center;
+                                Switch {
+                                    text: c.enabled ? @tr("Включён") : @tr("Выключен");
+                                    checked: c.enabled;
+                                    enabled: !c.from-env;
+                                    toggled => { UiActions.client-toggle(c.name, self.checked); }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                IconButton {
+                                    glyph: Glyph.key;
+                                    label: @tr("Новый ключ");
+                                    enabled: !c.from-env;
+                                    clicked => { UiActions.client-rotate(c.name); }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                IconButton {
+                                    glyph: Glyph.delete;
+                                    label: @tr("Удалить");
+                                    enabled: !c.from-env;
+                                    clicked => { UiActions.client-delete(c.name); }
+                                }
+                            }
+                        }
+                    }
+                    if UiData.clients.length == 0: Text {
+                        height: 80px;
+                        text: @tr("Клиентов нет — бот получит 401, пока не создан ключ.");
+                        font-size: 13px;
+                        color: Theme.text-3;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+}

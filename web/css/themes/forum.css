@@ -1,0 +1,105 @@
+/*!theme
+id: forum
+name: Forum
+mode: light
+accent: #ff4500
+barsLight: #ffffff, 1.0, #dae0e6
+barsDark: #1a1a1b, 1.0, #030303
+description: серо-голубая подложка, белые карточки в рамке, кнопки-капсулы
+*/
+
+/* ======================================================================== */
+/* Forum — белые карточки на серо-голубой подложке                            */
+/* Серо-голубая подложка, белые карточки в рамке, жирные заголовки, кнопки-
+   капсулы, стрелки голосов акцентом.                                        */
+:root[data-skin="forum"] {
+  --font: "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif;
+  --bg: #dae0e6;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #f6f7f8;
+  --sep: #edeff1;
+  --sep-strong: #ccc;
+  --text: #1c1c1c;
+  --text-2: #576f76;
+  --text-3: #878a8c;
+  --bar: #ffffff;
+  --bar-line: #edeff1;
+  --radius: 4px;
+  --radius-lg: 8px;
+  --card-radius: 8px;
+  --bar-blur: none;
+  --shadow-soft: transparent;
+  color-scheme: light;
+  --hero-size: 30px;
+  --hero-weight: 700;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  --sw-w: 44px;
+  --sw-h: 24px;
+  --sw-r: 999px;
+  --sw-thumb: 20px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: #c9ced1;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --seg-r: 999px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text-2);
+  --seg-on: var(--text);
+  --seg-on-text: var(--surface);
+  --bar-h: 48px;
+  --tab-h: 52px;
+  --danger: #ea0027;
+  --ok: #46d160;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: #1c1c1c;
+  --toast-text: #ffffff;
+  --chip-r: 999px;
+}
+:root[data-skin="forum"].theme--dark {
+  --bg: #030303;
+  --bg-elev: #1a1a1b;
+  --surface: #1a1a1b;
+  --surface-press: #272729;
+  --sep: #343536;
+  --sep-strong: #474748;
+  --text: #d7dadc;
+  --text-2: #818384;
+  --text-3: #6f7071;
+  --bar: #1a1a1b;
+  --bar-line: #343536;
+  color-scheme: dark;
+  --danger: #ff585b;
+  --sw-off: #474748;
+  --toast-bg: #d7dadc;
+  --toast-text: #1a1a1b;
+  --shadow-soft: rgba(0, 0, 0, 0.5);
+}
+:root[data-skin="forum"] .list { background: none; border: 0; margin: 0 8px; }
+:root[data-skin="forum"] .card,
+:root[data-skin="forum"] .list__cell {
+  background: var(--surface);
+  border: 1px solid var(--sep-strong);
+  border-radius: var(--card-radius);
+  margin-bottom: 10px;
+}
+:root[data-skin="forum"] .card__title { font-weight: 600; font-size: 18px; }
+:root[data-skin="forum"] .card__foot-item:first-child + .card__foot-item { color: var(--tint); font-weight: 700; }
+:root[data-skin="forum"] .btn,
+:root[data-skin="forum"] .segmented,
+:root[data-skin="forum"] .hot__chip,
+:root[data-skin="forum"] .cands__tab { border-radius: 999px; }
+:root[data-skin="forum"] .btn--filled,
+:root[data-skin="forum"] .btn:active { background: var(--tint); color: var(--on-tint); }
+:root[data-skin="forum"] .hero__title { font-weight: 700; font-size: 30px; }
+:root[data-skin="forum"] { --group-mx: 8px; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="forum"] { --modal-r: 4px; --modal-border: 1px solid var(--sep-strong); --modal-head-bg: linear-gradient(180deg, color-mix(in srgb, var(--tint) 80%, #ffffff), var(--tint)); --modal-head-text: var(--on-tint); --modal-head-border: 1px solid color-mix(in srgb, var(--tint) 70%, #000000); --toast-r: 4px; --callout-r: 3px; }
+/* Форум: шапка окна — полоса раздела, как у классических форумов. */
+:root[data-skin="forum"] .modal__title { font-size: 15px; }

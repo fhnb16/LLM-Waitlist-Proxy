@@ -1,0 +1,45 @@
+[package]
+name = "lmq-server"
+description = "LMQ queue server without GUI (Windows service, Linux systemd)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "lmq-server"
+path = "src/main.rs"
+
+[features]
+default = ["gpu"]
+gpu = ["lmq-core/gpu"]
+
+[dependencies]
+lmq-core = { path = "../lmq-core", default-features = false }
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.8"
+
+[package.metadata.deb]
+name = "lmq"
+maintainer = "LMQ contributors"
+copyright = "LMQ contributors"
+license-file = ["../../LICENSE", "0"]
+extended-description = "Queue server between the UniversalBot Telegram bot and local OpenAI-compatible models (llama.cpp, vLLM, Ollama). Web panel on 127.0.0.1:8801/ui."
+section = "net"
+priority = "optional"
+depends = "$auto"
+assets = [
+  ["target/release/lmq-server", "usr/bin/", "755"],
+  ["../../packaging/debian/settings.yaml", "etc/lmq/settings.yaml", "640"],
+  ["../../packaging/debian/lmq.default", "etc/default/lmq", "644"],
+  ["../../README.md", "usr/share/doc/lmq/README.md", "644"],
+  ["../../queue-server.md", "usr/share/doc/lmq/queue-server.md", "644"],
+]
+conf-files = ["/etc/lmq/settings.yaml", "/etc/default/lmq"]
+maintainer-scripts = "../../packaging/debian/scripts"
+systemd-units = { unit-name = "lmq", unit-scripts = "../../packaging/debian", enable = true, start = false }

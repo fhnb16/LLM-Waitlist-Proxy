@@ -1,0 +1,104 @@
+/*!theme
+id: neon
+name: Neon
+mode: dark
+accent: #fe2c55
+companion: #25f4ee
+barsLight: #ffffff, 1.0, #ffffff
+barsDark: #000000, 1.0, #000000
+description: чёрный экран, двойной цветной сдвиг у активной вкладки
+*/
+
+/* ======================================================================== */
+/* Neon — чёрный экран и двойной цветной сдвиг                                */
+/* Чёрный экран, яркий розово-красный акцент и бирюзовый второй цвет,
+   жирный крупный текст, капсулы.                                            */
+:root[data-skin="neon"] {
+  --font: "Proxima Nova", Inter, -apple-system, "Segoe UI", Arial, sans-serif;
+  --bg: #000000;
+  --bg-elev: #121212;
+  --surface: #121212;
+  --surface-press: #1f1f1f;
+  --sep: #1f1f1f;
+  --sep-strong: #2f2f2f;
+  --text: #ffffff;
+  --text-2: #a8a8a8;
+  --text-3: #767676;
+  --bar: #000000;
+  --bar-line: #1f1f1f;
+  --radius: 4px;
+  --radius-lg: 8px;
+  --card-radius: 8px;
+  --bar-blur: none;
+  --shadow-soft: transparent;
+  color-scheme: dark;
+  --hero-size: 32px;
+  --hero-weight: 800;
+  --hero-tracking: 0;
+  --nav-grid: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  --nav-align: center;
+  --nav-weight: 700;
+  --sw-w: 44px;
+  --sw-h: 24px;
+  --sw-r: 999px;
+  --sw-thumb: 20px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: #2f2f2f;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 4px;
+  --seg-line: #2f2f2f;
+  --seg-text: var(--text-2);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 44px;
+  --tab-h: 50px;
+  --danger: #ff4040;
+  --ok: #25f4ee;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: #252525;
+  --toast-text: #ffffff;
+  --chip-r: 4px;
+}
+:root[data-skin="neon"] .list { border: 0; border-radius: var(--card-radius); margin: 0 8px; overflow: hidden; }
+:root[data-skin="neon"] .hero__title { font-weight: 800; font-size: 32px; }
+:root[data-skin="neon"] .card__title { font-weight: 700; }
+:root[data-skin="neon"] .card__author { color: var(--text); font-weight: 700; }
+:root[data-skin="neon"] .btn,
+:root[data-skin="neon"] .segmented,
+:root[data-skin="neon"] .hot__chip { border-radius: var(--radius); font-weight: 700; }
+:root[data-skin="neon"] .btn--filled,
+:root[data-skin="neon"] .btn:active,
+:root[data-skin="neon"] .segmented__item--active { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+/* Фирменный двойной сдвиг: тень вторым цветом у активной вкладки. */
+:root[data-skin="neon"] .tab-bar__item--active { color: var(--text); }
+:root[data-skin="neon"] .tab-bar__item--active .tab-bar__icon { filter: drop-shadow(-1.5px 0 0 var(--warn)) drop-shadow(1.5px 0 0 var(--tint)); }
+/* ----------------------------------------------------------- Neon, светлый */
+:root[data-skin="neon"]:not(.theme--dark) {
+  --bg: #ffffff;
+  --bg-elev: #f1f1f2;
+  --surface: #f1f1f2;
+  --surface-press: #e3e3e4;
+  --sep: #ededee;
+  --sep-strong: #d6d6d8;
+  --text: #161823;
+  --text-2: #75767d;
+  --text-3: #a2a2a7;
+  --bar: #ffffff;
+  --bar-line: #ededee;
+  --sw-off: #d6d6d8;
+  --seg-line: #d6d6d8;
+  --toast-bg: #161823;
+  --toast-text: #ffffff;
+  color-scheme: light;
+}
+:root[data-skin="neon"] { --group-mx: 8px; }
+:root[data-skin="neon"] { --group-r: var(--card-radius); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="neon"] { --modal-border: 1px solid var(--tint); --modal-shadow: 0 0 0 1px color-mix(in srgb, var(--tint) 40%, transparent), 0 0 28px color-mix(in srgb, var(--tint) 45%, transparent); --overlay: rgba(0, 0, 0, 0.62); }
+/* Неон: свечение рамки и заголовка. */
+:root[data-skin="neon"] .modal__title { text-shadow: 0 0 10px color-mix(in srgb, var(--tint) 70%, transparent); }
+:root[data-skin="neon"] .toast { box-shadow: 0 0 0 1px var(--tint), 0 0 18px color-mix(in srgb, var(--tint) 45%, transparent); }

@@ -1,0 +1,336 @@
+/*!theme
+id: mmo
+name: MMO
+mode: dark
+accent: #00e5ff
+accentLight: #008a99
+accentDark: #a8843a
+companion: #ffc107
+companionLight: #b8860b
+companionDark: #00e5ff
+barsLight: #ece6d8, 0.8, #d6d1c4
+barsDark: #0e1116, 0.62, #0f1217
+description: «Рунная сталь и Эфирное стекло» — плотность Lineage 2 и свечение Aion: окна-стекло rgba(18,22,28,.80) в трёхслойной рамке (чернёное железо, мифриловая фаска с бликом, лазурный шов), угловые скобы, стеклянный блик по верхней трети, тень 0 8px 24px; заголовки антиквой капителью с металлическим градиентом и рунным гребнем; мифриловые кнопки с надписью слоновой костью в чёрном контуре, нажатие — сдвиг на 1px; вкладки-пластины с золотой чертой, вдавленные слоты #080A0D; акцент — эфирный циан, второй — золотой янтарь; светлый — камень и пергамент
+*/
+
+/* ======================================================================
+   MMO — «Рунная сталь и Эфирное стекло»: плотность Lineage 2 и свечение
+   Aion. Окна — стекло rgba(18,22,28,.80) в трёхслойной рамке (чернёное
+   железо, мифриловая фаска с бликом, лазурный шов), угловые скобы,
+   стеклянный блик по верхней трети, тень 0 8px 24px. Заголовки — антиква
+   капителью с металлическим градиентом и рунным гребнем. Кнопки —
+   мифриловые пластины, нажатие сдвигает на 1px. Вкладки — пластины
+   доспеха с золотой чертой, слоты — вдавленные #080A0D. Акцент — эфирный
+   циан, второй — золотой янтарь.
+   ====================================================================== */
+:root[data-skin="mmo"] {
+  --font: Inter, Tahoma, "Segoe UI", sans-serif;
+  --radius: 3px;
+  --radius-lg: 6px;
+  --card-radius: 6px;
+  --bar-blur: saturate(120%) blur(8px);
+  --bar-h: 42px;
+  --tab-h: 56px;
+  --hero-size: 22px;
+  --hero-weight: 600;
+  --hero-tracking: 0.08em;
+  --nav-grid: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  --nav-align: center;
+  --nav-weight: 600;
+  --sw-w: 36px;
+  --sw-h: 18px;
+  --sw-r: 3px;
+  --sw-thumb: 14px;
+  --sw-thumb-r: 2px;
+  --sw-pad: 2px;
+  --sw-off: rgba(8, 10, 13, 0.95);
+  --sw-on: var(--tint);
+  --sw-shadow: 0 0 6px color-mix(in srgb, var(--tint) 60%, transparent);
+  --seg-r: 3px;
+  --seg-line: #0B0D11;
+  --seg-text: #9BA5B7;
+  --seg-on: rgba(40, 48, 60, 0.9);
+  --seg-on-text: #F0F4F8;
+  --chip-r: 3px;
+  --bg: #0F1217;
+  --bg-elev: rgba(18, 22, 28, 0.80);
+  --surface: rgba(18, 22, 28, 0.80);
+  --surface-press: rgba(40, 48, 60, 0.85);
+  --sep: #3A4454;
+  --sep-strong: #8A97A8;
+  --text: #F0F4F8;
+  --text-2: #9BA5B7;
+  --text-3: #6B7588;
+  --bar: rgba(14, 17, 22, 0.62);
+  --bar-line: #0B0D11;
+  --danger: #FF2A4B;
+  --ok: #00E5FF;
+  --thumb: #E2E8F0;
+  --on-danger: #ffffff;
+  --toast-bg: rgba(14, 17, 22, 0.92);
+  --toast-text: #EDE8DF;
+  --shadow-soft: rgba(0, 0, 0, 0.65);
+  --frame-iron: #0B0D11;
+  --mithril: #8A97A8;
+  --mithril-hi: #D5DFEB;
+  --slot-bg: rgba(8, 10, 13, 0.95);
+  --ivory: #EDE8DF;
+  --font-header: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --metal-text: linear-gradient(180deg, #E2E8F0 0%, #A4B0C0 100%);
+  color-scheme: dark;
+}
+:root[data-skin="mmo"]:not(.theme--dark) {
+  --bg: #d6d1c4;
+  --bg-elev: rgba(246, 243, 235, 0.92);
+  --surface: rgba(246, 243, 235, 0.9);
+  --surface-press: rgba(222, 215, 198, 0.95);
+  --sep: #c2baa6;
+  --sep-strong: #8f8878;
+  --text: #1d1c19;
+  --text-2: #4d4a42;
+  --text-3: #7a7566;
+  --bar: rgba(239, 233, 218, 0.8);
+  --bar-line: #5b5446;
+  --sw-off: #e6dfcd;
+  --seg-line: #5b5446;
+  --seg-text: #4d4a42;
+  --seg-on: #f6f2e7;
+  --seg-on-text: #1d1c19;
+  --thumb: #ffffff;
+  --toast-bg: rgba(40, 38, 33, 0.94);
+  --toast-text: #f3eee0;
+  --shadow-soft: rgba(60, 50, 30, 0.35);
+  --frame-iron: #5b5446;
+  --mithril: #a39a86;
+  --mithril-hi: #fffaf0;
+  --slot-bg: rgba(230, 223, 205, 0.9);
+  --ivory: #1d1c19;
+  --metal-text: linear-gradient(180deg, #5b5446 0%, #2a261f 100%);
+  color-scheme: light;
+}
+/* Закалённый обсидиановый сланец: от дымчатого графита в центре к антрациту по краям. */
+:root[data-skin="mmo"] body::before { background: radial-gradient(ellipse at 50% 40%, #181C24 0%, #0F1217 75%); }
+:root[data-skin="mmo"]:not(.theme--dark) body::before { background: radial-gradient(ellipse at 50% 40%, #ece6d8 0%, #cfc8b7 80%); }
+/* Окна: стекло, трёхслойная рамка, угловые скобы, стеклянный блик сверху. */
+:root[data-skin="mmo"] .key,
+:root[data-skin="mmo"] .banner,
+:root[data-skin="mmo"] .post,
+:root[data-skin="mmo"] .article,
+:root[data-skin="mmo"] .cands,
+:root[data-skin="mmo"] .chart,
+:root[data-skin="mmo"] .meters {
+  margin-left: 10px;
+  margin-right: 10px;
+  overflow: hidden;
+  border: 1px solid var(--frame-iron);
+  border-radius: var(--card-radius);
+  background:
+    linear-gradient(var(--mithril-hi), var(--mithril-hi)) top left / 12px 2px no-repeat,
+    linear-gradient(var(--mithril-hi), var(--mithril-hi)) top left / 2px 12px no-repeat,
+    linear-gradient(var(--mithril-hi), var(--mithril-hi)) top right / 12px 2px no-repeat,
+    linear-gradient(var(--mithril-hi), var(--mithril-hi)) top right / 2px 12px no-repeat,
+    linear-gradient(var(--mithril), var(--mithril)) bottom left / 12px 2px no-repeat,
+    linear-gradient(var(--mithril), var(--mithril)) bottom left / 2px 12px no-repeat,
+    linear-gradient(var(--mithril), var(--mithril)) bottom right / 12px 2px no-repeat,
+    linear-gradient(var(--mithril), var(--mithril)) bottom right / 2px 12px no-repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 33%),
+    linear-gradient(180deg, rgba(28, 34, 44, 0.85) 0%, rgba(14, 17, 22, 0.80) 100%);
+  box-shadow:
+    inset 0 1px 0 var(--mithril-hi),
+    inset 0 0 0 2px color-mix(in srgb, var(--mithril) 70%, transparent),
+    inset 0 0 0 3px var(--frame-iron),
+    inset 0 0 0 4px color-mix(in srgb, var(--tint) 30%, transparent),
+    0 8px 24px var(--shadow-soft);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+:root[data-skin="mmo"]:not(.theme--dark) .key,
+:root[data-skin="mmo"]:not(.theme--dark) .banner,
+:root[data-skin="mmo"]:not(.theme--dark) .post,
+:root[data-skin="mmo"]:not(.theme--dark) .article,
+:root[data-skin="mmo"]:not(.theme--dark) .cands,
+:root[data-skin="mmo"]:not(.theme--dark) .chart,
+:root[data-skin="mmo"]:not(.theme--dark) .meters {
+  background-color: rgba(246, 243, 235, 0.9);
+  background-image:
+    linear-gradient(var(--mithril-hi), var(--mithril-hi)), linear-gradient(var(--mithril-hi), var(--mithril-hi)),
+    linear-gradient(var(--mithril-hi), var(--mithril-hi)), linear-gradient(var(--mithril-hi), var(--mithril-hi)),
+    linear-gradient(var(--mithril), var(--mithril)), linear-gradient(var(--mithril), var(--mithril)),
+    linear-gradient(var(--mithril), var(--mithril)), linear-gradient(var(--mithril), var(--mithril)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 33%),
+    linear-gradient(180deg, rgba(250, 247, 240, 0.95), rgba(232, 225, 208, 0.9));
+}
+/* Текстовые блоки — «воздух Aion»: увеличенные поля. */
+:root[data-skin="mmo"] .post,
+:root[data-skin="mmo"] .article { padding: 12px 14px; }
+/* Разделители — тонкие, угасающие к краям. */
+:root[data-skin="mmo"] .list__cell + .list__cell,
+:root[data-skin="mmo"] .reply + .reply {
+  border-top: 0;
+  background-image: linear-gradient(90deg, transparent, var(--sep) 15%, var(--sep) 85%, transparent);
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+}
+/* Заголовки: антиква капителью, металлический градиент, тень вниз. */
+:root[data-skin="mmo"] .hero__title,
+:root[data-skin="mmo"] .group__title,
+:root[data-skin="mmo"] .nav-bar__title {
+  font-family: var(--font-header);
+  font-variant: small-caps;
+  background: var(--metal-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--text);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85));
+}
+:root[data-skin="mmo"] .group__title { text-transform: none; letter-spacing: 0.1em; font-size: 14px; text-align: center; }
+/* Рунный гребень под подписью группы: кристалл и крылья-линии. */
+:root[data-skin="mmo"] .group__title::after {
+  content: "";
+  display: block;
+  height: 9px;
+  margin: 3px auto 0;
+  width: 120px;
+  background:
+    linear-gradient(45deg, transparent 38%, var(--tint) 38%, var(--tint) 62%, transparent 62%) center / 9px 9px no-repeat,
+    linear-gradient(90deg, transparent, var(--mithril) 45%, transparent 45%, transparent 55%, var(--mithril) 55%, transparent) center / 100% 1px no-repeat;
+  -webkit-text-fill-color: initial;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tint) 70%, transparent));
+}
+/* Шапка и нижняя панель — пассивные панели: 60% стекла, размытие. */
+:root[data-skin="mmo"] .nav-bar {
+  background: linear-gradient(180deg, rgba(28, 34, 44, 0.7), rgba(14, 17, 22, 0.6));
+  border-bottom: 1px solid var(--frame-iron);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--mithril) 50%, transparent), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+:root[data-skin="mmo"]:not(.theme--dark) .nav-bar { background: linear-gradient(180deg, rgba(250, 247, 240, 0.85), rgba(222, 214, 196, 0.8)); }
+/* Кнопки: выпуклая мифриловая пластина, надпись цвета слоновой кости с
+   чёрным контуром; нажатие — сдвиг на 1px и глубокая внутренняя тень. */
+:root[data-skin="mmo"] .btn,
+:root[data-skin="mmo"] .trbar__btn,
+:root[data-skin="mmo"] .nav-bar__btn {
+  border: 1px solid var(--frame-iron);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #6f7b8c 0%, #4a5463 48%, #363e4a 52%, #2a313b 100%);
+  color: var(--ivory);
+  text-shadow: -1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000;
+  box-shadow: inset 0 1px 0 var(--mithril-hi), 0 2px 6px rgba(0, 0, 0, 0.5);
+  transition: box-shadow var(--dur), transform var(--dur), filter var(--dur);
+}
+:root[data-skin="mmo"] .nav-bar__btn { padding: 4px 11px; font-size: 13px; }
+:root[data-skin="mmo"]:not(.theme--dark) .btn,
+:root[data-skin="mmo"]:not(.theme--dark) .trbar__btn,
+:root[data-skin="mmo"]:not(.theme--dark) .nav-bar__btn {
+  background: linear-gradient(180deg, #fffaf0 0%, #e8e0cd 50%, #d6ccb5 52%, #c9bea5 100%);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+:root[data-skin="mmo"] .btn--filled { box-shadow: inset 0 1px 0 var(--mithril-hi), 0 0 10px color-mix(in srgb, var(--tint) 55%, transparent); border-color: var(--tint); }
+:root[data-skin="mmo"] .btn:active,
+:root[data-skin="mmo"] .trbar__btn:active,
+:root[data-skin="mmo"] .nav-bar__btn:active {
+  opacity: 1;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+@media (hover: hover) {
+  :root[data-skin="mmo"] .btn:hover,
+:root[data-skin="mmo"] .trbar__btn:hover,
+:root[data-skin="mmo"] .nav-bar__btn:hover {
+    filter: brightness(1.15);
+    box-shadow: inset 0 1px 0 var(--mithril-hi), 0 0 10px color-mix(in srgb, var(--tint) 60%, transparent);
+
+  }
+}
+/* Вкладки-сегменты — пластины доспеха; выбранная выезжает с золотой чертой. */
+:root[data-skin="mmo"] .segmented { border: 1px solid var(--frame-iron); background: var(--slot-bg); }
+:root[data-skin="mmo"] .segmented__item--active {
+  background: linear-gradient(180deg, #4a5463, #2a313b);
+  box-shadow: inset 0 1px 0 var(--mithril-hi), inset 0 -2px 0 var(--warn);
+}
+:root[data-skin="mmo"]:not(.theme--dark) .segmented__item--active { background: linear-gradient(180deg, #fffaf0, #e2d9c5); }
+/* Нижняя панель — ряд вдавленных слотов; выбранный светится внутренним контуром. */
+:root[data-skin="mmo"] .tab-bar {
+  background: linear-gradient(180deg, rgba(14, 17, 22, 0.6), rgba(8, 10, 13, 0.72));
+  border-top: 1px solid var(--frame-iron);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--mithril) 45%, transparent);
+}
+:root[data-skin="mmo"]:not(.theme--dark) .tab-bar { background: linear-gradient(180deg, rgba(240, 234, 220, 0.8), rgba(214, 205, 186, 0.85)); }
+:root[data-skin="mmo"] .tab-bar__item {
+  margin: 5px 2px;
+  border: 1px solid var(--frame-iron);
+  border-radius: 3px;
+  background: var(--slot-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mithril) 25%, transparent), inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  text-shadow: -1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000;
+}
+:root[data-skin="mmo"]:not(.theme--dark) .tab-bar__item { box-shadow: inset 0 0 0 1px rgba(90, 80, 60, 0.25); text-shadow: none; }
+:root[data-skin="mmo"] .tab-bar__item--active {
+  color: var(--tint);
+  box-shadow: inset 0 0 0 1px var(--tint), inset 0 0 10px color-mix(in srgb, var(--tint) 45%, transparent), 0 0 8px color-mix(in srgb, var(--tint) 40%, transparent);
+}
+/* Шкалы — внутреннее холодное свечение. */
+:root[data-skin="mmo"] .meter__track,
+:root[data-skin="mmo"] .chart__track { border-radius: 2px; background: var(--slot-bg); box-shadow: inset 0 0 0 1px var(--frame-iron); }
+:root[data-skin="mmo"] .meter__fill,
+:root[data-skin="mmo"] .chart__bar {
+  border-radius: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 55%, #ffffff), var(--tint) 50%, color-mix(in srgb, var(--tint) 65%, #000000));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--tint) 60%, transparent);
+}
+:root[data-skin="mmo"] .meter__fill--warn { background: linear-gradient(180deg, color-mix(in srgb, var(--warn) 45%, #ffffff), var(--warn) 50%, color-mix(in srgb, var(--warn) 70%, #000000)); }
+:root[data-skin="mmo"] .search__box,
+:root[data-skin="mmo"] .find-bar__input {
+  border: 1px solid var(--frame-iron);
+  background: var(--slot-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mithril) 25%, transparent), inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+:root[data-skin="mmo"] .switch__track { border: 1px solid var(--frame-iron); }
+/* MMO: группа — стекло в рамке из чернёного железа, без тени и внутренних
+   линий; поле — тёмная ячейка с мягкой внутренней тенью. */
+:root[data-skin="mmo"] {
+  --group-mx: 10px;
+  --group-r: 6px;
+  --group-border: 1px solid var(--frame-iron);
+  --group-bg: linear-gradient(180deg, rgba(28, 34, 44, 0.85) 0%, rgba(14, 17, 22, 0.80) 100%);
+  --group-shadow: none;
+  --field-bg: var(--slot-bg);
+  --field-line: color-mix(in srgb, var(--mithril) 22%, transparent);
+  --field-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  --seg-pad: 2px;
+  --seg-item-r: 1px;
+}
+:root[data-skin="mmo"]:not(.theme--dark) {
+  --group-bg: linear-gradient(180deg, rgba(250, 247, 240, 0.95), rgba(232, 225, 208, 0.9));
+  --field-line: rgba(90, 80, 60, 0.28);
+  --field-shadow: inset 0 1px 2px rgba(60, 50, 30, 0.18);
+}
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="mmo"] {
+  --modal-r: 4px;
+  --modal-bg: linear-gradient(180deg, #1a2029 0%, #12161c 100%);
+  --modal-border: 1px solid var(--frame-iron);
+  --modal-shadow: 0 0 0 1px var(--mithril), 0 0 0 2px var(--frame-iron), 0 14px 40px rgba(0, 0, 0, 0.7);
+  --modal-head-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent);
+  --modal-head-text: #e6e1d3;
+  --modal-head-border: 1px solid color-mix(in srgb, var(--tint) 30%, transparent);
+  --modal-title-font: var(--font-header);
+  --overlay: rgba(4, 6, 9, 0.7);
+  --toast-r: 4px;
+  --callout-r: 3px;
+}
+/* MMO: окно — «железное» в обоих режимах, со своей палитрой: светлые
+   текстовые токены внутри окна (в светлом режиме темы текст тёмный и тонул на
+   тёмном окне). Рамка с мифриловой фаской, заголовок — антиква металлом. */
+:root[data-skin="mmo"] .modal__panel {
+  --text: #e6e1d3;
+  --text-2: #b9b2a0;
+  --text-3: #8e8775;
+  --sep: rgba(138, 151, 168, 0.32);
+  --surface: #1c232c;
+  --surface-press: #262e38;
+  color: var(--text);
+}
+:root[data-skin="mmo"] .modal__title { font-variant: small-caps; letter-spacing: 0.04em; background: var(--metal-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root[data-skin="mmo"] .modal__close { border-radius: 3px; background: linear-gradient(#2a313b, #151a21); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px var(--frame-iron); color: var(--mithril); }

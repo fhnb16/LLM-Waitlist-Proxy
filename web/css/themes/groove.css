@@ -1,0 +1,107 @@
+/*!theme
+id: groove
+name: Groove
+mode: dark
+accent: #1ed760
+barsLight: #ffffff, 0.9, #ffffff
+barsDark: #121212, 0.9, #121212
+description: чёрный экран с градиентом акцента в шапке, крупный жирный текст, кнопки-капсулы
+*/
+
+/* ======================================================================== */
+/* Groove — чёрное с акцентом                                                */
+/* Чёрный экран с градиентом акцента в шапке, крупный жирный текст, большие
+   скругления карточек, кнопки-капсулы с тёмным текстом на акценте.          */
+:root[data-skin="groove"] {
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --radius: 999px;
+  --radius-lg: 8px;
+  --card-radius: 8px;
+  --bar-blur: saturate(140%) blur(16px);
+  --bar-h: 48px;
+  --tab-h: 56px;
+  --hero-size: 36px;
+  --hero-weight: 800;
+  --hero-tracking: -0.03em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  --sw-w: 40px;
+  --sw-h: 22px;
+  --sw-r: 999px;
+  --sw-thumb: 16px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 3px;
+  --sw-off: #535353;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 999px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text);
+  --seg-on: var(--text);
+  --seg-on-text: var(--bg);
+  --chip-r: 999px;
+  --bg: #121212;
+  --bg-elev: #181818;
+  --surface: #181818;
+  --surface-press: #282828;
+  --sep: #282828;
+  --sep-strong: #3e3e3e;
+  --text: #ffffff;
+  --text-2: #b3b3b3;
+  --text-3: #6a6a6a;
+  --bar: rgba(18, 18, 18, 0.9);
+  --bar-line: #282828;
+  --danger: #f15e6c;
+  --ok: var(--tint);
+  --thumb: #ffffff;
+  --on-danger: #000000;
+  --toast-bg: #ffffff;
+  --toast-text: #000000;
+  --shadow-soft: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+:root[data-skin="groove"] body::before { background: linear-gradient(color-mix(in srgb, var(--tint) 32%, #121212) 0, #121212 340px), #121212; }
+:root[data-skin="groove"] .list { background: none; border: 0; margin: 0 10px; }
+:root[data-skin="groove"] .card,
+:root[data-skin="groove"] .list__cell,
+:root[data-skin="groove"] .reply {
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--card-radius);
+  margin-bottom: 8px;
+}
+:root[data-skin="groove"] .card:active { background: var(--surface-press); }
+:root[data-skin="groove"] .card__title { font-weight: 700; }
+:root[data-skin="groove"] .btn { border-radius: var(--radius); font-weight: 700; }
+:root[data-skin="groove"] .btn--filled,
+:root[data-skin="groove"] .btn:active { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+:root[data-skin="groove"] .hot__chip { background: var(--surface-press); border-color: transparent; color: var(--text); }
+:root[data-skin="groove"] .tab-bar { background: linear-gradient(transparent, #000000 45%); box-shadow: none; }
+:root[data-skin="groove"] .tab-bar__item--active { color: var(--text); }
+/* --------------------------------------------------------- Groove, светлый */
+:root[data-skin="groove"]:not(.theme--dark) {
+  --bg: #ffffff;
+  --bg-elev: #f6f6f6;
+  --surface: #f6f6f6;
+  --surface-press: #ebebeb;
+  --sep: #ebebeb;
+  --sep-strong: #d4d4d4;
+  --text: #121212;
+  --text-2: #6a6a6a;
+  --text-3: #9a9a9a;
+  --bar: rgba(255, 255, 255, 0.9);
+  --bar-line: #ebebeb;
+  --sw-off: #cfcfcf;
+  --toast-bg: #121212;
+  --toast-text: #ffffff;
+  --on-danger: #ffffff;
+  color-scheme: light;
+}
+:root[data-skin="groove"]:not(.theme--dark) body::before { background: linear-gradient(color-mix(in srgb, var(--tint) 28%, #ffffff) 0, #ffffff 340px), #ffffff; }
+:root[data-skin="groove"]:not(.theme--dark) .tab-bar { background: linear-gradient(transparent, #ffffff 45%); }
+:root[data-skin="groove"] { --group-mx: 10px; }
+:root[data-skin="groove"]:not(.theme--dark) { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="groove"] { --modal-r: 14px; --modal-head-bg: linear-gradient(180deg, color-mix(in srgb, var(--tint) 14%, var(--bg-elev)), var(--bg-elev)); }

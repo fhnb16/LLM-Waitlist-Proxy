@@ -1,0 +1,385 @@
+# Английский перевод нативного окна LMQ. Исходные строки (msgid) — русские, из ui/*.slint.
+# Полноту проверяет тест crates/lmq-desktop/tests/i18n.rs.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "1 ч"
+msgstr "1 h"
+
+msgid "24 ч"
+msgstr "24 h"
+
+msgid "30 дн"
+msgstr "30 d"
+
+msgid "5 мин"
+msgstr "5 min"
+
+msgid "7 дн"
+msgstr "7 d"
+
+msgid "Адрес: {}"
+msgstr "Address: {}"
+
+msgid "Активные"
+msgstr "Active"
+
+msgid "алиасы: {}"
+msgstr "aliases: {}"
+
+msgid "Апстрим исключён или вернулся, задание не доставлено, движок упал"
+msgstr "Upstream excluded or back, job not delivered, engine crashed"
+
+msgid "Без размытия"
+msgstr "No blur"
+
+msgid "В очереди"
+msgstr "Queued"
+
+msgid "Веб-режим окна"
+msgstr "Web window mode"
+
+msgid "Видеокарты"
+msgstr "GPUs"
+
+msgid "Включён"
+msgstr "Enabled"
+
+msgid "Включена"
+msgstr "Enabled"
+
+msgid "Возобновить"
+msgstr "Resume"
+
+msgid "Все"
+msgstr "All"
+
+msgid "Выйти из LMQ"
+msgstr "Quit LMQ"
+
+msgid "Выключен"
+msgstr "Disabled"
+
+msgid "выполняется {}"
+msgstr "running {}"
+
+msgid "Выполняются"
+msgstr "Running"
+
+msgid "Вытеснено"
+msgstr "Superseded"
+
+msgid "Выход"
+msgstr "Quit"
+
+msgid "Готово"
+msgstr "Done"
+
+msgid "Данные"
+msgstr "Data"
+
+msgid "Движки"
+msgstr "Engines"
+
+msgid "Движков нет"
+msgstr "No engines"
+
+msgid "Добавить в панели"
+msgstr "Add in the panel"
+
+msgid "Добавить модель"
+msgstr "Add model"
+
+msgid "Добавьте модель и апстрим — например, llama.cpp на 127.0.0.1:8080."
+msgstr "Add a model and an upstream — for example, llama.cpp at 127.0.0.1:8080."
+
+msgid "Доставляются"
+msgstr "Delivering"
+
+msgid "Журнал"
+msgstr "Log"
+
+msgid "Журнал инференса"
+msgstr "Inference log"
+
+msgid "Журналы"
+msgstr "Logs"
+
+msgid "загрузка"
+msgstr "load"
+
+msgid "Заданий нет"
+msgstr "No jobs"
+
+msgid "Задано в окружении — меняется там"
+msgstr "Set in the environment — change it there"
+
+msgid "Закрывать в трей"
+msgstr "Close to tray"
+
+msgid "Заметка (необязательно)"
+msgstr "Note (optional)"
+
+msgid "Запускать при входе в Windows"
+msgstr "Start when I sign in to Windows"
+
+msgid "Запускать свёрнутым"
+msgstr "Start minimized"
+
+msgid "Запустить"
+msgstr "Start"
+
+msgid "из окружения (API_KEYS)"
+msgstr "from the environment (API_KEYS)"
+
+msgid "Изменить в панели"
+msgstr "Edit in the panel"
+
+msgid "Имя, например bot"
+msgstr "Name, e.g. bot"
+
+msgid "Иначе приложение стартует с выдачей на паузе"
+msgstr "Otherwise the app starts with dispatch paused"
+
+msgid "Интерфейс окна и веб-панели"
+msgstr "Window and web panel interface"
+
+msgid "Истекло"
+msgstr "Expired"
+
+msgid "Как в системе"
+msgstr "System default"
+
+msgid "Клиентов нет — бот получит 401, пока не создан ключ."
+msgstr "No clients — the bot gets 401 until a key is created."
+
+msgid "Клиенты"
+msgstr "Clients"
+
+msgid "Клиенты API"
+msgstr "API clients"
+
+msgid "Ключи для бота и других клиентов. Ключ показывается один раз."
+msgstr "Keys for the bot and other clients. A key is shown only once."
+
+msgid "Копировать"
+msgstr "Copy"
+
+msgid "Моделей нет"
+msgstr "No models"
+
+msgid "Модели"
+msgstr "Models"
+
+msgid "Настроить в панели"
+msgstr "Configure in the panel"
+
+msgid "Настройки"
+msgstr "Settings"
+
+msgid "Настройки не сохранены"
+msgstr "Settings not saved"
+
+msgid "Не доставлено"
+msgstr "Not delivered"
+
+msgid "Новый ключ"
+msgstr "New key"
+
+msgid "Обзор"
+msgstr "Overview"
+
+msgid "Обновить"
+msgstr "Refresh"
+
+msgid "Обновления и о программе"
+msgstr "Updates and about"
+
+msgid "Останавливает сервер очереди и движки"
+msgstr "Stops the queue server and engines"
+
+msgid "Остановить"
+msgstr "Stop"
+
+msgid "Открываются в полной панели в браузере"
+msgstr "Open in the full panel in your browser"
+
+msgid "Открыть"
+msgstr "Open"
+
+msgid "Отмена"
+msgstr "Cancel"
+
+msgid "Отменено"
+msgstr "Cancelled"
+
+msgid "Отменить"
+msgstr "Cancel"
+
+msgid "Оформление"
+msgstr "Appearance"
+
+msgid "Очередь"
+msgstr "Queue"
+
+msgid "очередь {}"
+msgstr "queue {}"
+
+msgid "Очистить"
+msgstr "Clear"
+
+msgid "Ошибки"
+msgstr "Errors"
+
+msgid "память"
+msgstr "memory"
+
+msgid "Панель в браузере"
+msgstr "Panel in browser"
+
+msgid "Папка журналов"
+msgstr "Logs folder"
+
+msgid "Папки"
+msgstr "Folders"
+
+msgid "Пауза"
+msgstr "Pause"
+
+msgid "Перезапустить"
+msgstr "Restart"
+
+msgid "Перейти"
+msgstr "Switch"
+
+msgid "Период"
+msgstr "Period"
+
+msgid "Повторить доставку"
+msgstr "Retry delivery"
+
+msgid "Повторить доставку ({})"
+msgstr "Retry delivery ({})"
+
+msgid "Подробнее в панели"
+msgstr "Details in the panel"
+
+msgid "Поиск: job_id, модель, текст"
+msgstr "Search: job_id, model, text"
+
+msgid "Пока нет данных за этот период"
+msgstr "No data for this period yet"
+
+msgid "Полная панель"
+msgstr "Full panel"
+
+msgid "Последний выход: {}"
+msgstr "Last exit: {}"
+
+msgid "Приложение"
+msgstr "Application"
+
+msgid "Проверить"
+msgstr "Test"
+
+msgid "Проверить обновления"
+msgstr "Check for updates"
+
+msgid "Проверка…"
+msgstr "Testing…"
+
+msgid "Проверять при запуске"
+msgstr "Check on startup"
+
+msgid "Расписание, профили, песочница, отладка колбэков"
+msgstr "Schedule, profiles, sandbox, callback debugging"
+
+msgid "резерв: {}"
+msgstr "fallback: {}"
+
+msgid "Светлая"
+msgstr "Light"
+
+msgid "Светлая, тёмная или как в Windows"
+msgstr "Light, dark or the same as Windows"
+
+msgid "Сервер очереди"
+msgstr "Queue server"
+
+msgid "Сервер продолжает работать; выход — из меню значка"
+msgstr "The server keeps running; quit from the tray icon menu"
+
+msgid "Системная"
+msgstr "System"
+
+msgid "Следить за концом"
+msgstr "Follow the end"
+
+msgid "слотов {}"
+msgstr "slots {}"
+
+msgid "События сервера в реальном времени. Тексты сообщений не пишутся."
+msgstr "Live server events. Message texts are never logged."
+
+msgid "создан {}"
+msgstr "created {}"
+
+msgid "Создать ключ"
+msgstr "Create key"
+
+msgid "Сохранить"
+msgstr "Save"
+
+msgid "Сразу в трей, без окна"
+msgstr "Straight to the tray, no window"
+
+msgid "Сразу выдавать задания моделям"
+msgstr "Dispatch jobs to models right away"
+
+msgid "Строк пока нет"
+msgstr "No lines yet"
+
+msgid "Таблица моделей, апстримы, слоты и здоровье"
+msgstr "Model table, upstreams, slots and health"
+
+msgid "Тема"
+msgstr "Theme"
+
+msgid "Тёмная"
+msgstr "Dark"
+
+msgid "температура"
+msgstr "temperature"
+
+msgid "Уведомления Windows"
+msgstr "Windows notifications"
+
+msgid "Удалить"
+msgstr "Delete"
+
+msgid "Укажите путь к llama-server или другому бинарнику — LMQ будет запускать его, следить за ним и показывать журнал."
+msgstr "Point to llama-server or another binary — LMQ will start it, watch it and show its log."
+
+msgid "Фон окна"
+msgstr "Window background"
+
+msgid "Язык"
+msgstr "Language"
+
+msgid "job_id или chat_id"
+msgstr "job_id or chat_id"
+
+msgid "llama.cpp, vLLM, Ollama, KoboldCpp и любые свои бинарники"
+msgstr "llama.cpp, vLLM, Ollama, KoboldCpp and any binary of your own"
+
+msgid "Mica — Windows 11, Acrylic — Windows 10 и 11"
+msgstr "Mica — Windows 11, Acrylic — Windows 10 and 11"
+
+msgid "Mica доступна в Windows 11; здесь будет Acrylic"
+msgstr "Mica needs Windows 11; Acrylic is used here"
+
+msgid "WebView2: 26 тем оформления, полная панель. Приложение перезапустится."
+msgstr "WebView2: 26 themes, the full panel. The app will restart."

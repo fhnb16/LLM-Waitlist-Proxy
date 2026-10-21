@@ -1,0 +1,525 @@
+/*!theme
+id: alloy
+name: Alloy
+mode: light
+accent: #e7d700
+barsLight: #e7e8ea, 1, #dcdfe3
+barsDark: #1c1c1e, 1, #121214
+description: Скевоморфизм игрового лаунчера Запускатр и Фогейм 2010-х — платиновый хром #E7E8EA, рамки 2px #B1B3B4, угольные кнопки .decorated с двойной белой фаской и золотым кликом, глянцевые прогресс-бары и переключатели цветом акцента, синие ссылки с красным наведением и папочные вкладки.
+*/
+
+/* ====================================================================== Client — тема в эстетике игрового клиента и лаунчера 2010-х (Запускатр):
+
+Оконный каркас: платиновый хром #E7E8EA, рамки 2px #B1B3B4, радиус 7px;
+Кнопки: тяжёлый тёмный градиент #646567 → #242425 с белой фаской 2-3px, внешней окантовкой #57585a и золотым кликом (active border: #e7d700);
+Главная кнопка и акценты: золотисто-жёлтый #E7D700;
+Прогресс-бары и переключатели: глянцевый градиент из акцента (светлее сверху);
+Ссылки: насыщенный синий #085696 с эффектом красного наведения #C00;
+Навигация: папочные вкладки снизу и тёмная плашка #404043 на десктопе. ====================================================================== */
+/* -------------------------------------------------------- Токены: Светлый --- */
+:root[data-skin="alloy"] {
+  /* 1. Типографика */
+  --font: Arial, Tahoma, Verdana, sans-serif;
+  --hero-size: 24px;
+  --hero-weight: 700;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  /* 2. Геометрия и радиусы */
+  --radius: 5px;
+  --radius-lg: 7px;
+  --card-radius: 7px;
+  --chip-r: 4px;
+  --bar-h: 46px;
+  --tab-h: 52px;
+  --bar-blur: none;
+  /* 3. Переключатель */
+  --sw-w: 42px;
+  --sw-h: 22px;
+  --sw-r: 11px;
+  --sw-thumb: 18px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: #b5b7ba;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  /* 4. Сегменты */
+  --seg-r: 6px;
+  --seg-line: #b1b3b4;
+  --seg-text: #434345;
+  --seg-on: #ffffff;
+  --seg-on-text: #1a1a1a;
+  /* 5. Палитра и поверхности */
+  --bg: #dcdfe3;
+  --bg-elev: #e7e8ea;
+  --surface: #ffffff;
+  --surface-press: #d2d2d2;
+  --sep: #e4e5e7;
+  --sep-strong: #b1b3b4;
+  --text: #202022;
+  --text-2: #68686a;
+  --text-3: #9d9ea0;
+  --bar: #e7e8ea;
+  --bar-line: #b1b3b4;
+  --danger: #e0001b;
+  --on-danger: #ffffff;
+  --ok: #44b700;
+  --thumb: #ffffff;
+  --toast-bg: rgba(36, 36, 37, 0.96);
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.18);
+  /* 6. Каркасные опциональные параметры */
+  --group-mx: 10px;
+  --group-r: 7px;
+  --group-border: 2px solid var(--sep-strong);
+  --group-shadow: none;
+  --field-bg: #ffffff;
+  --field-line: #b9babc;
+  --field-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.12);
+  --tint-text: color-mix(in srgb, var(--tint) 50%, #000000);
+  --modal-r: 7px;
+  --modal-bg: var(--bg-elev);
+  --modal-head-bg: linear-gradient(180deg, #f4f5f6 0%, #e7e8ea 100%);
+  --modal-head-text: #202022;
+  --modal-head-border: 1px solid var(--bar-line);
+  --modal-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --toast-r: 6px;
+  --callout-r: 7px;
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------- Токены: Тёмный --- */
+:root[data-skin="alloy"].theme--dark {
+  --bg: #121214;
+  --bg-elev: #1e1e22;
+  --surface: #242426;
+  --surface-press: #36363a;
+  --sep: #2e2e32;
+  --sep-strong: #57585a;
+  --text: #f0f0f2;
+  --text-2: #a7a9ac;
+  --text-3: #707174;
+  --bar: #1c1c1e;
+  --bar-line: #3c3c3e;
+  --danger: #ff453a;
+  --sw-off: #434346;
+  --sw-on: var(--tint);
+  --seg-line: #3c3c3e;
+  --seg-text: #a7a9ac;
+  --seg-on: #36363a;
+  --seg-on-text: #ffffff;
+  --field-bg: #1c1c1e;
+  --field-line: #48484c;
+  --field-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.35);
+  --tint-text: color-mix(in srgb, var(--tint) 75%, #ffffff);
+  --modal-head-bg: linear-gradient(180deg, #26262a 0%, #1c1c1e 100%);
+  --modal-head-text: #f0f0f2;
+  --toast-bg: rgba(45, 45, 48, 0.96);
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+/* ====================================================================== Правила темы ====================================================================== */
+/* Фактурная подложка страницы */
+:root[data-skin="alloy"] body::before {
+  background: radial-gradient(circle at 50% 0%, #eceef1 0%, #cfd2d6 100%);
+}
+
+:root[data-skin="alloy"].theme--dark body::before {
+  background: radial-gradient(circle at 50% 10%, #1e1e24 0%, #0d0e10 100%);
+}
+
+/* Шапка окна клиента */
+:root[data-skin="alloy"] .nav-bar {
+  background: linear-gradient(180deg, #f7f8f9 0%, #e7e8ea 100%);
+  border-bottom: 2px solid var(--bar-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+:root[data-skin="alloy"].theme--dark .nav-bar {
+  background: linear-gradient(180deg, #28282c 0%, #1c1c1e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root[data-skin="alloy"] .nav-bar__title {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+:root[data-skin="alloy"].theme--dark .nav-bar__title {
+  text-shadow: 0 1px 1px #000000;
+}
+
+/* Служебные кнопки шапки */
+:root[data-skin="alloy"] .nav-bar__btn {
+  padding: 4px 10px;
+  border: 2px solid #ffffff;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #646567 0%, #242425 100%);
+  box-shadow: 0 0 0 1px #57585a;
+  color: #ffffff;
+  font: 700 12px/1.2 var(--font);
+  text-shadow: 0 -1px 1px #000000;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"] .nav-bar__btn:hover {
+    background: linear-gradient(180deg, #c7c8ca 0%, #656668 90%);
+    text-shadow: 0 -1px 1px #656668;
+    color: #ffffff;
+  }
+}
+
+:root[data-skin="alloy"] .nav-bar__btn:active {
+  border-color: var(--tint);
+  box-shadow: 0 0 0 1px var(--tint-press), inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ====================================================================== Кнопки .decorated: Тяжёлая плашка с двойной белой фаской и окантовкой #57585A ====================================================================== */
+:root[data-skin="alloy"] .btn,
+:root[data-skin="alloy"] .trbar__btn {
+  border: 2px solid #ffffff;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #646567 0%, #242425 100%);
+  box-shadow: 0 0 0 1px #57585a;
+  color: #ffffff;
+  font: 700 13px/1.2 var(--font);
+  text-shadow: 0 -1px 1px #000000;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"] .btn:hover,
+  :root[data-skin="alloy"] .trbar__btn:hover {
+    background: linear-gradient(180deg, #c7c8ca 0%, #656668 90%);
+    text-shadow: 0 -1px 1px #656668;
+    color: #ffffff;
+  }
+}
+
+:root[data-skin="alloy"] .btn:active,
+:root[data-skin="alloy"] .trbar__btn:active {
+  border-color: var(--tint);
+  box-shadow: 0 0 0 1px var(--tint-press), inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Главная кнопка действия */
+:root[data-skin="alloy"] .btn--filled {
+  color: var(--tint);
+  text-shadow: 0 -1px 2px #000000;
+  box-shadow: 0 0 0 1px #57585a, 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"] .btn--filled:hover {
+    color: #ffffff;
+  }
+}
+
+/* Опасное действие */
+:root[data-skin="alloy"] .btn--danger {
+  border-color: #ffffff;
+  background: linear-gradient(180deg, #ab1f1f 0%, #570a0a 100%);
+  box-shadow: 0 0 0 1px #3d0505;
+  color: #ffffff;
+}
+
+/* Псевдокнопка-ссылка */
+:root[data-skin="alloy"] .btn--ghost {
+  border: 1px dashed var(--sep-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-2);
+  text-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"] .btn--ghost:hover {
+    border-color: var(--tint-text);
+    color: var(--tint-text);
+    background: transparent;
+    text-shadow: none;
+  }
+}
+
+/* Неактивная кнопка */
+:root[data-skin="alloy"] .btn:disabled {
+  border-color: #ffffff;
+  background: #9d9ea0;
+  box-shadow: 0 0 0 1px #77787a;
+  color: #545559;
+  text-shadow: none;
+  cursor: default;
+}
+
+/* Ссылки и действия контента */
+:root[data-skin="alloy"] .rich a {
+  color: #085696;
+  text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"] .rich a:hover {
+    color: #c00000;
+  }
+}
+
+:root[data-skin="alloy"].theme--dark .rich a {
+  color: #4fa3e3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"].theme--dark .rich a:hover {
+    color: #ff5252;
+  }
+}
+
+/* ====================================================================== Списки и строки: Светлый блок с рамкой 2px #b1b3b4. При нажатии активная строка становится тёмной плашкой #404043 ====================================================================== */
+:root[data-skin="alloy"] .list {
+  border: 2px solid var(--sep-strong);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+}
+
+:root[data-skin="alloy"] .group__title {
+  padding-left: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+:root[data-skin="alloy"] .list__cell--link:active {
+  background: #404043;
+  color: #ffffff;
+}
+
+:root[data-skin="alloy"] .list__cell--link:active .list__label,
+:root[data-skin="alloy"] .list__cell--link:active .list__value {
+  color: #ffffff;
+}
+
+:root[data-skin="alloy"] .list__cell--link:active .list__chevron {
+  color: var(--tint);
+}
+
+/* Нижняя панель навигации */
+:root[data-skin="alloy"] .tab-bar {
+  background: linear-gradient(180deg, #e4e5e8 0%, #d8dade 100%);
+  border-top: 2px solid var(--bar-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:root[data-skin="alloy"].theme--dark .tab-bar {
+  background: linear-gradient(180deg, #242428 0%, #1a1a1c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root[data-skin="alloy"] .tab-bar__item {
+  color: #555557;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:root[data-skin="alloy"].theme--dark .tab-bar__item {
+  color: #a7a9ac;
+  text-shadow: none;
+}
+
+:root[data-skin="alloy"] .tab-bar__item--active {
+  background: var(--surface);
+  border-top: 3px solid var(--tint);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-skin="alloy"] .tab-bar__item--active .tab-bar__icon {
+  color: var(--tint);
+}
+
+/* Бейдж счётчика */
+:root[data-skin="alloy"] .tab-bar__badge {
+  background: linear-gradient(180deg, #e93d24 0%, #d72828 100%);
+  box-shadow: 0 0 0 1.5px #ffffff;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* ====================================================================== Индикаторы и прогресс: Кислотно-лаймовый градиент скачивания ====================================================================== */
+:root[data-skin="alloy"] .meter__track,
+:root[data-skin="alloy"] .chart__track {
+  border: 1px solid var(--sep-strong);
+  border-radius: 4px;
+  background: #18181a;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-skin="alloy"] .meter__fill,
+:root[data-skin="alloy"] .chart__bar {
+  border-radius: 3px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 55%, #ffffff) 0%, color-mix(in srgb, var(--tint) 85%, #ffffff) 50%, var(--tint) 80%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+:root[data-skin="alloy"] .switch__input:checked ~ .switch__track {
+  /* Включённый переключатель — из акцента (с объёмом: светлее сверху). */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 55%, #ffffff) 0%, color-mix(in srgb, var(--tint) 85%, #ffffff) 50%, var(--tint) 80%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Сегменты */
+:root[data-skin="alloy"] .segmented {
+  padding: 2px;
+  border: 1px solid var(--sep-strong);
+  border-radius: 6px;
+  background: #d4d6da;
+}
+
+:root[data-skin="alloy"].theme--dark .segmented {
+  background: #252528;
+}
+
+:root[data-skin="alloy"] .segmented__item {
+  color: var(--text-2);
+  font-weight: 700;
+}
+
+:root[data-skin="alloy"] .segmented__item--active {
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffffff 0%, #e7e8ea 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 #ffffff;
+  color: #1a1a1a;
+}
+
+:root[data-skin="alloy"].theme--dark .segmented__item--active {
+  background: linear-gradient(180deg, #48484c 0%, #2e2e32 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Карточки и посты */
+:root[data-skin="alloy"] .card,
+:root[data-skin="alloy"] .post,
+:root[data-skin="alloy"] .article,
+:root[data-skin="alloy"] .banner {
+  border: 2px solid var(--sep-strong);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: 0 1px 3px var(--shadow-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="alloy"] .card:hover {
+    border-color: #7b7c7e;
+  }
+}
+
+:root[data-skin="alloy"] .card:active {
+  border-color: var(--tint);
+  box-shadow: 0 0 0 1px var(--tint);
+}
+
+:root[data-skin="alloy"] .card--pinned {
+  border-left: 4px solid var(--tint);
+}
+
+/* Чипы тегов */
+:root[data-skin="alloy"] .hot__chip {
+  border: 1px solid var(--sep-strong);
+  border-radius: var(--chip-r);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-weight: 700;
+}
+
+:root[data-skin="alloy"] .hot__chip--live {
+  border: 2px solid #ffffff;
+  background: linear-gradient(180deg, #646567 0%, #242425 100%);
+  box-shadow: 0 0 0 1px #57585a;
+  color: var(--tint);
+  text-shadow: 0 -1px 1px #000000;
+}
+
+/* Баннеры */
+:root[data-skin="alloy"] .banner--warn {
+  border-color: var(--tint);
+  background: color-mix(in srgb, var(--tint) 14%, var(--surface));
+}
+
+:root[data-skin="alloy"] .banner--danger {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+}
+
+/* Модальное окно */
+:root[data-skin="alloy"] .modal__head {
+  border-bottom: 1px solid var(--bar-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+:root[data-skin="alloy"] .modal__title {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:root[data-skin="alloy"].theme--dark .modal__head {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root[data-skin="alloy"].theme--dark .modal__title {
+  text-shadow: 0 1px 1px #000000;
+}
+
+/* ====================================================================== Адаптивность для десктопа (min-width: 1024px) ====================================================================== */
+@media (min-width: 1024px) {
+  :root[data-skin="alloy"] .tab-bar {
+    background: var(--bg-elev);
+    border-right: 2px solid var(--bar-line);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.6);
+  }
+
+  :root[data-skin="alloy"].theme--dark .tab-bar {
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+
+  :root[data-skin="alloy"] .tab-bar__item {
+    margin: 2px 8px;
+    padding: 8px 12px;
+    border-top: none;
+    border-radius: 4px;
+    box-shadow: none;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    :root[data-skin="alloy"] .tab-bar__item:not(.tab-bar__item--active):hover {
+      background: #dcdfe3;
+      color: #1a1a1a;
+    }
+
+    :root[data-skin="alloy"].theme--dark .tab-bar__item:not(.tab-bar__item--active):hover {
+      background: #28282c;
+      color: #ffffff;
+    }
+  }
+
+  :root[data-skin="alloy"] .tab-bar__item--active {
+    border-top: none;
+    background: #404043;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 2px rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+    text-shadow: 0 -1px 1px #000000;
+  }
+
+  :root[data-skin="alloy"] .tab-bar__item--active .tab-bar__icon {
+    color: var(--tint);
+  }
+
+  :root[data-skin="alloy"].theme--dark .tab-bar__item--active {
+    background: #343438;
+    color: #ffffff;
+  }
+}

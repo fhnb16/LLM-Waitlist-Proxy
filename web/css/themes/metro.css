@@ -1,0 +1,132 @@
+/*!theme
+id: metro
+name: Metro
+mode: dark
+accent: #00a4ef
+barsLight: #ffffff, 1.0, #ffffff
+barsDark: #1d1d1d, 1.0, #1d1d1d
+description: рамка 2 пикселя без скругления, нажатие инвертирует | стрелка в круге
+*/
+
+/* ======================================================================== */
+/* Metro — плитки без скруглений и теней                                      */
+/* Ни одного скругления и ни одной тени: плоские плитки, тонкие заголовки,
+   сплошной акцентный блок вместо подсветки.                                 */
+:root[data-skin="metro"] {
+  --font: "Segoe UI", "Segoe UI Variable Text", Tahoma, sans-serif;
+  --bg: #1d1d1d;
+  --bg-elev: #2b2b2b;
+  --surface: #2b2b2b;
+  --surface-press: #3a3a3a;
+  --sep: #1d1d1d;
+  --sep-strong: #4c4c4c;
+  --text: #ffffff;
+  --text-2: #b9b9b9;
+  --text-3: #8a8a8a;
+  --bar: #1d1d1d;
+  --bar-line: #3a3a3a;
+  --radius: 0px;
+  --radius-lg: 0px;
+  --card-radius: 0px;
+  --bar-blur: none;
+  --thumb: #ffffff;
+  --shadow-soft: transparent;
+  color-scheme: dark;
+  --hero-size: 40px;
+  --hero-weight: 200;
+  --hero-tracking: -0.02em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 300;
+  --sw-w: 44px;
+  --sw-h: 20px;
+  --sw-r: 0px;
+  --sw-thumb: 12px;
+  --sw-thumb-r: 0px;
+  --sw-pad: 4px;
+  --sw-off: transparent;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 0px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 48px;
+  --tab-h: 52px;
+  --danger: #e51400;
+  --ok: #60a917;
+  --on-danger: #ffffff;
+  --toast-bg: var(--tint);
+  --toast-text: var(--on-tint);
+  --chip-r: 0px;
+}
+:root[data-skin="metro"]:not(.theme--dark) {
+  --bg: #ffffff;
+  --bg-elev: #f2f2f2;
+  --surface: #f2f2f2;
+  --surface-press: #e1e1e1;
+  --sep: #ffffff;
+  --sep-strong: #c8c8c8;
+  --text: #000000;
+  --text-2: #4c4c4c;
+  --text-3: #767676;
+  --bar: #ffffff;
+  --bar-line: #d6d6d6;
+  --thumb: #000000;
+  color-scheme: light;
+}
+:root[data-skin="metro"] .list { border: 0; margin: 0 0 2px; }
+:root[data-skin="metro"] .list__cell,
+:root[data-skin="metro"] .card { border-bottom: 2px solid var(--bg); }
+:root[data-skin="metro"] .hero__title { font-weight: 200; font-size: 40px; letter-spacing: -0.02em; }
+:root[data-skin="metro"] .nav-bar__title { font-weight: 300; font-size: 19px; }
+:root[data-skin="metro"] .group__title { font-weight: 300; font-size: 15px; text-transform: none; }
+:root[data-skin="metro"] .tab-bar__item--active { background: var(--tint); color: var(--on-tint); }
+:root[data-skin="metro"] .btn,
+:root[data-skin="metro"] .segmented,
+:root[data-skin="metro"] .tag,
+:root[data-skin="metro"] .hot__chip,
+:root[data-skin="metro"] .cands__tab,
+:root[data-skin="metro"] .trbar__btn { border-radius: 0; }
+:root[data-skin="metro"] .switch { width: 44px; height: 20px; }
+:root[data-skin="metro"] .switch__track { border-radius: 0; background: none; border: 2px solid var(--sep-strong); }
+:root[data-skin="metro"] .switch__thumb { border-radius: 0; width: 8px; height: 12px; top: 4px; left: 4px; background: var(--text-2); box-shadow: none; }
+:root[data-skin="metro"] .switch__input:checked ~ .switch__track { background: var(--tint); border-color: var(--tint); }
+:root[data-skin="metro"] .switch__input:checked ~ .switch__thumb { background: var(--on-tint); transform: translateX(24px); }
+/* --------------------------------------------------------------- Metro ---
+   Прямоугольник с рамкой в 2 пикселя цвета текста, без скругления;
+   нажатие инвертирует цвета. «Назад» — стрелка в круге с той же рамкой.  */
+:root[data-skin="metro"] .btn,
+:root[data-skin="metro"] .btn--ghost,
+:root[data-skin="metro"] .trbar__btn {
+  min-height: 36px;
+  border: 2px solid var(--text);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+}
+:root[data-skin="metro"] .btn:active,
+:root[data-skin="metro"] .trbar__btn:active { background: var(--text); color: var(--bg); }
+:root[data-skin="metro"] .btn--filled { border-color: var(--tint); background: var(--tint); color: var(--on-tint); }
+:root[data-skin="metro"] .btn--danger { border-color: var(--danger); color: var(--danger); }
+:root[data-skin="metro"] .nav-bar__btn { color: var(--text); }
+:root[data-skin="metro"] .nav-bar__btn--back {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+}
+:root[data-skin="metro"] .nav-bar__btn--back .nav-bar__btn-label { display: none; }
+/* Кнопка-строка в светлом режиме у тем с яркими акцентами — глубже, чтобы
+   контраст с фоном группы был не ниже 4.5:1. */
+:root[data-skin="metro"]:not(.theme--dark) { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="metro"] { --modal-r: 0; --modal-border: 0; --modal-head-bg: var(--tint); --modal-head-text: var(--on-tint); --modal-head-border: 0; --modal-shadow: none; --overlay: rgba(0, 0, 0, 0.6); --toast-r: 0; --callout-r: 0; }
+/* Metro: сплошная полоса акцента, тонкий крупный заголовок. */
+:root[data-skin="metro"] .modal__title { font-size: 22px; font-weight: 300; }
+:root[data-skin="metro"] .modal__close { border-radius: 0; background: none; }

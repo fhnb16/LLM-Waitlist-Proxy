@@ -1,0 +1,286 @@
+/*!theme
+id: olive
+name: Olive
+mode: dark
+accent: #c4b550
+accentLight: #000080
+barsLight: #c0c0c0, 1.0, #c0c0c0
+barsDark: #4c5844, 1.0, #3e4637
+description: тёмный — оливковые окна с выпуклыми фасками, вдавленные поля, Tahoma, жёлтые подписи разделов, блочный индикатор; светлый — Windows 95/98: серая плашка `#c0c0c0` с двойной фаской, вдавленные нажатия и белые поля, заголовок окна градиентом из акцента, блочный прогресс акцентом
+*/
+
+/* ======================================================================== */
+/* Olive — оливковые окна с фасками                                          */
+/* Оливковые панели, выпуклые фаски светлым сверху-слева и тёмным снизу-
+   справа, вдавленные поля, Tahoma, жёлтые подписи разделов, блочный
+   индикатор вместо сплошной полосы.                                         */
+:root[data-skin="olive"] {
+  --font: Tahoma, Verdana, "Segoe UI", sans-serif;
+  --radius: 0px;
+  --radius-lg: 0px;
+  --card-radius: 0px;
+  --bar-blur: none;
+  --bar-h: 40px;
+  --tab-h: 50px;
+  --hero-size: 18px;
+  --hero-weight: 400;
+  --hero-tracking: 0.04em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 400;
+  --sw-w: 30px;
+  --sw-h: 16px;
+  --sw-r: 0px;
+  --sw-thumb: 10px;
+  --sw-thumb-r: 0px;
+  --sw-pad: 3px;
+  --sw-off: #3e4637;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 0px;
+  --seg-line: var(--bevel-lo);
+  --seg-text: var(--text-2);
+  --seg-on: var(--surface-press);
+  --seg-on-text: var(--tint);
+  --chip-r: 0px;
+  --bg: #3e4637;
+  --bg-elev: #4c5844;
+  --surface: #4c5844;
+  --surface-press: #5a6a50;
+  --sep: #3e4637;
+  --sep-strong: #282e22;
+  --text: #d8ded3;
+  --text-2: #a0aa95;
+  --text-3: #7f8a74;
+  --bar: #4c5844;
+  --bar-line: #282e22;
+  --danger: #c2653e;
+  --ok: #95a86b;
+  --thumb: #d8ded3;
+  --on-danger: #ffffff;
+  --toast-bg: #4c5844;
+  --toast-text: #d8ded3;
+  --shadow-soft: rgba(0, 0, 0, 0.5);
+  --bevel-hi: #889180;
+  --bevel-lo: #282e22;
+  --inset-bg: #3e4637;
+  color-scheme: dark;
+}
+:root[data-skin="olive"] body { font-size: 13px; }
+:root[data-skin="olive"] .nav-bar { box-shadow: 0 1px 0 var(--bevel-lo); }
+:root[data-skin="olive"] .nav-bar__title { font-size: 13px; }
+:root[data-skin="olive"] .hero__title,
+:root[data-skin="olive"] .group__title { color: var(--tint); text-transform: uppercase; }
+/* Выпуклая панель: светлая фаска сверху-слева, тёмная снизу-справа. */
+:root[data-skin="olive"] .list,
+:root[data-skin="olive"] .key,
+:root[data-skin="olive"] .banner,
+:root[data-skin="olive"] .post,
+:root[data-skin="olive"] .article,
+:root[data-skin="olive"] .cands,
+:root[data-skin="olive"] .chart {
+  border: 1px solid;
+  border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+  margin-left: 10px;
+  margin-right: 10px;
+}
+:root[data-skin="olive"] .card,
+:root[data-skin="olive"] .list__cell,
+:root[data-skin="olive"] .reply { border-bottom: 1px solid var(--sep); }
+/* Вдавленные поля ввода и код — фаски наоборот, фон темнее. */
+:root[data-skin="olive"] .search__box,
+:root[data-skin="olive"] .key__value,
+:root[data-skin="olive"] .rich pre,
+:root[data-skin="olive"] .rich code {
+  background: var(--inset-bg);
+  border: 1px solid;
+  border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+  border-radius: 0;
+}
+/* Кнопки выпуклые, нажатая — вдавленная. */
+:root[data-skin="olive"] .btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid;
+  border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+  border-radius: 0;
+}
+:root[data-skin="olive"] .btn:active,
+:root[data-skin="olive"] .btn--filled {
+  background: var(--surface-press);
+  color: var(--tint);
+  border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+}
+/* Сегменты — вкладки окна настроек: выбранная поднята и подписана акцентом. */
+:root[data-skin="olive"] .segmented { border-color: var(--bevel-lo); }
+:root[data-skin="olive"] .segmented__item { box-shadow: inset 1px 1px 0 var(--bevel-hi), inset -1px -1px 0 var(--bevel-lo); }
+:root[data-skin="olive"] .segmented__item--active { box-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi); }
+/* Тумблер — вдавленный квадрат с жёлтой отметкой. */
+:root[data-skin="olive"] .switch__track {
+  border: 1px solid;
+  border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+}
+:root[data-skin="olive"] .switch__input:checked ~ .switch__track { background: var(--inset-bg); }
+:root[data-skin="olive"] .switch__input:checked ~ .switch__thumb { background: var(--tint); }
+/* Нижняя панель — ряд выпуклых кнопок, выбранная вдавлена. */
+:root[data-skin="olive"] .tab-bar { box-shadow: inset 0 1px 0 var(--bevel-hi); }
+:root[data-skin="olive"] .tab-bar__item {
+  margin: 4px 2px;
+  box-shadow: inset 1px 1px 0 var(--bevel-hi), inset -1px -1px 0 var(--bevel-lo);
+}
+:root[data-skin="olive"] .tab-bar__item--active {
+  color: var(--tint);
+  background: var(--surface-press);
+  box-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi);
+}
+/* Индикатор загрузки из блоков, как у полосы копирования файлов. */
+:root[data-skin="olive"] .chart__track { border-radius: 0; background: var(--inset-bg); }
+:root[data-skin="olive"] .chart__bar {
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--tint) 0 7px, transparent 7px 9px);
+}
+/* ======================================================================
+   Olive, светлый — Windows 95/98: серая плашка #c0c0c0, двойная фаска
+   (белый и светло-серый сверху-слева, чёрный и серый снизу-справа),
+   вдавленные поля и нажатия, заголовок окна — градиент из акцента.
+   Тёмный Olive остаётся прежним.
+   ====================================================================== */
+:root[data-skin="olive"]:not(.theme--dark) {
+  --font: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
+  --bg: #c0c0c0;
+  --bg-elev: #c0c0c0;
+  --surface: #c0c0c0;
+  --surface-press: #b8b8b8;
+  --sep: #a8a8a8;
+  --sep-strong: #808080;
+  --text: #000000;
+  --text-2: #303030;
+  --text-3: #5a5a5a;
+  --bar: #c0c0c0;
+  --bar-line: #808080;
+  --bevel-hi: #ffffff;
+  --bevel-lo: #808080;
+  --inset-bg: #ffffff;
+  --sw-off: #ffffff;
+  --thumb: #000000;
+  --seg-line: #808080;
+  --seg-text: #000000;
+  --seg-on: #c0c0c0;
+  --seg-on-text: #000000;
+  --toast-bg: #ffffe1;
+  --toast-text: #000000;
+  --shadow-soft: rgba(0, 0, 0, 0.35);
+  --w98-up: inset -1px -1px #000000, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  --w98-down: inset 1px 1px #000000, inset -1px -1px #ffffff, inset 2px 2px #808080, inset -2px -2px #dfdfdf;
+  --w98-field: inset 1px 1px #808080, inset -1px -1px #ffffff, inset 2px 2px #000000, inset -2px -2px #dfdfdf;
+  color-scheme: light;
+}
+:root[data-skin="olive"]:not(.theme--dark) body::before { background: #c0c0c0; }
+/* Заголовок окна: полоса из акцента, белая жирная надпись. */
+:root[data-skin="olive"]:not(.theme--dark) .nav-bar {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tint) 60%, #000000), color-mix(in srgb, var(--tint) 80%, #ffffff));
+  box-shadow: none;
+  border-bottom: 1px solid #000000;
+}
+:root[data-skin="olive"]:not(.theme--dark) .nav-bar__title { color: #ffffff; font-weight: 700; }
+/* Кнопки, вкладки, сегменты — выпуклые; нажатые и выбранные — вдавленные. */
+:root[data-skin="olive"]:not(.theme--dark) .btn,
+:root[data-skin="olive"]:not(.theme--dark) .nav-bar__btn,
+:root[data-skin="olive"]:not(.theme--dark) .trbar__btn,
+:root[data-skin="olive"]:not(.theme--dark) .tab-bar__item,
+:root[data-skin="olive"]:not(.theme--dark) .segmented__item {
+  border: 0;
+  border-radius: 0;
+  background: #c0c0c0;
+  color: #000000;
+  box-shadow: var(--w98-up);
+}
+:root[data-skin="olive"]:not(.theme--dark) .nav-bar__btn { padding: 4px 10px; }
+:root[data-skin="olive"]:not(.theme--dark) .btn:active,
+:root[data-skin="olive"]:not(.theme--dark) .nav-bar__btn:active,
+:root[data-skin="olive"]:not(.theme--dark) .trbar__btn:active,
+:root[data-skin="olive"]:not(.theme--dark) .btn--filled,
+:root[data-skin="olive"]:not(.theme--dark) .tab-bar__item--active,
+:root[data-skin="olive"]:not(.theme--dark) .segmented__item--active {
+  background: #c0c0c0;
+  color: #000000;
+  box-shadow: var(--w98-down);
+}
+:root[data-skin="olive"]:not(.theme--dark) .segmented { border: 0; }
+:root[data-skin="olive"]:not(.theme--dark) .tab-bar { background: #c0c0c0; box-shadow: inset 0 1px #ffffff, inset 0 2px #dfdfdf; border-top: 1px solid #808080; }
+/* Окна и группы — выпуклые панели. */
+:root[data-skin="olive"]:not(.theme--dark) .list,
+:root[data-skin="olive"]:not(.theme--dark) .key,
+:root[data-skin="olive"]:not(.theme--dark) .banner,
+:root[data-skin="olive"]:not(.theme--dark) .post,
+:root[data-skin="olive"]:not(.theme--dark) .article,
+:root[data-skin="olive"]:not(.theme--dark) .cands,
+:root[data-skin="olive"]:not(.theme--dark) .chart,
+:root[data-skin="olive"]:not(.theme--dark) .meters {
+  border: 0;
+  background: #c0c0c0;
+  box-shadow: var(--w98-up);
+}
+/* Поля ввода и код — белые, вдавленные. */
+:root[data-skin="olive"]:not(.theme--dark) .search__box,
+:root[data-skin="olive"]:not(.theme--dark) .find-bar__input,
+:root[data-skin="olive"]:not(.theme--dark) .rich pre,
+:root[data-skin="olive"]:not(.theme--dark) .rich code {
+  border: 0;
+  background: #ffffff;
+  box-shadow: var(--w98-field);
+}
+/* Подписи — чёрные, как в окнах 98; ссылки и строки-действия — акцентом. */
+:root[data-skin="olive"]:not(.theme--dark) .hero__title,
+:root[data-skin="olive"]:not(.theme--dark) .group__title { color: #000000; text-transform: none; }
+:root[data-skin="olive"]:not(.theme--dark) .group__title { font-weight: 700; }
+:root[data-skin="olive"]:not(.theme--dark) .rich a { color: color-mix(in srgb, var(--tint) 70%, #000000); }
+/* Индикаторы — блочная полоса цвета акцента, как прогресс-бар 98. */
+:root[data-skin="olive"]:not(.theme--dark) .meter__track,
+:root[data-skin="olive"]:not(.theme--dark) .chart__track { background: #ffffff; box-shadow: var(--w98-field); border-radius: 0; }
+:root[data-skin="olive"]:not(.theme--dark) .meter__fill,
+:root[data-skin="olive"]:not(.theme--dark) .chart__bar {
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--tint) 0 8px, transparent 8px 10px);
+}
+:root[data-skin="olive"]:not(.theme--dark) .switch__track { border: 0; background: #ffffff; box-shadow: var(--w98-field); }
+:root[data-skin="olive"]:not(.theme--dark) .switch__input:checked ~ .switch__track { background: #ffffff; }
+:root[data-skin="olive"]:not(.theme--dark) .switch__input:checked ~ .switch__thumb { background: var(--tint); }
+/* Olive: поле — вдавленная фаска на светлой подложке. */
+:root[data-skin="olive"] {
+  --field-bg: var(--inset-bg);
+  --field-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi);
+  --group-r: 0px;
+}
+:root[data-skin="olive"]:not(.theme--dark) {
+  --field-bg: #ffffff;
+  --field-shadow: var(--w98-field);
+  --tint-text: color-mix(in srgb, var(--tint) 70%, #000000);
+}
+:root[data-skin="olive"] { --group-mx: 10px; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="olive"] { --modal-r: 10px; }
+/* Светлый Olive — окно Windows 98: серая плашка с двойной фаской, заголовок
+   окна — градиент из акцента, крестик — кнопка с фаской. */
+:root[data-skin="olive"]:not(.theme--dark) {
+  --modal-r: 0;
+  --modal-bg: #c0c0c0;
+  --modal-border: 0;
+  --modal-shadow: var(--w98-up), 2px 2px 0 rgba(0, 0, 0, 0.3);
+  --modal-head-bg: linear-gradient(90deg, var(--tint), color-mix(in srgb, var(--tint) 45%, #ffffff));
+  --modal-head-text: #ffffff;
+  --modal-head-border: 0;
+  --overlay: rgba(0, 0, 0, 0.25);
+  --toast-r: 0;
+  --callout-r: 0;
+}
+:root[data-skin="olive"]:not(.theme--dark) .modal__panel { padding: 3px; }
+:root[data-skin="olive"]:not(.theme--dark) .modal__panel::before { display: none; }
+:root[data-skin="olive"]:not(.theme--dark) .modal__head { padding: 4px 4px 4px 8px; }
+:root[data-skin="olive"]:not(.theme--dark) .modal__title { font-size: 13px; }
+:root[data-skin="olive"]:not(.theme--dark) .modal__close { width: 18px; height: 16px; border-radius: 0; background: #c0c0c0; color: #000000; font-size: 11px; font-weight: 700; box-shadow: var(--w98-up); }
+:root[data-skin="olive"]:not(.theme--dark) .modal__close:active { box-shadow: var(--w98-down); }
+:root[data-skin="olive"]:not(.theme--dark) .modal__body { margin: 6px 3px; background: #ffffff; box-shadow: var(--w98-field); }
+:root[data-skin="olive"]:not(.theme--dark) .modal__foot { border-top: 0; }
+:root[data-skin="olive"]:not(.theme--dark) .toast { box-shadow: var(--w98-up); }

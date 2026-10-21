@@ -1,0 +1,99 @@
+/*!theme
+id: lounge
+name: Lounge
+mode: dark
+accent: #5865f2
+barsLight: #f2f3f5, 1.0, #ffffff
+barsDark: #2b2d31, 1.0, #313338
+description: плотный тёмный чат: сообщения без карточек, подсветка строки, жирные имена
+*/
+
+/* ======================================================================== */
+/* Lounge — плотный чат                                                      */
+/* Сообщения без карточек, подсветка строки при нажатии, жирные имена, тёмная
+   колонка вкладок с плашкой выбранной.                                      */
+:root[data-skin="lounge"] {
+  --font: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --radius: 4px;
+  --radius-lg: 8px;
+  --card-radius: 8px;
+  --bar-blur: none;
+  --bar-h: 48px;
+  --tab-h: 56px;
+  --hero-size: 24px;
+  --hero-weight: 700;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 600;
+  --sw-w: 40px;
+  --sw-h: 24px;
+  --sw-r: 12px;
+  --sw-thumb: 18px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 3px;
+  --sw-off: #80848e;
+  --sw-on: var(--ok);
+  --sw-shadow: none;
+  --seg-r: 4px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text-2);
+  --seg-on: var(--surface-press);
+  --seg-on-text: var(--text);
+  --chip-r: 4px;
+  --bg: #313338;
+  --bg-elev: #2b2d31;
+  --surface: #2b2d31;
+  --surface-press: #35373c;
+  --sep: #3f4147;
+  --sep-strong: #4e5058;
+  --text: #dbdee1;
+  --text-2: #b5bac1;
+  --text-3: #949ba4;
+  --bar: #2b2d31;
+  --bar-line: #1f2023;
+  --danger: #f23f43;
+  --ok: #23a55a;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: #111214;
+  --toast-text: #dbdee1;
+  --shadow-soft: rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+}
+:root[data-skin="lounge"]:not(.theme--dark) {
+  --bg: #ffffff;
+  --bg-elev: #f2f3f5;
+  --surface: #f2f3f5;
+  --surface-press: #e3e5e8;
+  --sep: #e3e5e8;
+  --sep-strong: #c4c9ce;
+  --text: #313338;
+  --text-2: #4e5058;
+  --text-3: #5c5e66;
+  --bar: #f2f3f5;
+  --bar-line: #e3e5e8;
+  --sw-off: #b5bac1;
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.12);
+  color-scheme: light;
+}
+:root[data-skin="lounge"] .list { background: none; border: 0; margin: 0 4px; }
+:root[data-skin="lounge"] .card,
+:root[data-skin="lounge"] .reply { background: none; border: 0; border-radius: var(--radius); }
+:root[data-skin="lounge"] .card:active,
+:root[data-skin="lounge"] .reply:active { background: var(--surface-press); }
+:root[data-skin="lounge"] .card__author,
+:root[data-skin="lounge"] .reply__author { color: var(--text); font-weight: 600; }
+:root[data-skin="lounge"] .list__cell { background: var(--surface); border-radius: var(--radius); margin-bottom: 2px; }
+:root[data-skin="lounge"] .tab-bar { box-shadow: 0 -1px 0 var(--bar-line); }
+:root[data-skin="lounge"] .tab-bar__item { margin: 6px 3px; border-radius: var(--radius-lg); }
+:root[data-skin="lounge"] .tab-bar__item--active { background: var(--surface-press); color: var(--text); }
+:root[data-skin="lounge"] .btn { border-radius: var(--radius); font-weight: 500; }
+:root[data-skin="lounge"] .btn--filled,
+:root[data-skin="lounge"] .btn:active { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+:root[data-skin="lounge"] .rich code { background: var(--bg-elev); }
+:root[data-skin="lounge"] { --group-mx: 4px; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="lounge"] { --modal-r: 18px; --modal-blur: blur(4px); --overlay: rgba(0, 0, 0, 0.38); --toast-r: 16px; }

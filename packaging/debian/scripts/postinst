@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    if ! getent group lmq >/dev/null; then
+        addgroup --system lmq
+    fi
+    if ! getent passwd lmq >/dev/null; then
+        adduser --system --ingroup lmq --home /var/lib/lmq --no-create-home \
+            --shell /usr/sbin/nologin --gecos "LMQ queue server" lmq
+    fi
+    # Доступ к GPU для дочерних движков.
+    for g in video render; do
+        if getent group "$g" >/dev/null; then
+            adduser lmq "$g" >/dev/null 2>&1 || true
+        fi
+    done
+    install -d -o lmq -g lmq -m 0750 /var/lib/lmq
+    # Панель сохраняет настройки атомарно (tmp + rename), поэтому папка — у службы.
+    chown lmq:lmq /etc/lmq
+    chmod 0750 /etc/lmq
+    chown lmq:lmq /etc/lmq/settings.yaml
+    chmod 0640 /etc/lmq/settings.yaml
+fi
+
+#DEBHELPER#
+
+if [ "$1" = "configure" ] && [ -z "$2" ]; then
+    echo "LMQ установлен. Запуск: sudo systemctl start lmq"
+    echo "Админ-токен панели: sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server admin-token reset"
+    echo "Ключ для бота:      sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot"
+fi
+
+exit 0

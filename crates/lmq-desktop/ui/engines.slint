@@ -1,0 +1,166 @@
+import { Button, Switch, ScrollView } from "std-widgets.slint";
+import { Theme, Glyph } from "theme.slint";
+import { UiData, UiActions } from "store.slint";
+import { Card, PageHeader, SectionTitle, ListRow, StatusChip, LogView, Divider } from "widgets.slint";
+import { EngineRow } from "types.slint";
+
+component EngineDetail inherits VerticalLayout {
+    in property <EngineRow> e;
+    spacing: 12px;
+    Card {
+        VerticalLayout {
+            padding: 16px;
+            spacing: 10px;
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 4px;
+                    SectionTitle { text: e.name; }
+                    StatusChip { kind: e.kind; label: e.state; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button {
+                            text: @tr("Запустить");
+                            primary: true;
+                            enabled: !e.running;
+                            clicked => { UiActions.engine-start(e.id); }
+                        }
+                        Button {
+                            text: @tr("Перезапустить");
+                            enabled: e.running;
+                            clicked => { UiActions.engine-restart(e.id); }
+                        }
+                        Button {
+                            text: @tr("Остановить");
+                            enabled: e.running;
+                            clicked => { UiActions.engine-stop(e.id); }
+                        }
+                    }
+                }
+            }
+            Text { text: e.meta; font-size: 12px; color: Theme.text-2; wrap: word-wrap; }
+            if e.endpoint != "": Text { text: @tr("Адрес: {}", e.endpoint); font-size: 12px; color: Theme.text-2; wrap: word-wrap; }
+            if e.command != "": Rectangle {
+                border-radius: 6px;
+                background: Theme.subtle-2;
+                HorizontalLayout {
+                    padding: 10px;
+                    Text {
+                        text: e.command;
+                        font-family: "Cascadia Mono";
+                        font-size: 12px;
+                        color: Theme.text;
+                        wrap: char-wrap;
+                    }
+                }
+            }
+            if e.last-exit != "": Text { text: @tr("Последний выход: {}", e.last-exit); font-size: 12px; color: Theme.text-3; wrap: word-wrap; }
+        }
+    }
+    HorizontalLayout {
+        spacing: 12px;
+        SectionTitle {
+            text: @tr("Журнал инференса");
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+        }
+        Switch {
+            text: @tr("Следить за концом");
+            checked <=> UiData.engine-follow;
+        }
+        Button {
+            text: @tr("Очистить");
+            clicked => { UiActions.engine-clear(e.id); }
+        }
+        Button {
+            text: @tr("Настроить в панели");
+            clicked => { UiActions.open-panel("#/engines/" + e.id); }
+        }
+    }
+    LogView {
+        lines: UiData.engine-log;
+        follow: UiData.engine-follow;
+        min-height: 320px;
+    }
+}
+
+export component EnginesPage inherits Rectangle {
+    property <bool> wide: self.width >= 820px;
+    VerticalLayout {
+        padding: 28px;
+        padding-top: 20px;
+        spacing: 16px;
+        PageHeader {
+            title: @tr("Движки");
+            subtitle: @tr("llama.cpp, vLLM, Ollama, KoboldCpp и любые свои бинарники");
+            VerticalLayout {
+                alignment: center;
+                Button {
+                    text: @tr("Добавить в панели");
+                    clicked => { UiActions.open-panel("#/engines?new=1"); }
+                }
+            }
+        }
+        if UiData.engines.length == 0: Card {
+            height: 140px;
+            VerticalLayout {
+                alignment: center;
+                padding: 16px;
+                spacing: 8px;
+                Text {
+                    text: @tr("Движков нет");
+                    font-size: 14px;
+                    color: Theme.text;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: @tr("Укажите путь к llama-server или другому бинарнику — LMQ будет запускать его, следить за ним и показывать журнал.");
+                    font-size: 13px;
+                    color: Theme.text-2;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        if UiData.engines.length > 0: HorizontalLayout {
+            spacing: 16px;
+            vertical-stretch: 1;
+            if wide: Card {
+                width: 280px;
+                VerticalLayout {
+                    padding: 6px;
+                    alignment: start;
+                    for e[i] in UiData.engines: ListRow {
+                        title: e.name;
+                        sub: e.state;
+                        dot: e.kind;
+                        clickable: true;
+                        selected: i == UiData.engine-selected;
+                        clicked => { UiActions.engine-select(i); }
+                    }
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 12px;
+                if !wide: HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+                    for e[i] in UiData.engines: Button {
+                        text: e.name;
+                        primary: i == UiData.engine-selected;
+                        clicked => { UiActions.engine-select(i); }
+                    }
+                }
+                EngineDetail {
+                    vertical-stretch: 1;
+                    e: UiData.engines[UiData.engine-selected];
+                }
+            }
+        }
+    }
+}

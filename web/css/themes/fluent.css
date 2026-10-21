@@ -1,0 +1,190 @@
+/*!theme
+id: fluent
+name: Fluent
+mode: light
+accent: #0078d4
+barsLight: #f3f3f3, 0.78, #f3f3f3
+barsDark: #202020, 0.76, #202020
+description: прямоугольник 4 с тёмной нижней кромкой; главная — заливка | «тихая» кнопка
+*/
+
+/* ==========================================================================
+   Оформления. Разметка и БЭМ-классы общие, меняются только токены и немного
+   формы: скругления, панели, подсветка активного раздела, переключатели.
+   ========================================================================== */
+/* ------------------------------------------------------------ Fluent ---- */
+:root[data-skin="fluent"] {
+  --font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    Roboto, "Noto Sans", sans-serif;
+  --bg: #f3f3f3;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #ededed;
+  --sep: #e5e5e5;
+  --sep-strong: #d2d2d2;
+  --text: #1b1b1b;
+  --text-2: #5d5d5d;
+  --text-3: #8a8a8a;
+  --bar: rgba(243, 243, 243, 0.78);
+  --bar-line: rgba(0, 0, 0, 0.09);
+  --radius: 4px;
+  --radius-lg: 8px;
+  --card-radius: 8px;
+  --bar-blur: saturate(140%) blur(40px);
+  --tab-h: 56px;
+  --tab-indicator: 1;
+  --hero-size: 30px;
+  --hero-weight: 600;
+  --hero-tracking: -0.01em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 600;
+  --sw-w: 40px;
+  --sw-h: 20px;
+  --sw-r: 999px;
+  --sw-thumb: 12px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 4px;
+  --sw-off: transparent;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 4px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 48px;
+  --danger: #c42b1c;
+  --ok: #0f7b0f;
+  --thumb: var(--text);
+  --on-danger: #ffffff;
+  --toast-bg: #2b2b2b;
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.14);
+  --chip-r: 4px;
+}
+:root[data-skin="fluent"].theme--dark {
+  --bg: #202020;
+  --bg-elev: #2b2b2b;
+  --surface: #2b2b2b;
+  --surface-press: #383838;
+  --sep: #3a3a3a;
+  --sep-strong: #4a4a4a;
+  --text: #ffffff;
+  --text-2: #c8c8c8;
+  --text-3: #9a9a9a;
+  --bar: rgba(32, 32, 32, 0.76);
+  --bar-line: rgba(255, 255, 255, 0.08);
+  --danger: #ff99a4;
+  --ok: #6ccb5f;
+  --on-danger: #1b1b1b;
+  --toast-bg: #f3f3f3;
+  --toast-text: #1b1b1b;
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+}
+:root[data-skin="fluent"] .list {
+  border-radius: var(--card-radius);
+  border: 1px solid var(--sep);
+  overflow: hidden;
+  margin: 0 12px;
+  box-shadow: 0 1px 2px var(--shadow-soft);
+}
+:root[data-skin="fluent"] .hero__title { font-weight: 600; font-size: 30px; letter-spacing: -0.01em; }
+:root[data-skin="fluent"] .nav-bar__title { font-weight: 600; }
+:root[data-skin="fluent"] .list__cell--link:active { background: var(--surface-press); }
+:root[data-skin="fluent"] .switch__track { border-radius: 10px; }
+:root[data-skin="fluent"] .switch__input:checked ~ .switch__track { background: var(--tint); }
+:root[data-skin="fluent"] .segmented { border-radius: var(--radius); }
+:root[data-skin="fluent"] .card { border-bottom-color: var(--sep); }
+/* Активный раздел подчёркивается полоской акцента — как в Win11.
+   Подписи поднимаем, чтобы полоска не легла на текст. */
+:root[data-skin="fluent"] .tab-bar__item { padding: 5px 2px 10px; }
+:root[data-skin="fluent"] .tab-bar__item--active::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--tint);
+}
+/* Переключатель Win11: капсула с точкой, а не прямоугольник с шариком. */
+:root[data-skin="fluent"] .switch { width: 40px; height: 20px; }
+:root[data-skin="fluent"] .switch__track {
+  border-radius: 999px;
+  background: none;
+  border: 1px solid var(--text-2);
+}
+:root[data-skin="fluent"] .switch__thumb {
+  width: 10px;
+  height: 10px;
+  top: 5px;
+  left: 5px;
+  background: var(--text);
+  box-shadow: none;
+}
+:root[data-skin="fluent"] .switch__input:checked ~ .switch__track {
+  background: var(--tint);
+  border-color: var(--tint);
+}
+:root[data-skin="fluent"] .switch__input:checked ~ .switch__thumb {
+  width: 12px;
+  height: 12px;
+  top: 4px;
+  left: 4px;
+  transform: translateX(20px);
+  background: var(--on-tint);
+}
+:root[data-skin="fluent"] .article__title { font-weight: 600; letter-spacing: 0; }
+/* -------------------------------------------------------------- Fluent ---
+   Прямоугольник со скруглением 4, тонкая рамка и чуть более тёмная нижняя
+   кромка; главная — заливка акцентом. Кнопки панели — «тихие»: без фона,
+   подложка только при нажатии.                                            */
+:root[data-skin="fluent"] .btn,
+:root[data-skin="fluent"] .btn--ghost,
+:root[data-skin="fluent"] .trbar__btn {
+  min-height: 32px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-bottom-color: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+:root[data-skin="fluent"] .btn:active,
+:root[data-skin="fluent"] .trbar__btn:active { background: var(--surface-press); color: var(--text-2); }
+:root[data-skin="fluent"] .btn--filled {
+  border-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(0, 0, 0, 0.4);
+  background: var(--tint);
+  color: var(--on-tint);
+}
+:root[data-skin="fluent"] .btn--filled:active { background: var(--tint-press); color: var(--on-tint); }
+:root[data-skin="fluent"] .btn--danger { color: var(--danger); }
+:root[data-skin="fluent"].theme--dark .btn,
+:root[data-skin="fluent"].theme--dark .btn--ghost,
+:root[data-skin="fluent"].theme--dark .trbar__btn {
+  border-color: rgba(255, 255, 255, 0.09);
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+:root[data-skin="fluent"] .nav-bar__btn { padding: 5px 10px; border-radius: 4px; color: var(--text); font-size: 15px; }
+:root[data-skin="fluent"] .nav-bar__btn:active { opacity: 1; background: var(--surface-press); }
+:root[data-skin="fluent"] { --group-mx: 12px; }
+/* Радиус группы — из правил тем: от него считается радиус поля. */
+:root[data-skin="fluent"] { --group-r: var(--card-radius); }
+
+/* Компьютер: выделение как в навигации Fluent 2 — лёгкая подложка и
+   вертикальная черта акцента у левого края (на телефоне черта под значком —
+   в строке она съезжала вниз). */
+@media (min-width: 1024px) {
+  :root[data-skin="fluent"] .tab-bar__item { min-height: 40px; border-radius: var(--radius); padding: 0 12px 0 16px !important; }
+  :root[data-skin="fluent"] .tab-bar__item--active { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+  :root[data-skin="fluent"] .tab-bar__item--active .tab-bar__icon { color: var(--tint); }
+  :root[data-skin="fluent"] .tab-bar__item--active::after { top: 50%; bottom: auto; left: 4px; width: 3px; height: 16px; border-radius: 2px; transform: translateY(-50%); }
+}
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="fluent"] { --modal-r: 8px; --modal-head-border: 0; --modal-shadow: 0 32px 64px rgba(0, 0, 0, 0.28), 0 2px 21px rgba(0, 0, 0, 0.22); --toast-r: 8px; --callout-r: 4px; }
+/* Диалог Fluent 2: кнопки на серой полосе внизу. */
+:root[data-skin="fluent"] .modal__title { font-size: 20px; font-weight: 600; }
+:root[data-skin="fluent"] .modal__foot { background: color-mix(in srgb, var(--text) 4%, var(--modal-bg)); border-top-color: color-mix(in srgb, var(--text) 8%, transparent); padding-top: 14px; padding-bottom: 16px; }

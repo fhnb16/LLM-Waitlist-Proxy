@@ -1,0 +1,39 @@
+[Unit]
+Description=LMQ — queue server for local LLMs (UniversalBot)
+Documentation=file:///usr/share/doc/lmq/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lmq
+Group=lmq
+EnvironmentFile=-/etc/default/lmq
+ExecStart=/usr/bin/lmq-server run
+Restart=on-failure
+RestartSec=3
+# Задания в работе возвращаются в очередь при следующем старте; движкам даём время выйти.
+TimeoutStopSec=30
+KillMode=mixed
+
+StateDirectory=lmq
+StateDirectoryMode=0750
+ConfigurationDirectory=lmq
+ConfigurationDirectoryMode=0750
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/lmq /var/lib/lmq
+# Модели и бинарники движков часто лежат в домашних папках — только чтение.
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# Без PrivateDevices: дочерним движкам (llama.cpp, vLLM) нужен доступ к GPU.
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

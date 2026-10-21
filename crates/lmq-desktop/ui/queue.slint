@@ -1,0 +1,114 @@
+import { ScrollView, Button, ComboBox, LineEdit } from "std-widgets.slint";
+import { Theme, Glyph } from "theme.slint";
+import { UiData, UiActions } from "store.slint";
+import { Card, PageHeader, ChartCard, ListRow, StatusChip, IconButton, Divider } from "widgets.slint";
+
+export component QueuePage inherits Rectangle {
+    property <bool> narrow: self.width < 640px;
+    sv := ScrollView {
+        content-width: self.visible-width;
+        content-height: content.preferred-height;
+        content := VerticalLayout {
+            width: sv.visible-width;
+            padding: 28px;
+            padding-top: 20px;
+            spacing: 16px;
+            PageHeader {
+                title: @tr("Очередь");
+                subtitle: UiData.jobs-total;
+                if UiData.dead-count > 0: VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Повторить доставку ({})", UiData.dead-count);
+                        clicked => { UiActions.redeliver-all(); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Обновить");
+                        clicked => { UiActions.jobs-reload(); }
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                ComboBox {
+                    width: 220px;
+                    model: [@tr("Все"), @tr("Активные"), @tr("В очереди"), @tr("Выполняются"), @tr("Готово"), @tr("Ошибки"), @tr("Не доставлено"), @tr("Доставляются"), @tr("Истекло"), @tr("Отменено"), @tr("Вытеснено")];
+                    current-index <=> UiData.job-filter;
+                    selected => { UiActions.jobs-reload(); }
+                }
+                LineEdit {
+                    horizontal-stretch: 1;
+                    placeholder-text: @tr("job_id или chat_id");
+                    text <=> UiData.job-query;
+                    edited => { UiActions.jobs-reload(); }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 6px;
+                    spacing: 0;
+                    for j[i] in UiData.jobs: VerticalLayout {
+                        if i > 0: Divider { }
+                        ListRow {
+                            title: j.id;
+                            sub: j.model + " · " + j.meta + (j.error != "" ? " · " + j.error : "");
+                            dot: j.kind;
+                            if !narrow: VerticalLayout {
+                                alignment: center;
+                                width: 150px;
+                                StatusChip { kind: j.kind; label: j.state; }
+                                Text { text: j.when; font-size: 12px; color: Theme.text-3; overflow: elide; }
+                            }
+                            if !narrow: VerticalLayout {
+                                alignment: center;
+                                width: 110px;
+                                Text { text: j.timing; font-size: 12px; color: Theme.text-2; horizontal-alignment: right; overflow: elide; }
+                            }
+                            HorizontalLayout {
+                                width: 72px;
+                                alignment: end;
+                                spacing: 4px;
+                                if j.can-cancel: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        glyph: Glyph.cancel;
+                                        label: @tr("Отменить");
+                                        clicked => { UiActions.cancel-job(j.id); }
+                                    }
+                                }
+                                if j.can-redeliver: VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        glyph: Glyph.retry;
+                                        label: @tr("Повторить доставку");
+                                        clicked => { UiActions.redeliver-job(j.id); }
+                                    }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    IconButton {
+                                        glyph: Glyph.open;
+                                        label: @tr("Подробнее в панели");
+                                        clicked => { UiActions.open-panel("#/queue/" + j.id); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if UiData.jobs.length == 0: Text {
+                        height: 80px;
+                        text: @tr("Заданий нет");
+                        font-size: 13px;
+                        color: Theme.text-3;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+            ChartCard { data: UiData.wait-hist; }
+        }
+    }
+}

@@ -1,0 +1,226 @@
+/*!theme
+id: frost
+name: Frost
+mode: light
+accent: #0a84ff
+barsLight: #ffffff, 0.55, #f2f2f7
+barsDark: #16161a, 0.5, #07070a
+description: стеклянная капсула с размытием | стеклянная капсула
+*/
+
+/* ======================================================================== */
+/* Frost — жидкое стекло                                                      */
+/* Крупные скругления, полупрозрачные слои поверх размытия, волосяная светлая
+   кромка. Всё, что раньше было плоским, здесь плавает.                     */
+:root[data-skin="frost"] {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --bg: #f2f2f7;
+  --bg-elev: rgba(255, 255, 255, 0.72);
+  --surface: rgba(255, 255, 255, 0.68);
+  --surface-press: rgba(255, 255, 255, 0.92);
+  --sep: rgba(0, 0, 0, 0.08);
+  --sep-strong: rgba(0, 0, 0, 0.18);
+  --text: #0b0b0d;
+  --text-2: #6b6b75;
+  --text-3: #9a9aa4;
+  --bar: rgba(255, 255, 255, 0.55);
+  --bar-line: rgba(0, 0, 0, 0.06);
+  --radius: 14px;
+  --radius-lg: 22px;
+  --card-radius: 22px;
+  --bar-blur: saturate(180%) blur(30px);
+  --glass-edge: rgba(255, 255, 255, 0.55);
+  --shadow-soft: rgba(0, 0, 0, 0.12);
+  --hero-size: 34px;
+  --hero-weight: 700;
+  --hero-tracking: -0.03em;
+  --nav-grid: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  --nav-align: center;
+  --nav-weight: 600;
+  --sw-w: 51px;
+  --sw-h: 31px;
+  --sw-r: 16px;
+  --sw-thumb: 27px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: rgba(120, 120, 128, 0.32);
+  --sw-on: var(--tint);
+  --sw-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --seg-r: 999px;
+  --seg-line: var(--glass-edge);
+  --seg-text: var(--text);
+  --seg-on: var(--surface-press);
+  --seg-on-text: var(--text);
+  --bar-h: 50px;
+  --tab-h: 64px;
+  --danger: #ff3b30;
+  --ok: #34c759;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: rgba(30, 30, 34, 0.72);
+  --toast-text: #ffffff;
+  --chip-r: 999px;
+}
+:root[data-skin="frost"].theme--dark {
+  --bg: #07070a;
+  --bg-elev: rgba(52, 52, 60, 0.55);
+  --surface: rgba(52, 52, 60, 0.5);
+  --surface-press: rgba(72, 72, 82, 0.62);
+  --sep: rgba(255, 255, 255, 0.1);
+  --sep-strong: rgba(255, 255, 255, 0.22);
+  --text: #f5f5f7;
+  --text-2: #a9a9b4;
+  --text-3: #74747e;
+  --bar: rgba(22, 22, 26, 0.5);
+  --bar-line: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  --thumb: #f5f5f7;
+  --danger: #ff453a;
+  --ok: #30d158;
+  --toast-bg: rgba(60, 60, 68, 0.72);
+}
+:root[data-skin="frost"] .list,
+:root[data-skin="frost"] .key,
+:root[data-skin="frost"] .banner,
+:root[data-skin="frost"] .article__svg {
+  border-radius: var(--card-radius);
+  border: 0.5px solid var(--glass-edge);
+  margin-left: 12px;
+  margin-right: 12px;
+  overflow: hidden;
+  backdrop-filter: saturate(170%) blur(20px);
+  -webkit-backdrop-filter: saturate(170%) blur(20px);
+  box-shadow: 0 8px 28px var(--shadow-soft);
+}
+:root[data-skin="frost"] .post,
+:root[data-skin="frost"] .cands,
+:root[data-skin="frost"] .article {
+  border-radius: var(--card-radius);
+  border: 0.5px solid var(--glass-edge);
+  margin: 0 12px;
+  backdrop-filter: saturate(170%) blur(20px);
+  -webkit-backdrop-filter: saturate(170%) blur(20px);
+}
+:root[data-skin="frost"] .btn,
+:root[data-skin="frost"] .segmented,
+:root[data-skin="frost"] .hot__chip,
+:root[data-skin="frost"] .cands__tab,
+:root[data-skin="frost"] .trbar__btn { border-radius: 999px; }
+:root[data-skin="frost"] .hero__title { font-weight: 600; letter-spacing: -0.03em; }
+/* ------------------------------------ iOS Glass: парящая стеклянная панель */
+/* Стеклу нужно что размывать: под фоном — мягкие пятна акцента и второго
+   цвета. На ровном чёрном «стекло» выглядит обычной серой плашкой. */
+:root[data-skin="frost"] body::before {
+  background:
+    radial-gradient(circle at 18% 8%, var(--tint-soft), transparent 42%),
+    radial-gradient(circle at 88% 34%, color-mix(in srgb, var(--warn) 28%, transparent), transparent 46%),
+    radial-gradient(circle at 30% 80%, color-mix(in srgb, var(--tint) 18%, transparent), transparent 50%),
+    var(--bg);
+}
+/* Нижняя панель отрывается от краёв и плавает капсулой. */
+:root[data-skin="frost"] .tab-bar {
+  left: 14px;
+  right: 14px;
+  bottom: calc(var(--safe-b) + 10px);
+  height: 64px;
+  padding: 0 6px;
+  border-radius: 32px;
+  border: 0.5px solid var(--glass-edge);
+  background: var(--bar);
+  backdrop-filter: saturate(190%) blur(28px);
+  -webkit-backdrop-filter: saturate(190%) blur(28px);
+  box-shadow:
+    0 10px 34px var(--shadow-soft),
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+}
+:root[data-skin="frost"] .tab-bar__item { margin: 6px 0; border-radius: 26px; }
+:root[data-skin="frost"] .tab-bar__item--active {
+  background: var(--tint-soft);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+:root[data-skin="frost"] .app__screen { padding-bottom: calc(64px + var(--safe-b) + 40px); }
+:root[data-skin="frost"] .toast { bottom: calc(64px + var(--safe-b) + 24px); }
+/* Верхняя панель — стекло без кромки, кнопки — стеклянные капсулы. */
+:root[data-skin="frost"] .nav-bar { box-shadow: none; }
+:root[data-skin="frost"] .nav-bar__btn {
+  padding: 7px 14px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 0.5px solid var(--glass-edge);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+:root[data-skin="frost"] .nav-bar__title { font-weight: 600; }
+/* Кромка-блик сверху у стеклянных карточек. */
+:root[data-skin="frost"] .list,
+:root[data-skin="frost"] .post,
+:root[data-skin="frost"] .article,
+:root[data-skin="frost"] .cands { box-shadow: 0 8px 28px var(--shadow-soft), inset 0 1px 0 var(--glass-edge); }
+/* Сплошные панели в Glass сохраняют капсулу, но без прозрачности. */
+.bars--solid[data-skin="frost"] .tab-bar { background: var(--bg-elev); }
+/* --------------------------------------------------------------- Frost ---
+   Стеклянные капсулы: полупрозрачный фон с размытием, светлая кромка,
+   мягкая тень; главная — капсула цвета акцента.                           */
+:root[data-skin="frost"] .btn,
+:root[data-skin="frost"] .btn--ghost,
+:root[data-skin="frost"] .trbar__btn {
+  border: 0.5px solid var(--glass-edge);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: inset 0 1px 0 var(--glass-edge), 0 4px 14px var(--shadow-soft);
+}
+:root[data-skin="frost"] .btn:active,
+:root[data-skin="frost"] .trbar__btn:active { background: var(--surface-press); color: var(--text); transform: scale(0.97); }
+:root[data-skin="frost"] .btn--filled { background: var(--tint); color: var(--on-tint); border-color: transparent; }
+:root[data-skin="frost"] .btn--filled:active { background: var(--tint-press); color: var(--on-tint); }
+:root[data-skin="frost"] .btn--danger { color: var(--danger); }
+:root[data-skin="frost"] { --group-mx: 12px; }
+:root[data-skin="frost"] { --group-r: var(--card-radius); }
+
+/* Компьютер: боковая навигация тоже парит — стеклянная панель с отступами от
+   краёв и скруглением, как капсула на телефоне. Геометрия каркаса закреплена
+   !important, поэтому и здесь !important. */
+@media (min-width: 1024px) {
+  :root[data-skin="frost"] .tab-bar {
+    top: calc(var(--safe-t) + 12px) !important;
+    bottom: calc(var(--safe-b) + 12px) !important;
+    left: calc(var(--safe-l) + 12px) !important;
+    right: auto !important;
+    width: var(--side-w) !important;
+    height: auto !important;
+    border-radius: 24px;
+    padding: 14px 10px !important;
+  }
+  :root[data-skin="frost"] .tab-bar__item { border-radius: 16px; }
+  :root[data-skin="frost"] .nav-bar { left: calc(var(--side-w) + var(--safe-l) + 24px); }
+  :root[data-skin="frost"] .app__views { margin-left: calc(var(--side-w) + var(--safe-l) + 24px); }
+  :root[data-skin="frost"] .app__screen { padding-bottom: calc(var(--safe-b) + 40px); }
+  :root[data-skin="frost"] .toast { left: calc(50% + (var(--side-w) + var(--safe-l) + 24px) / 2); bottom: calc(var(--safe-b) + 28px); }
+}
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="frost"] {
+  --modal-r: 28px;
+  --modal-bg: rgba(255, 255, 255, 0.66);
+  --modal-border: 0.5px solid rgba(255, 255, 255, 0.72);
+  --modal-shadow: 0 24px 60px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --modal-blur: blur(3px);
+  --overlay: rgba(0, 0, 0, 0.2);
+  --toast-r: 22px;
+}
+:root[data-skin="frost"].theme--dark {
+  --modal-bg: rgba(30, 30, 34, 0.62);
+  --modal-border: 0.5px solid rgba(255, 255, 255, 0.16);
+  --modal-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --overlay: rgba(0, 0, 0, 0.38);
+}
+/* Стекло iOS: светлое (не серое) — сильное размытие с насыщением, белая кромка;
+   в тёмном режиме — тёмное стекло. Крестик — серая капсула iOS. */
+:root[data-skin="frost"] .modal__panel { -webkit-backdrop-filter: saturate(200%) blur(34px); backdrop-filter: saturate(200%) blur(34px); }
+:root[data-skin="frost"] .modal__close { background: rgba(120, 120, 128, 0.2); }

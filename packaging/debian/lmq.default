@@ -1,0 +1,13 @@
+# Окружение службы lmq (systemd читает этот файл перед запуском).
+# Переменные из §6 ТЗ перекрывают /etc/lmq/settings.yaml; поле в панели станет «задано в окружении».
+
+LMQ_CONFIG_DIR=/etc/lmq
+LMQ_DATA_DIR=/var/lib/lmq
+
+# LISTEN=127.0.0.1:8800
+# ADMIN_LISTEN=127.0.0.1:8801
+# BOT_CALLBACK_URL=https://bot.example.com/webhook/llm
+# BOT_CALLBACK_TOKEN=
+# CALLBACK_ALLOWED_HOSTS=bot.example.com
+# API_KEYS=bot:lmq_...
+# LOG_LEVEL=info

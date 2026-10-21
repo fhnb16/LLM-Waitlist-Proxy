@@ -1,0 +1,386 @@
+import { ScrollView, Button, LineEdit, Switch, ComboBox } from "std-widgets.slint";
+import { Theme, Glyph } from "theme.slint";
+import { UiData, UiActions } from "store.slint";
+import { Card, PageHeader, SectionTitle, Segmented, Divider, Icon, Banner } from "widgets.slint";
+import { FieldRow } from "types.slint";
+
+/// Строка настройки: подпись и подсказка слева, элемент управления справа.
+component SettingRow inherits Rectangle {
+    in property <string> label;
+    in property <string> hint;
+    in property <bool> locked;
+    in property <bool> stack;
+    min-height: stack ? 0 : 56px;
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: stack ? 10px : 8px;
+        padding-bottom: stack ? 6px : 8px;
+        spacing: 16px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text { text: label; font-size: 14px; color: Theme.text; wrap: word-wrap; }
+            if hint != "" || locked: Text {
+                text: locked ? @tr("Задано в окружении — меняется там") : hint;
+                font-size: 12px;
+                color: locked ? Theme.warn : Theme.text-3;
+                wrap: word-wrap;
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            @children
+        }
+    }
+}
+
+component FieldEditor inherits VerticalLayout {
+    in property <FieldRow> f;
+    in property <int> index;
+    in property <bool> narrow;
+    if f.kind == "header": HorizontalLayout {
+        padding-left: 16px;
+        padding-top: 18px;
+        padding-bottom: 6px;
+        SectionTitle { text: f.label; }
+    }
+    if f.kind == "note": HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: 6px;
+        Text { text: f.label; font-size: 12px; color: Theme.text-2; wrap: word-wrap; }
+    }
+    if f.kind == "bool": SettingRow {
+        label: f.label;
+        hint: f.hint;
+        locked: f.locked;
+        VerticalLayout {
+            alignment: center;
+            Switch {
+                checked: f.checked;
+                enabled: !f.locked;
+                toggled => { UiActions.field-bool(index, self.checked); }
+            }
+        }
+    }
+    if f.kind == "select": SettingRow {
+        label: f.label;
+        hint: f.hint;
+        locked: f.locked;
+        VerticalLayout {
+            alignment: center;
+            ComboBox {
+                min-width: 160px;
+                model: f.options;
+                current-index: f.index;
+                enabled: !f.locked;
+                selected => { UiActions.field-select(index, self.current-index); }
+            }
+        }
+    }
+    if (f.kind == "text" || f.kind == "number" || f.kind == "secret") && !narrow: SettingRow {
+        label: f.label;
+        hint: f.hint;
+        locked: f.locked;
+        VerticalLayout {
+            alignment: center;
+            LineEdit {
+                width: f.kind == "number" ? 120px : 300px;
+                text: f.value;
+                enabled: !f.locked;
+                input-type: f.kind == "secret" ? InputType.password : f.kind == "number" ? InputType.number : InputType.text;
+                horizontal-alignment: f.kind == "number" ? right : left;
+                edited(t) => { UiActions.field-text(index, t); }
+            }
+        }
+    }
+    if (f.kind == "text" || f.kind == "number" || f.kind == "secret") && narrow: VerticalLayout {
+        SettingRow {
+            label: f.label;
+            hint: f.hint;
+            locked: f.locked;
+            stack: true;
+        }
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-bottom: 10px;
+            LineEdit {
+                text: f.value;
+                enabled: !f.locked;
+                input-type: f.kind == "secret" ? InputType.password : f.kind == "number" ? InputType.number : InputType.text;
+                edited(t) => { UiActions.field-text(index, t); }
+            }
+        }
+    }
+}
+
+export component SettingsPage inherits Rectangle {
+    property <bool> narrow: self.width < 720px;
+    sv := ScrollView {
+        content-width: self.visible-width;
+        content-height: content.preferred-height;
+        content := VerticalLayout {
+            width: sv.visible-width;
+            padding: 28px;
+            padding-top: 20px;
+            spacing: 16px;
+            PageHeader {
+                title: @tr("Настройки");
+                subtitle: UiData.settings-file;
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Полная панель");
+                        clicked => { UiActions.open-panel("#/settings"); }
+                    }
+                }
+            }
+
+            SectionTitle { text: @tr("Оформление"); }
+            Card {
+                VerticalLayout {
+                    SettingRow {
+                        label: @tr("Тема");
+                        hint: @tr("Светлая, тёмная или как в Windows");
+                        stack: narrow;
+                        if !narrow: Segmented {
+                            width: 300px;
+                            items: [@tr("Системная"), @tr("Светлая"), @tr("Тёмная")];
+                            current <=> UiData.scheme;
+                            selected(i) => { UiActions.set-scheme(i); }
+                        }
+                    }
+                    if narrow: HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 0;
+                        Segmented {
+                            items: [@tr("Системная"), @tr("Светлая"), @tr("Тёмная")];
+                            current <=> UiData.scheme;
+                            selected(i) => { UiActions.set-scheme(i); }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Фон окна");
+                        hint: UiData.mica-available ? @tr("Mica — Windows 11, Acrylic — Windows 10 и 11") : @tr("Mica доступна в Windows 11; здесь будет Acrylic");
+                        stack: narrow;
+                        if !narrow: Segmented {
+                            width: 300px;
+                            items: ["Mica", "Acrylic", @tr("Без размытия")];
+                            current <=> UiData.backdrop;
+                            selected(i) => { UiActions.set-backdrop(i); }
+                        }
+                    }
+                    if narrow: HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 0;
+                        Segmented {
+                            items: ["Mica", "Acrylic", @tr("Без размытия")];
+                            current <=> UiData.backdrop;
+                            selected(i) => { UiActions.set-backdrop(i); }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Язык");
+                        hint: @tr("Интерфейс окна и веб-панели");
+                        VerticalLayout {
+                            alignment: center;
+                            ComboBox {
+                                min-width: 160px;
+                                model: [@tr("Как в системе"), "Русский", "English"];
+                                current-index <=> UiData.language;
+                                selected => { UiActions.set-language(self.current-index); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Веб-режим окна");
+                        hint: @tr("WebView2: 26 тем оформления, полная панель. Приложение перезапустится.");
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: @tr("Перейти");
+                                clicked => { UiActions.switch-to-web(); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            SectionTitle { text: @tr("Приложение"); }
+            Card {
+                VerticalLayout {
+                    SettingRow {
+                        label: @tr("Запускать при входе в Windows");
+                        hint: @tr("Сразу в трей, без окна");
+                        VerticalLayout {
+                            alignment: center;
+                            Switch {
+                                checked <=> UiData.autostart;
+                                toggled => { UiActions.set-app-flag("autostart", self.checked); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Запускать свёрнутым");
+                        VerticalLayout {
+                            alignment: center;
+                            Switch {
+                                checked <=> UiData.start-minimized;
+                                toggled => { UiActions.set-app-flag("start_minimized", self.checked); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Закрывать в трей");
+                        hint: @tr("Сервер продолжает работать; выход — из меню значка");
+                        VerticalLayout {
+                            alignment: center;
+                            Switch {
+                                checked <=> UiData.close-to-tray;
+                                toggled => { UiActions.set-app-flag("close_to_tray", self.checked); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Уведомления Windows");
+                        hint: @tr("Апстрим исключён или вернулся, задание не доставлено, движок упал");
+                        VerticalLayout {
+                            alignment: center;
+                            Switch {
+                                checked <=> UiData.notifications;
+                                toggled => { UiActions.set-app-flag("notifications", self.checked); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Сразу выдавать задания моделям");
+                        hint: @tr("Иначе приложение стартует с выдачей на паузе");
+                        VerticalLayout {
+                            alignment: center;
+                            Switch {
+                                checked <=> UiData.server-autostart;
+                                toggled => { UiActions.set-app-flag("server_autostart", self.checked); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Папки");
+                        hint: UiData.config-dir;
+                        stack: narrow;
+                        if !narrow: HorizontalLayout {
+                            spacing: 8px;
+                            Button { text: @tr("Настройки"); clicked => { UiActions.open-folder("config"); } }
+                            Button { text: @tr("Данные"); clicked => { UiActions.open-folder("data"); } }
+                            Button { text: @tr("Журналы"); clicked => { UiActions.open-folder("logs"); } }
+                        }
+                    }
+                    if narrow: HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 0;
+                        spacing: 8px;
+                        Button { text: @tr("Настройки"); clicked => { UiActions.open-folder("config"); } }
+                        Button { text: @tr("Данные"); clicked => { UiActions.open-folder("data"); } }
+                        Button { text: @tr("Журналы"); clicked => { UiActions.open-folder("logs"); } }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+                SectionTitle {
+                    text: @tr("Сервер очереди");
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                if UiData.settings-dirty: Button {
+                    text: @tr("Отменить");
+                    clicked => { UiActions.settings-revert(); }
+                }
+                Button {
+                    text: @tr("Сохранить");
+                    primary: true;
+                    enabled: UiData.settings-dirty;
+                    clicked => { UiActions.settings-save(); }
+                }
+            }
+            if UiData.settings-error != "": Banner {
+                kind: "bad";
+                title: @tr("Настройки не сохранены");
+                text: UiData.settings-error;
+            }
+            Card {
+                VerticalLayout {
+                    padding-bottom: 8px;
+                    for f[i] in UiData.fields: FieldEditor {
+                        f: f;
+                        index: i;
+                        narrow: narrow;
+                    }
+                }
+            }
+
+            SectionTitle { text: @tr("Обновления и о программе"); }
+            Card {
+                VerticalLayout {
+                    SettingRow {
+                        label: "LMQ " + UiData.version;
+                        hint: UiData.update-status;
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: @tr("Проверить обновления");
+                                clicked => { UiActions.check-updates(); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Проверять при запуске");
+                        VerticalLayout {
+                            alignment: center;
+                            Switch {
+                                checked <=> UiData.update-auto;
+                                toggled => { UiActions.set-app-flag("updates_auto", self.checked); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Расписание, профили, песочница, отладка колбэков");
+                        hint: @tr("Открываются в полной панели в браузере");
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: @tr("Открыть");
+                                clicked => { UiActions.open-panel("#/settings"); }
+                            }
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Выйти из LMQ");
+                        hint: @tr("Останавливает сервер очереди и движки");
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: @tr("Выход");
+                                clicked => { UiActions.quit(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

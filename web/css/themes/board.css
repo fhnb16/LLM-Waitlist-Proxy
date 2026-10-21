@@ -1,0 +1,124 @@
+/*!theme
+id: board
+name: Board
+mode: dark
+accent: #7ef24a
+barsLight: #f4f7fa, 0.9, #f4f7fa
+barsDark: #0b1017, 0.86, #0b1017
+description: тёмное полотно, моноширинный текст, подчёркнутые ники
+*/
+
+/* ----------------------------------------------- Board, зелёный терминал
+   Тёмно-синее полотно и кислотно-зелёный акцент самого сайта борды:
+   моноширинный текст, тонкие рамки, подчёркнутые ссылки. */
+:root[data-skin="board"] {
+  --font: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, "Roboto Mono", monospace;
+  --bg: #0b1017;
+  --surface: #111821;
+  --surface-press: #18212c;
+  --sep: #1e2a38;
+  --sep-strong: #2c3c4e;
+  --text: #dfe7ef;
+  --text-2: #8fa3b8;
+  --text-3: #5f7386;
+  --bar: rgba(11, 16, 23, 0.86);
+  --bar-line: #1e2a38;
+  --danger: #ff6b6b;
+  --warn: #ffc857;
+  --ok: var(--tint);
+  --radius: 2px;
+  --radius-lg: 3px;
+  --card-radius: 3px;
+  --bar-blur: blur(14px);
+  --thumb: #dfe7ef;
+  --toast-bg: #18212c;
+  --toast-text: #dfe7ef;
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+  --bg-elev: #111821;
+  --hero-size: 28px;
+  --hero-weight: 700;
+  --hero-tracking: -0.01em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 600;
+  --sw-w: 44px;
+  --sw-h: 24px;
+  --sw-r: 3px;
+  --sw-thumb: 18px;
+  --sw-thumb-r: 2px;
+  --sw-pad: 3px;
+  --sw-off: var(--sep-strong);
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 2px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text-2);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 46px;
+  --tab-h: 52px;
+  --on-danger: #0b1017;
+  --chip-r: 2px;
+}
+:root[data-skin="board"] .hero__title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--tint);
+}
+:root[data-skin="board"] .card__title { font-weight: 600; }
+:root[data-skin="board"] .card__author,
+:root[data-skin="board"] .reply__author { text-decoration: underline; text-underline-offset: 3px; }
+:root[data-skin="board"] .list { border-color: var(--sep); }
+:root[data-skin="board"] .nav-bar__title { text-transform: lowercase; letter-spacing: 0.02em; }
+:root[data-skin="board"] .tab-bar__item--active::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  width: 22px;
+  height: 2px;
+  background: var(--tint);
+}
+:root[data-skin="board"] .tab-bar__item { padding: 5px 2px 10px; }
+:root[data-skin="board"] .switch__track { border-radius: 3px; }
+:root[data-skin="board"] .switch__thumb { border-radius: 2px; }
+:root[data-skin="board"] .rich pre,
+:root[data-skin="board"] .rich code { background: #0b1017; border: 1px solid var(--sep); }
+:root[data-skin="board"]:not(.theme--dark) {
+  --bg: #f4f7fa;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #e9eef3;
+  --sep: #dde4ec;
+  --sep-strong: #c3cfdb;
+  --text: #16202b;
+  --text-2: #52637a;
+  --text-3: #8596a8;
+  --bar: rgba(244, 247, 250, 0.9);
+  --bar-line: #dde4ec;
+  --thumb: #ffffff;
+  --toast-bg: #16202b;
+  --toast-text: #f4f7fa;
+  color-scheme: light;
+  --on-danger: #ffffff;
+  --danger: #d64545;
+}
+/* В светлом Board ярко-зелёный заголовок нечитаем — утемняем акцент. */
+:root[data-skin="board"]:not(.theme--dark) .hero__title { color: color-mix(in srgb, var(--tint) 55%, #000000); }
+:root[data-skin="board"]:not(.theme--dark) .rich pre,
+:root[data-skin="board"]:not(.theme--dark) .rich code { background: #eef2f6; }
+:root[data-skin="board"]:not(.theme--dark) { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+
+/* Компьютер: выбранный пункт — вертикальная черта-курсор у левого края (на
+   телефоне черта под подписью — в строке она съезжала вниз). */
+@media (min-width: 1024px) {
+  :root[data-skin="board"] .tab-bar__item--active::after { top: 8px; bottom: 8px; left: 0; width: 3px; height: auto; }
+}
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="board"] { --modal-r: 0; --modal-border: 1px solid var(--tint); --modal-shadow: none; --modal-head-bg: var(--tint); --modal-head-text: var(--bg); --modal-head-border: 0; --overlay: rgba(0, 0, 0, 0.72); --toast-r: 0; --callout-r: 0; }
+/* Терминал: рамка цветом акцента, инверсная шапка, заголовок прописными. */
+:root[data-skin="board"] .modal__title { text-transform: uppercase; letter-spacing: 0.06em; font-size: 15px; }
+:root[data-skin="board"] .modal__close { border-radius: 0; background: none; }
+:root[data-skin="board"] .modal__foot { border-top: 1px dashed var(--tint); }
+:root[data-skin="board"] .toast { border: 1px solid var(--tint); }

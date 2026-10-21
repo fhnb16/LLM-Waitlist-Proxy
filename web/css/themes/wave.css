@@ -1,0 +1,99 @@
+/*!theme
+id: wave
+name: Wave
+mode: light
+accent: #0077ff
+barsLight: #ffffff, 1.0, #edeef0
+barsDark: #222222, 1.0, #141414
+description: белые блоки со скруглением 12, заливки акцентом
+*/
+
+/* ======================================================================== */
+/* Wave — белые блоки со скруглением 12                                       */
+/* Серая подложка, белые блоки со скруглением 12 без разделителей между ними,
+   синие заполненные кнопки, спокойная типографика.                          */
+:root[data-skin="wave"] {
+  --font: Inter, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --bg: #edeef0;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #f0f2f5;
+  --sep: #e7e8ec;
+  --sep-strong: #dce1e6;
+  --text: #000000;
+  --text-2: #818c99;
+  --text-3: #99a2ad;
+  --bar: #ffffff;
+  --bar-line: #e7e8ec;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --card-radius: 12px;
+  --bar-blur: none;
+  --shadow-soft: rgba(0, 0, 0, 0.06);
+  color-scheme: light;
+  --hero-size: 28px;
+  --hero-weight: 600;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 600;
+  --sw-w: 44px;
+  --sw-h: 24px;
+  --sw-r: 12px;
+  --sw-thumb: 20px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: #d7d8d9;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --seg-r: 8px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text-2);
+  --seg-on: var(--surface-press);
+  --seg-on-text: var(--text);
+  --bar-h: 48px;
+  --tab-h: 52px;
+  --danger: #e64646;
+  --ok: #4bb34b;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: #2c2d2e;
+  --toast-text: #ffffff;
+  --chip-r: 8px;
+}
+:root[data-skin="wave"].theme--dark {
+  --bg: #141414;
+  --bg-elev: #222222;
+  --surface: #222222;
+  --surface-press: #2c2d2e;
+  --sep: #363738;
+  --sep-strong: #424242;
+  --text: #e1e3e6;
+  --text-2: #939393;
+  --text-3: #76787a;
+  --bar: #222222;
+  --bar-line: #363738;
+  color-scheme: dark;
+  --sw-off: #555555;
+  --toast-bg: #e1e3e6;
+  --toast-text: #222222;
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+}
+:root[data-skin="wave"] .list {
+  border: 0;
+  border-radius: var(--card-radius);
+  margin: 0 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 var(--shadow-soft);
+}
+:root[data-skin="wave"] .btn { border-radius: var(--radius); }
+:root[data-skin="wave"] .btn--filled,
+:root[data-skin="wave"] .btn:active { background: var(--tint); color: var(--on-tint); border-color: var(--tint); }
+:root[data-skin="wave"] .segmented { border-radius: var(--radius); }
+:root[data-skin="wave"] .hero__title { font-weight: 600; font-size: 28px; }
+:root[data-skin="wave"] .card__author { font-weight: 600; }
+:root[data-skin="wave"] { --group-mx: 8px; }
+:root[data-skin="wave"] { --group-r: var(--card-radius); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="wave"] { --modal-r: 22px; --modal-head-border: 0; --toast-r: 20px; }

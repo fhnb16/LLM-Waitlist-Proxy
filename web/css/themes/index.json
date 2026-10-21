@@ -1,0 +1,1158 @@
+[
+  {
+    "id": "aero",
+    "name": "Aero",
+    "mode": "light",
+    "accent": "#2a8dd4",
+    "description": "серый глянец с переломом; нажатая — голубая; главная — с синим свечением | синий стеклянный шар",
+    "barsLight": [
+      "#a0c2e8",
+      0.78,
+      "#2f74b8"
+    ],
+    "barsDark": [
+      "#1e3a5c",
+      0.78,
+      "#0d2440"
+    ],
+    "file": "css/themes/aero.css",
+    "preview": {
+      "light": {
+        "--font": "\"Segoe UI\", Tahoma, Verdana, sans-serif",
+        "--bg": "#2f74b8",
+        "--surface": "#ffffff",
+        "--sep": "#dfe8f2",
+        "--text": "#1e1e1e",
+        "--text-3": "#7f8fa3",
+        "--bar": "rgba(160, 194, 232, 0.78)",
+        "--bar-line": "rgba(30, 70, 120, 0.6)",
+        "--radius": "3px",
+        "--card-radius": "6px"
+      },
+      "dark": {
+        "--font": "\"Segoe UI\", Tahoma, Verdana, sans-serif",
+        "--bg": "#0d2440",
+        "--surface": "#1b2838",
+        "--sep": "#2a3b50",
+        "--text": "#eaf2fb",
+        "--text-3": "#7089a3",
+        "--bar": "rgba(30, 58, 92, 0.78)",
+        "--bar-line": "rgba(120, 170, 220, 0.4)",
+        "--radius": "3px",
+        "--card-radius": "6px"
+      }
+    }
+  },
+  {
+    "id": "alloy",
+    "name": "Alloy",
+    "mode": "light",
+    "accent": "#e7d700",
+    "description": "Скевоморфизм игрового лаунчера Запускатр и Фогейм 2010-х — платиновый хром #E7E8EA, рамки 2px #B1B3B4, угольные кнопки .decorated с двойной белой фаской и золотым кликом, глянцевые прогресс-бары и переключатели цветом акцента, синие ссылки с красным наведением и папочные вкладки.",
+    "barsLight": [
+      "#e7e8ea",
+      1.0,
+      "#dcdfe3"
+    ],
+    "barsDark": [
+      "#1c1c1e",
+      1.0,
+      "#121214"
+    ],
+    "file": "css/themes/alloy.css",
+    "preview": {
+      "light": {
+        "--font": "Arial, Tahoma, Verdana, sans-serif",
+        "--radius": "5px",
+        "--card-radius": "7px",
+        "--bg": "#dcdfe3",
+        "--surface": "#ffffff",
+        "--sep": "#e4e5e7",
+        "--text": "#202022",
+        "--text-3": "#9d9ea0",
+        "--bar": "#e7e8ea",
+        "--bar-line": "#b1b3b4"
+      },
+      "dark": {
+        "--font": "Arial, Tahoma, Verdana, sans-serif",
+        "--radius": "5px",
+        "--card-radius": "7px",
+        "--bg": "#121214",
+        "--surface": "#242426",
+        "--sep": "#2e2e32",
+        "--text": "#f0f0f2",
+        "--text-3": "#707174",
+        "--bar": "#1c1c1e",
+        "--bar-line": "#3c3c3e"
+      }
+    }
+  },
+  {
+    "id": "board",
+    "name": "Board",
+    "mode": "dark",
+    "accent": "#7ef24a",
+    "description": "тёмное полотно, моноширинный текст, подчёркнутые ники",
+    "barsLight": [
+      "#f4f7fa",
+      0.9,
+      "#f4f7fa"
+    ],
+    "barsDark": [
+      "#0b1017",
+      0.86,
+      "#0b1017"
+    ],
+    "file": "css/themes/board.css",
+    "preview": {
+      "dark": {
+        "--font": "\"JetBrains Mono\", \"SF Mono\", ui-monospace, Menlo, Consolas, \"Roboto Mono\", monospace",
+        "--bg": "#0b1017",
+        "--surface": "#111821",
+        "--sep": "#1e2a38",
+        "--text": "#dfe7ef",
+        "--text-3": "#5f7386",
+        "--bar": "rgba(11, 16, 23, 0.86)",
+        "--bar-line": "#1e2a38",
+        "--radius": "2px",
+        "--card-radius": "3px"
+      },
+      "light": {
+        "--font": "\"JetBrains Mono\", \"SF Mono\", ui-monospace, Menlo, Consolas, \"Roboto Mono\", monospace",
+        "--bg": "#f4f7fa",
+        "--surface": "#ffffff",
+        "--sep": "#dde4ec",
+        "--text": "#16202b",
+        "--text-3": "#8596a8",
+        "--bar": "rgba(244, 247, 250, 0.9)",
+        "--bar-line": "#dde4ec",
+        "--radius": "2px",
+        "--card-radius": "3px"
+      }
+    }
+  },
+  {
+    "id": "bubble",
+    "name": "Bubble",
+    "mode": "light",
+    "accent": "#3390ec",
+    "description": "шапка акцентом, сообщения пузырями с малым скруглением в нижнем углу",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#dfe7ee"
+    ],
+    "barsDark": [
+      "#17212b",
+      1.0,
+      "#0e1621"
+    ],
+    "file": "css/themes/bubble.css",
+    "preview": {
+      "light": {
+        "--font": "-apple-system, BlinkMacSystemFont, Roboto, \"Segoe UI\", sans-serif",
+        "--radius": "8px",
+        "--card-radius": "14px",
+        "--bg": "#dfe7ee",
+        "--surface": "#ffffff",
+        "--sep": "#e6ebef",
+        "--text": "#000000",
+        "--text-3": "#9aa7b3",
+        "--bar": "#ffffff",
+        "--bar-line": "#dfe5ea"
+      },
+      "dark": {
+        "--font": "-apple-system, BlinkMacSystemFont, Roboto, \"Segoe UI\", sans-serif",
+        "--radius": "8px",
+        "--card-radius": "14px",
+        "--bg": "#0e1621",
+        "--surface": "#182533",
+        "--sep": "#101921",
+        "--text": "#f5f5f5",
+        "--text-3": "#5f7082",
+        "--bar": "#17212b",
+        "--bar-line": "#0b121a"
+      }
+    }
+  },
+  {
+    "id": "ember",
+    "name": "Ember",
+    "mode": "dark",
+    "accent": "#ff9000",
+    "description": "чёрный фон, тёмные плашки, оранжевая заливка с тёмным текстом",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#000000",
+      1.0,
+      "#000000"
+    ],
+    "file": "css/themes/ember.css",
+    "preview": {
+      "dark": {
+        "--font": "Arial, Helvetica, sans-serif",
+        "--bg": "#000000",
+        "--surface": "#1b1b1b",
+        "--sep": "#000000",
+        "--text": "#ffffff",
+        "--text-3": "#8a8a8a",
+        "--bar": "#000000",
+        "--bar-line": "#1b1b1b",
+        "--radius": "4px",
+        "--card-radius": "4px"
+      },
+      "light": {
+        "--font": "Arial, Helvetica, sans-serif",
+        "--bg": "#ffffff",
+        "--surface": "#f2f2f2",
+        "--sep": "#ffffff",
+        "--text": "#111111",
+        "--text-3": "#8a8a8a",
+        "--bar": "#ffffff",
+        "--bar-line": "#eeeeee",
+        "--radius": "4px",
+        "--card-radius": "4px"
+      }
+    }
+  },
+  {
+    "id": "flat",
+    "name": "Flat",
+    "mode": "light",
+    "accent": "#007aff",
+    "description": "текст цветом акцента без рамки | стрелка и текст",
+    "barsLight": [
+      "#f7f7f7",
+      0.84,
+      "#efeff4"
+    ],
+    "barsDark": [
+      "#141416",
+      0.8,
+      "#000000"
+    ],
+    "file": "css/themes/flat.css",
+    "preview": {
+      "light": {
+        "--font": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", sans-serif",
+        "--radius": "5px",
+        "--card-radius": "0px",
+        "--bg": "#efeff4",
+        "--surface": "#ffffff",
+        "--sep": "#c8c7cc",
+        "--text": "#000000",
+        "--text-3": "#aeaeb2",
+        "--bar": "rgba(247, 247, 247, 0.84)",
+        "--bar-line": "rgba(0, 0, 0, 0.22)"
+      },
+      "dark": {
+        "--font": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", sans-serif",
+        "--radius": "5px",
+        "--card-radius": "0px",
+        "--bg": "#000000",
+        "--surface": "#1c1c1e",
+        "--sep": "#38383a",
+        "--text": "#ffffff",
+        "--text-3": "#636366",
+        "--bar": "rgba(20, 20, 22, 0.8)",
+        "--bar-line": "rgba(255, 255, 255, 0.16)"
+      }
+    }
+  },
+  {
+    "id": "fluent",
+    "name": "Fluent",
+    "mode": "light",
+    "accent": "#0078d4",
+    "description": "прямоугольник 4 с тёмной нижней кромкой; главная — заливка | «тихая» кнопка",
+    "barsLight": [
+      "#f3f3f3",
+      0.78,
+      "#f3f3f3"
+    ],
+    "barsDark": [
+      "#202020",
+      0.76,
+      "#202020"
+    ],
+    "file": "css/themes/fluent.css",
+    "preview": {
+      "light": {
+        "--font": "\"Segoe UI Variable Text\", \"Segoe UI\", -apple-system, BlinkMacSystemFont, Roboto, \"Noto Sans\", sans-serif",
+        "--bg": "#f3f3f3",
+        "--surface": "#ffffff",
+        "--sep": "#e5e5e5",
+        "--text": "#1b1b1b",
+        "--text-3": "#8a8a8a",
+        "--bar": "rgba(243, 243, 243, 0.78)",
+        "--bar-line": "rgba(0, 0, 0, 0.09)",
+        "--radius": "4px",
+        "--card-radius": "8px"
+      },
+      "dark": {
+        "--font": "\"Segoe UI Variable Text\", \"Segoe UI\", -apple-system, BlinkMacSystemFont, Roboto, \"Noto Sans\", sans-serif",
+        "--bg": "#202020",
+        "--surface": "#2b2b2b",
+        "--sep": "#3a3a3a",
+        "--text": "#ffffff",
+        "--text-3": "#9a9a9a",
+        "--bar": "rgba(32, 32, 32, 0.76)",
+        "--bar-line": "rgba(255, 255, 255, 0.08)",
+        "--radius": "4px",
+        "--card-radius": "8px"
+      }
+    }
+  },
+  {
+    "id": "forum",
+    "name": "Forum",
+    "mode": "light",
+    "accent": "#ff4500",
+    "description": "серо-голубая подложка, белые карточки в рамке, кнопки-капсулы",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#dae0e6"
+    ],
+    "barsDark": [
+      "#1a1a1b",
+      1.0,
+      "#030303"
+    ],
+    "file": "css/themes/forum.css",
+    "preview": {
+      "light": {
+        "--font": "\"IBM Plex Sans\", -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "--bg": "#dae0e6",
+        "--surface": "#ffffff",
+        "--sep": "#edeff1",
+        "--text": "#1c1c1c",
+        "--text-3": "#878a8c",
+        "--bar": "#ffffff",
+        "--bar-line": "#edeff1",
+        "--radius": "4px",
+        "--card-radius": "8px"
+      },
+      "dark": {
+        "--font": "\"IBM Plex Sans\", -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "--bg": "#030303",
+        "--surface": "#1a1a1b",
+        "--sep": "#343536",
+        "--text": "#d7dadc",
+        "--text-3": "#6f7071",
+        "--bar": "#1a1a1b",
+        "--bar-line": "#343536",
+        "--radius": "4px",
+        "--card-radius": "8px"
+      }
+    }
+  },
+  {
+    "id": "frost",
+    "name": "Frost",
+    "mode": "light",
+    "accent": "#0a84ff",
+    "description": "стеклянная капсула с размытием | стеклянная капсула",
+    "barsLight": [
+      "#ffffff",
+      0.55,
+      "#f2f2f7"
+    ],
+    "barsDark": [
+      "#16161a",
+      0.5,
+      "#07070a"
+    ],
+    "file": "css/themes/frost.css",
+    "preview": {
+      "light": {
+        "--font": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", sans-serif",
+        "--bg": "#f2f2f7",
+        "--surface": "rgba(255, 255, 255, 0.68)",
+        "--sep": "rgba(0, 0, 0, 0.08)",
+        "--text": "#0b0b0d",
+        "--text-3": "#9a9aa4",
+        "--bar": "rgba(255, 255, 255, 0.55)",
+        "--bar-line": "rgba(0, 0, 0, 0.06)",
+        "--radius": "14px",
+        "--card-radius": "22px"
+      },
+      "dark": {
+        "--font": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", sans-serif",
+        "--bg": "#07070a",
+        "--surface": "rgba(52, 52, 60, 0.5)",
+        "--sep": "rgba(255, 255, 255, 0.1)",
+        "--text": "#f5f5f7",
+        "--text-3": "#74747e",
+        "--bar": "rgba(22, 22, 26, 0.5)",
+        "--bar-line": "rgba(255, 255, 255, 0.08)",
+        "--radius": "14px",
+        "--card-radius": "22px"
+      }
+    }
+  },
+  {
+    "id": "gloss",
+    "name": "Gloss",
+    "mode": "light",
+    "accent": "#0b60d8",
+    "description": "белый глянец, синяя жирная надпись с тиснением; главная — синий глянец, опасная — красный | выпуклая плашка с клином, обведённая по всему силуэту",
+    "barsLight": [
+      "#7a8a9e",
+      1.0,
+      "#c5ccd3"
+    ],
+    "barsDark": [
+      "#26292e",
+      1.0,
+      "#23262b"
+    ],
+    "file": "css/themes/gloss.css",
+    "preview": {
+      "light": {
+        "--font": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "--bg": "#c5ccd3",
+        "--surface": "#ffffff",
+        "--sep": "#a9b1b9",
+        "--text": "#1b1f24",
+        "--text-3": "#8e99a4",
+        "--bar": "#8494a8",
+        "--bar-line": "#4a5666",
+        "--radius": "8px",
+        "--card-radius": "10px"
+      },
+      "dark": {
+        "--font": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "--bg": "#23262b",
+        "--surface": "#30343a",
+        "--sep": "#1a1c20",
+        "--text": "#eef1f4",
+        "--text-3": "#7b838d",
+        "--bar": "#2a2d32",
+        "--bar-line": "#0c0d0f",
+        "--radius": "8px",
+        "--card-radius": "10px"
+      }
+    }
+  },
+  {
+    "id": "grid",
+    "name": "GRiD",
+    "mode": "dark",
+    "accent": "#ffb000",
+    "description": "монохромный терминал, инверсия строки вместо подсветки",
+    "barsLight": [
+      "#f6efe0",
+      1.0,
+      "#f6efe0"
+    ],
+    "barsDark": [
+      "#0a0805",
+      1.0,
+      "#0a0805"
+    ],
+    "file": "css/themes/grid.css",
+    "preview": {
+      "dark": {
+        "--font": "\"IBM Plex Mono\", \"Roboto Mono\", \"SF Mono\", Menlo, Consolas, \"Courier New\", ui-monospace, monospace",
+        "--radius": "0px",
+        "--card-radius": "0px",
+        "--bg": "color-mix(in srgb, var(--tint) 4%, #050505)",
+        "--surface": "color-mix(in srgb, var(--tint) 8%, #050505)",
+        "--text": "var(--tint)",
+        "--text-3": "color-mix(in srgb, var(--tint) 50%, #050505)",
+        "--sep": "color-mix(in srgb, var(--tint) 26%, #050505)",
+        "--bar": "color-mix(in srgb, var(--tint) 4%, #050505)",
+        "--bar-line": "color-mix(in srgb, var(--tint) 42%, #050505)"
+      },
+      "light": {
+        "--font": "\"IBM Plex Mono\", \"Roboto Mono\", \"SF Mono\", Menlo, Consolas, \"Courier New\", ui-monospace, monospace",
+        "--radius": "0px",
+        "--card-radius": "0px",
+        "--bg": "color-mix(in srgb, var(--tint) 7%, #fbfaf6)",
+        "--surface": "color-mix(in srgb, var(--tint) 4%, #ffffff)",
+        "--text": "color-mix(in srgb, var(--tint) 45%, #000000)",
+        "--text-3": "color-mix(in srgb, var(--tint) 45%, #8a8a8a)",
+        "--sep": "color-mix(in srgb, var(--tint) 30%, #ffffff)",
+        "--bar": "color-mix(in srgb, var(--tint) 7%, #fbfaf6)",
+        "--bar-line": "color-mix(in srgb, var(--tint) 50%, #ffffff)"
+      }
+    }
+  },
+  {
+    "id": "groove",
+    "name": "Groove",
+    "mode": "dark",
+    "accent": "#1ed760",
+    "description": "чёрный экран с градиентом акцента в шапке, крупный жирный текст, кнопки-капсулы",
+    "barsLight": [
+      "#ffffff",
+      0.9,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#121212",
+      0.9,
+      "#121212"
+    ],
+    "file": "css/themes/groove.css",
+    "preview": {
+      "dark": {
+        "--font": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "--radius": "999px",
+        "--card-radius": "8px",
+        "--bg": "#121212",
+        "--surface": "#181818",
+        "--sep": "#282828",
+        "--text": "#ffffff",
+        "--text-3": "#6a6a6a",
+        "--bar": "rgba(18, 18, 18, 0.9)",
+        "--bar-line": "#282828"
+      },
+      "light": {
+        "--font": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "--radius": "999px",
+        "--card-radius": "8px",
+        "--bg": "#ffffff",
+        "--surface": "#f6f6f6",
+        "--sep": "#ebebeb",
+        "--text": "#121212",
+        "--text-3": "#9a9a9a",
+        "--bar": "rgba(255, 255, 255, 0.9)",
+        "--bar-line": "#ebebeb"
+      }
+    }
+  },
+  {
+    "id": "honey",
+    "name": "Honey",
+    "mode": "light",
+    "accent": "#ffcc00",
+    "description": "тёплый светлый фон, мягкие скругления 16, жёлтая заливка",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#f5f4f2"
+    ],
+    "barsDark": [
+      "#1f1f1f",
+      1.0,
+      "#121212"
+    ],
+    "file": "css/themes/honey.css",
+    "preview": {
+      "light": {
+        "--font": "Inter, \"Helvetica Neue\", Arial, sans-serif",
+        "--bg": "#f5f4f2",
+        "--surface": "#ffffff",
+        "--sep": "#f0efec",
+        "--text": "#000000",
+        "--text-3": "#999999",
+        "--bar": "#ffffff",
+        "--bar-line": "#eeeeee",
+        "--radius": "12px",
+        "--card-radius": "16px"
+      },
+      "dark": {
+        "--font": "Inter, \"Helvetica Neue\", Arial, sans-serif",
+        "--bg": "#121212",
+        "--surface": "#1f1f1f",
+        "--sep": "#2a2a2a",
+        "--text": "#ffffff",
+        "--text-3": "#7a7a7a",
+        "--bar": "#1f1f1f",
+        "--bar-line": "#2a2a2a",
+        "--radius": "12px",
+        "--card-radius": "16px"
+      }
+    }
+  },
+  {
+    "id": "ink",
+    "name": "Ink",
+    "mode": "dark",
+    "accent": "#1d9bf0",
+    "description": "чёрное полотно без карточек, волосяные разделители, жирные имена",
+    "barsLight": [
+      "#ffffff",
+      0.85,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#000000",
+      0.72,
+      "#000000"
+    ],
+    "file": "css/themes/ink.css",
+    "preview": {
+      "dark": {
+        "--font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+        "--bg": "#000000",
+        "--surface": "#000000",
+        "--sep": "#2f3336",
+        "--text": "#e7e9ea",
+        "--text-3": "#5b6065",
+        "--bar": "rgba(0, 0, 0, 0.72)",
+        "--bar-line": "#2f3336",
+        "--radius": "999px",
+        "--card-radius": "16px"
+      },
+      "light": {
+        "--font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+        "--bg": "#ffffff",
+        "--surface": "#ffffff",
+        "--sep": "#eff3f4",
+        "--text": "#0f1419",
+        "--text-3": "#8b98a5",
+        "--bar": "rgba(255, 255, 255, 0.85)",
+        "--bar-line": "#eff3f4",
+        "--radius": "999px",
+        "--card-radius": "16px"
+      }
+    }
+  },
+  {
+    "id": "lounge",
+    "name": "Lounge",
+    "mode": "dark",
+    "accent": "#5865f2",
+    "description": "плотный тёмный чат: сообщения без карточек, подсветка строки, жирные имена",
+    "barsLight": [
+      "#f2f3f5",
+      1.0,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#2b2d31",
+      1.0,
+      "#313338"
+    ],
+    "file": "css/themes/lounge.css",
+    "preview": {
+      "dark": {
+        "--font": "\"Noto Sans\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "--radius": "4px",
+        "--card-radius": "8px",
+        "--bg": "#313338",
+        "--surface": "#2b2d31",
+        "--sep": "#3f4147",
+        "--text": "#dbdee1",
+        "--text-3": "#949ba4",
+        "--bar": "#2b2d31",
+        "--bar-line": "#1f2023"
+      },
+      "light": {
+        "--font": "\"Noto Sans\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "--radius": "4px",
+        "--card-radius": "8px",
+        "--bg": "#ffffff",
+        "--surface": "#f2f3f5",
+        "--sep": "#e3e5e8",
+        "--text": "#313338",
+        "--text-3": "#5c5e66",
+        "--bar": "#f2f3f5",
+        "--bar-line": "#e3e5e8"
+      }
+    }
+  },
+  {
+    "id": "material",
+    "name": "Material 3",
+    "mode": "light",
+    "accent": "#6750a4",
+    "description": "капсула 40 с контуром; главная — заливка; призрачная — текст | текст",
+    "barsLight": [
+      "#f7f2fa",
+      0.9,
+      "#f7f2fa"
+    ],
+    "barsDark": [
+      "#141218",
+      0.9,
+      "#141218"
+    ],
+    "file": "css/themes/material.css",
+    "preview": {
+      "light": {
+        "--font": "Roboto, \"Roboto Flex\", \"Google Sans Text\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Noto Sans\", sans-serif",
+        "--bg": "#f7f2fa",
+        "--surface": "#ffffff",
+        "--sep": "#e3dce6",
+        "--text": "#1d1b20",
+        "--text-3": "#79747e",
+        "--bar": "rgba(247, 242, 250, 0.9)",
+        "--bar-line": "rgba(0, 0, 0, 0.06)",
+        "--radius": "12px",
+        "--card-radius": "20px"
+      },
+      "dark": {
+        "--font": "Roboto, \"Roboto Flex\", \"Google Sans Text\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Noto Sans\", sans-serif",
+        "--bg": "#141218",
+        "--surface": "#211f26",
+        "--sep": "#322f37",
+        "--text": "#e6e0e9",
+        "--text-3": "#938f99",
+        "--bar": "rgba(20, 18, 24, 0.9)",
+        "--bar-line": "rgba(255, 255, 255, 0.06)",
+        "--radius": "12px",
+        "--card-radius": "20px"
+      }
+    }
+  },
+  {
+    "id": "metro",
+    "name": "Metro",
+    "mode": "dark",
+    "accent": "#00a4ef",
+    "description": "рамка 2 пикселя без скругления, нажатие инвертирует | стрелка в круге",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#1d1d1d",
+      1.0,
+      "#1d1d1d"
+    ],
+    "file": "css/themes/metro.css",
+    "preview": {
+      "dark": {
+        "--font": "\"Segoe UI\", \"Segoe UI Variable Text\", Tahoma, sans-serif",
+        "--bg": "#1d1d1d",
+        "--surface": "#2b2b2b",
+        "--sep": "#1d1d1d",
+        "--text": "#ffffff",
+        "--text-3": "#8a8a8a",
+        "--bar": "#1d1d1d",
+        "--bar-line": "#3a3a3a",
+        "--radius": "0px",
+        "--card-radius": "0px"
+      },
+      "light": {
+        "--font": "\"Segoe UI\", \"Segoe UI Variable Text\", Tahoma, sans-serif",
+        "--bg": "#ffffff",
+        "--surface": "#f2f2f2",
+        "--sep": "#ffffff",
+        "--text": "#000000",
+        "--text-3": "#767676",
+        "--bar": "#ffffff",
+        "--bar-line": "#d6d6d6",
+        "--radius": "0px",
+        "--card-radius": "0px"
+      }
+    }
+  },
+  {
+    "id": "mmo",
+    "name": "MMO",
+    "mode": "dark",
+    "accent": "#00e5ff",
+    "description": "«Рунная сталь и Эфирное стекло» — плотность Lineage 2 и свечение Aion: окна-стекло rgba(18,22,28,.80) в трёхслойной рамке (чернёное железо, мифриловая фаска с бликом, лазурный шов), угловые скобы, стеклянный блик по верхней трети, тень 0 8px 24px; заголовки антиквой капителью с металлическим градиентом и рунным гребнем; мифриловые кнопки с надписью слоновой костью в чёрном контуре, нажатие — сдвиг на 1px; вкладки-пластины с золотой чертой, вдавленные слоты #080A0D; акцент — эфирный циан, второй — золотой янтарь; светлый — камень и пергамент",
+    "barsLight": [
+      "#ece6d8",
+      0.8,
+      "#d6d1c4"
+    ],
+    "barsDark": [
+      "#0e1116",
+      0.62,
+      "#0f1217"
+    ],
+    "companionDark": "#00e5ff",
+    "accentLight": "#008a99",
+    "accentDark": "#a8843a",
+    "companion": "#ffc107",
+    "companionLight": "#b8860b",
+    "file": "css/themes/mmo.css",
+    "preview": {
+      "dark": {
+        "--font": "Inter, Tahoma, \"Segoe UI\", sans-serif",
+        "--radius": "3px",
+        "--card-radius": "6px",
+        "--bg": "#0F1217",
+        "--surface": "rgba(18, 22, 28, 0.80)",
+        "--sep": "#3A4454",
+        "--text": "#F0F4F8",
+        "--text-3": "#6B7588",
+        "--bar": "rgba(14, 17, 22, 0.62)",
+        "--bar-line": "#0B0D11"
+      },
+      "light": {
+        "--font": "Inter, Tahoma, \"Segoe UI\", sans-serif",
+        "--radius": "3px",
+        "--card-radius": "6px",
+        "--bg": "#d6d1c4",
+        "--surface": "rgba(246, 243, 235, 0.9)",
+        "--sep": "#c2baa6",
+        "--text": "#1d1c19",
+        "--text-3": "#7a7566",
+        "--bar": "rgba(239, 233, 218, 0.8)",
+        "--bar-line": "#5b5446"
+      }
+    }
+  },
+  {
+    "id": "neon",
+    "name": "Neon",
+    "mode": "dark",
+    "accent": "#fe2c55",
+    "description": "чёрный экран, двойной цветной сдвиг у активной вкладки",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#000000",
+      1.0,
+      "#000000"
+    ],
+    "companion": "#25f4ee",
+    "file": "css/themes/neon.css",
+    "preview": {
+      "dark": {
+        "--font": "\"Proxima Nova\", Inter, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "--bg": "#000000",
+        "--surface": "#121212",
+        "--sep": "#1f1f1f",
+        "--text": "#ffffff",
+        "--text-3": "#767676",
+        "--bar": "#000000",
+        "--bar-line": "#1f1f1f",
+        "--radius": "4px",
+        "--card-radius": "8px"
+      },
+      "light": {
+        "--font": "\"Proxima Nova\", Inter, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "--bg": "#ffffff",
+        "--surface": "#f1f1f2",
+        "--sep": "#ededee",
+        "--text": "#161823",
+        "--text-3": "#a2a2a7",
+        "--bar": "#ffffff",
+        "--bar-line": "#ededee",
+        "--radius": "4px",
+        "--card-radius": "8px"
+      }
+    }
+  },
+  {
+    "id": "olive",
+    "name": "Olive",
+    "mode": "dark",
+    "accent": "#c4b550",
+    "description": "тёмный — оливковые окна с выпуклыми фасками, вдавленные поля, Tahoma, жёлтые подписи разделов, блочный индикатор; светлый — Windows 95/98: серая плашка `#c0c0c0` с двойной фаской, вдавленные нажатия и белые поля, заголовок окна градиентом из акцента, блочный прогресс акцентом",
+    "barsLight": [
+      "#c0c0c0",
+      1.0,
+      "#c0c0c0"
+    ],
+    "barsDark": [
+      "#4c5844",
+      1.0,
+      "#3e4637"
+    ],
+    "accentLight": "#000080",
+    "file": "css/themes/olive.css",
+    "preview": {
+      "dark": {
+        "--font": "Tahoma, Verdana, \"Segoe UI\", sans-serif",
+        "--radius": "0px",
+        "--card-radius": "0px",
+        "--bg": "#3e4637",
+        "--surface": "#4c5844",
+        "--sep": "#3e4637",
+        "--text": "#d8ded3",
+        "--text-3": "#7f8a74",
+        "--bar": "#4c5844",
+        "--bar-line": "#282e22"
+      },
+      "light": {
+        "--font": "Tahoma, \"MS Sans Serif\", \"Segoe UI\", Arial, sans-serif",
+        "--radius": "0px",
+        "--card-radius": "0px",
+        "--bg": "#c0c0c0",
+        "--surface": "#c0c0c0",
+        "--sep": "#a8a8a8",
+        "--text": "#000000",
+        "--text-3": "#5a5a5a",
+        "--bar": "#c0c0c0",
+        "--bar-line": "#808080"
+      }
+    }
+  },
+  {
+    "id": "page",
+    "name": "Page",
+    "mode": "light",
+    "accent": "#2383e2",
+    "description": "белый лист, заголовки с засечками, тонкие рамки, серые теги-плашки",
+    "barsLight": [
+      "#ffffff",
+      0.9,
+      "#ffffff"
+    ],
+    "barsDark": [
+      "#191919",
+      0.9,
+      "#191919"
+    ],
+    "file": "css/themes/page.css",
+    "preview": {
+      "light": {
+        "--font": "ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif",
+        "--radius": "3px",
+        "--card-radius": "4px",
+        "--bg": "#ffffff",
+        "--surface": "#ffffff",
+        "--sep": "#e9e9e7",
+        "--text": "#37352f",
+        "--text-3": "#9b9a97",
+        "--bar": "rgba(255, 255, 255, 0.9)",
+        "--bar-line": "#e9e9e7"
+      },
+      "dark": {
+        "--font": "ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif",
+        "--radius": "3px",
+        "--card-radius": "4px",
+        "--bg": "#191919",
+        "--surface": "#191919",
+        "--sep": "#2f2f2f",
+        "--text": "#d4d4d4",
+        "--text-3": "#7f7f7f",
+        "--bar": "rgba(25, 25, 25, 0.9)",
+        "--bar-line": "#2f2f2f"
+      }
+    }
+  },
+  {
+    "id": "patch",
+    "name": "Patch",
+    "mode": "dark",
+    "accent": "#67c1f5",
+    "description": "Технический интерфейс списков изменений клиента Steam (clientNews) — угольная шапка #202020, графитовый фон #2E2E2E, приглушённая серая мета-информация #999797, сворачиваемые плашки патчноутов с индикаторами [-]/[+] и полупрозрачные голубые кнопки .btnv6_blue_hoverfade с градиентным наведением.",
+    "barsLight": [
+      "#dce2e8",
+      1.0,
+      "#e9eef2"
+    ],
+    "barsDark": [
+      "#202020",
+      1.0,
+      "#2e2e2e"
+    ],
+    "companionDark": "#a4d007",
+    "accentLight": "#1a75b8",
+    "accentDark": "#67c1f5",
+    "companion": "#a4d007",
+    "companionLight": "#5c7e10",
+    "file": "css/themes/patch.css",
+    "preview": {
+      "dark": {
+        "--font": "\"Motiva Sans\", Arial, Tahoma, Helvetica, sans-serif",
+        "--radius": "2px",
+        "--card-radius": "3px",
+        "--bg": "#2e2e2e",
+        "--surface": "#252525",
+        "--sep": "#333333",
+        "--text": "#e6e6e6",
+        "--text-3": "#6e6d6d",
+        "--bar": "#202020",
+        "--bar-line": "#3a3a3a"
+      },
+      "light": {
+        "--font": "\"Motiva Sans\", Arial, Tahoma, Helvetica, sans-serif",
+        "--radius": "2px",
+        "--card-radius": "3px",
+        "--bg": "#e9eef2",
+        "--surface": "#ffffff",
+        "--sep": "#e1e6eb",
+        "--text": "#1f2328",
+        "--text-3": "#8c959f",
+        "--bar": "#dce2e8",
+        "--bar-line": "#bfc8d1"
+      }
+    }
+  },
+  {
+    "id": "plain",
+    "name": "Plain",
+    "mode": "light",
+    "accent": "#ff6600",
+    "description": "бежевый лист, шапка залита акцентом, мелкий Verdana, строки ссылок без карточек и теней",
+    "barsLight": [
+      "#f6f6ef",
+      1.0,
+      "#f6f6ef"
+    ],
+    "barsDark": [
+      "#1c1c19",
+      1.0,
+      "#1c1c19"
+    ],
+    "file": "css/themes/plain.css",
+    "preview": {
+      "light": {
+        "--font": "Verdana, Geneva, Tahoma, sans-serif",
+        "--radius": "2px",
+        "--card-radius": "0px",
+        "--bg": "#f6f6ef",
+        "--surface": "#f6f6ef",
+        "--sep": "#e6e6dc",
+        "--text": "#000000",
+        "--text-3": "#a6a6a0",
+        "--bar": "#f6f6ef",
+        "--bar-line": "#e0e0d6"
+      },
+      "dark": {
+        "--font": "Verdana, Geneva, Tahoma, sans-serif",
+        "--radius": "2px",
+        "--card-radius": "0px",
+        "--bg": "#1c1c19",
+        "--surface": "#1c1c19",
+        "--sep": "#2e2e29",
+        "--text": "#e6e6dc",
+        "--text-3": "#75756c",
+        "--bar": "#1c1c19",
+        "--bar-line": "#2e2e29"
+      }
+    }
+  },
+  {
+    "id": "thread",
+    "name": "Thread",
+    "mode": "dark",
+    "accent": "#f07f2e",
+    "description": "тёмно-синее полотно, посты отдельными панелями, оранжевые кнопки в рамке",
+    "barsLight": [
+      "#eeeeee",
+      1.0,
+      "#eeeeee"
+    ],
+    "barsDark": [
+      "#16202d",
+      1.0,
+      "#16202d"
+    ],
+    "file": "css/themes/thread.css",
+    "preview": {
+      "dark": {
+        "--font": "Roboto, \"Segoe UI\", Arial, sans-serif",
+        "--bg": "#16202d",
+        "--surface": "#1d2a3a",
+        "--sep": "#16202d",
+        "--text": "#d7dde5",
+        "--text-3": "#6f7f92",
+        "--bar": "#16202d",
+        "--bar-line": "#2a3a4e",
+        "--radius": "4px",
+        "--card-radius": "4px"
+      },
+      "light": {
+        "--font": "Roboto, \"Segoe UI\", Arial, sans-serif",
+        "--bg": "#eeeeee",
+        "--surface": "#dddddd",
+        "--sep": "#eeeeee",
+        "--text": "#333333",
+        "--text-3": "#888888",
+        "--bar": "#eeeeee",
+        "--bar-line": "#cccccc",
+        "--radius": "4px",
+        "--card-radius": "4px"
+      }
+    }
+  },
+  {
+    "id": "vapor",
+    "name": "Vapor",
+    "mode": "dark",
+    "accent": "#2d73ff",
+    "description": "Диалоги десктопного игрового клиента 2020-х — графитовые окна #25282E с радиальным бликом из левого верхнего угла, шрифт Motiva Sans, плоские кнопки #3D4450 с всплывающей тенью при наведении, главная кнопка — градиент из акцента, который «переливается» при наведении и нажатии; утопленные дорожки переключателей и прогресса со светящимся заполнением, сегменты капсом, тонкая полоса акцента над шапкой и красный крестик закрытия.",
+    "barsLight": [
+      "#e9ecf0",
+      0.94,
+      "#dde1e6"
+    ],
+    "barsDark": [
+      "#171a1f",
+      0.94,
+      "#25282e"
+    ],
+    "file": "css/themes/vapor.css",
+    "preview": {
+      "dark": {
+        "--font": "\"Motiva Sans\", \"Segoe UI\", \"Helvetica Neue\", Arial, Helvetica, sans-serif",
+        "--radius": "3px",
+        "--card-radius": "4px",
+        "--bg": "#25282e",
+        "--surface": "#2e323a",
+        "--sep": "#3a3f48",
+        "--text": "#dfe3e6",
+        "--text-3": "#7e848b",
+        "--bar": "rgba(23, 26, 31, 0.94)",
+        "--bar-line": "rgba(0, 0, 0, 0.5)"
+      },
+      "light": {
+        "--font": "\"Motiva Sans\", \"Segoe UI\", \"Helvetica Neue\", Arial, Helvetica, sans-serif",
+        "--radius": "3px",
+        "--card-radius": "4px",
+        "--bg": "#dde1e6",
+        "--surface": "#f7f8fa",
+        "--sep": "#dde1e6",
+        "--text": "#1c2026",
+        "--text-3": "#8a929c",
+        "--bar": "rgba(233, 236, 240, 0.94)",
+        "--bar-line": "rgba(28, 32, 38, 0.16)"
+      }
+    }
+  },
+  {
+    "id": "wave",
+    "name": "Wave",
+    "mode": "light",
+    "accent": "#0077ff",
+    "description": "белые блоки со скруглением 12, заливки акцентом",
+    "barsLight": [
+      "#ffffff",
+      1.0,
+      "#edeef0"
+    ],
+    "barsDark": [
+      "#222222",
+      1.0,
+      "#141414"
+    ],
+    "file": "css/themes/wave.css",
+    "preview": {
+      "light": {
+        "--font": "Inter, -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+        "--bg": "#edeef0",
+        "--surface": "#ffffff",
+        "--sep": "#e7e8ec",
+        "--text": "#000000",
+        "--text-3": "#99a2ad",
+        "--bar": "#ffffff",
+        "--bar-line": "#e7e8ec",
+        "--radius": "8px",
+        "--card-radius": "12px"
+      },
+      "dark": {
+        "--font": "Inter, -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+        "--bg": "#141414",
+        "--surface": "#222222",
+        "--sep": "#363738",
+        "--text": "#e1e3e6",
+        "--text-3": "#76787a",
+        "--bar": "#222222",
+        "--bar-line": "#363738",
+        "--radius": "8px",
+        "--card-radius": "12px"
+      }
+    }
+  }
+]

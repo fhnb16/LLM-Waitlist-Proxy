@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+if [ "$1" = "purge" ]; then
+    # Очередь, статистика, журналы и секреты удаляются только при purge.
+    rm -rf /var/lib/lmq
+    rm -f /etc/lmq/secrets.bin /etc/lmq/settings.yaml.bak /etc/lmq/active-profile
+    rm -rf /etc/lmq/profiles
+    if getent passwd lmq >/dev/null; then
+        deluser --system lmq >/dev/null 2>&1 || true
+    fi
+    if getent group lmq >/dev/null; then
+        delgroup --system lmq >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0

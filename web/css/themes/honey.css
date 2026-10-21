@@ -1,0 +1,108 @@
+/*!theme
+id: honey
+name: Honey
+mode: light
+accent: #ffcc00
+barsLight: #ffffff, 1.0, #f5f4f2
+barsDark: #1f1f1f, 1.0, #121212
+description: тёплый светлый фон, мягкие скругления 16, жёлтая заливка
+*/
+
+/* ======================================================================== */
+/* Honey — тёплый фон и мягкие скругления                                     */
+/* Тёплый светлый фон, крупные мягкие скругления, жёлтая заливка с чёрным
+   текстом, плотные чёткие заголовки.                                        */
+:root[data-skin="honey"] {
+  --font: Inter, "Helvetica Neue", Arial, sans-serif;
+  --bg: #f5f4f2;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #f1f0ed;
+  --sep: #f0efec;
+  --sep-strong: #e0ded9;
+  --text: #000000;
+  --text-2: #5c5c5c;
+  --text-3: #999999;
+  --bar: #ffffff;
+  --bar-line: #eeeeee;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --card-radius: 16px;
+  --bar-blur: none;
+  --shadow-soft: rgba(0, 0, 0, 0.06);
+  color-scheme: light;
+  --hero-size: 32px;
+  --hero-weight: 700;
+  --hero-tracking: -0.02em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  --sw-w: 44px;
+  --sw-h: 24px;
+  --sw-r: 12px;
+  --sw-thumb: 20px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: #e0ded9;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  --seg-r: 12px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 52px;
+  --tab-h: 56px;
+  --danger: #ff3333;
+  --ok: #3bb300;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: #000000;
+  --toast-text: #ffffff;
+  --chip-r: 12px;
+}
+:root[data-skin="honey"].theme--dark {
+  --bg: #121212;
+  --bg-elev: #1f1f1f;
+  --surface: #1f1f1f;
+  --surface-press: #2a2a2a;
+  --sep: #2a2a2a;
+  --sep-strong: #3a3a3a;
+  --text: #ffffff;
+  --text-2: #a8a8a8;
+  --text-3: #7a7a7a;
+  --bar: #1f1f1f;
+  --bar-line: #2a2a2a;
+  color-scheme: dark;
+  --sw-off: #3a3a3a;
+  --toast-bg: #ffffff;
+  --toast-text: #000000;
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+}
+:root[data-skin="honey"] .list {
+  border: 0;
+  border-radius: var(--card-radius);
+  margin: 0 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px var(--shadow-soft);
+}
+:root[data-skin="honey"] .btn { border-radius: var(--radius); font-weight: 500; }
+:root[data-skin="honey"] .btn--filled,
+:root[data-skin="honey"] .btn:active,
+:root[data-skin="honey"] .segmented__item--active {
+  background: var(--tint);
+  border-color: var(--tint);
+  color: var(--on-tint);
+}
+:root[data-skin="honey"] .segmented { border-radius: var(--radius); border-color: var(--sep-strong); }
+:root[data-skin="honey"] .segmented__item { color: var(--text); border-left-color: var(--sep-strong); }
+:root[data-skin="honey"] .hero__title { font-weight: 700; font-size: 32px; letter-spacing: -0.02em; }
+:root[data-skin="honey"] .tab-bar__item--active { color: var(--text); }
+:root[data-skin="honey"] .tab-bar__item--active .tab-bar__icon { stroke: var(--text); }
+:root[data-skin="honey"] { --group-mx: 10px; }
+:root[data-skin="honey"] { --group-r: var(--card-radius); }
+:root[data-skin="honey"] { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+:root[data-skin="honey"].theme--dark { --tint-text: color-mix(in srgb, var(--tint) 72%, var(--text)); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="honey"] { --modal-r: 20px; --modal-head-bg: color-mix(in srgb, var(--warn) 16%, var(--bg-elev)); --toast-r: 18px; --callout-r: 12px; }

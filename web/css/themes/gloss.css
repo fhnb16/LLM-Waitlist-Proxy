@@ -1,0 +1,365 @@
+/*!theme
+id: gloss
+name: Gloss
+mode: light
+accent: #0b60d8
+barsLight: #7a8a9e, 1.0, #c5ccd3
+barsDark: #26292e, 1.0, #23262b
+description: белый глянец, синяя жирная надпись с тиснением; главная — синий глянец, опасная — красный | выпуклая плашка с клином, обведённая по всему силуэту
+*/
+
+/* ======================================================================== */
+/* Gloss — скевоморфизм                                                       */
+/* Градиентные панели, глянцевые кнопки, тиснёные подписи. Светлого и тёмного
+   режима у него не было — оформление одно.                                  */
+:root[data-skin="gloss"] {
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --bg: #c5ccd3;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #d9dde2;
+  --sep: #a9b1b9;
+  --sep-strong: #8b959f;
+  --text: #1b1f24;
+  --text-2: #5c6773;
+  --text-3: #8e99a4;
+  --bar: #8494a8;
+  --bar-line: #4a5666;
+  --radius: 8px;
+  --radius-lg: 10px;
+  --card-radius: 10px;
+  --bar-blur: none;
+  --thumb: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.3);
+  color-scheme: light;
+  --hero-size: 30px;
+  --hero-weight: 700;
+  --hero-tracking: -0.02em;
+  --nav-grid: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  --nav-align: center;
+  --nav-weight: 700;
+  --sw-w: 66px;
+  --sw-h: 28px;
+  --sw-r: 14px;
+  --sw-thumb: 28px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 0px;
+  --sw-off: #eeeeee;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --seg-r: 8px;
+  --seg-line: #8b959f;
+  --seg-text: #3a4a5c;
+  --seg-on: var(--tint);
+  --seg-on-text: #ffffff;
+  --bar-h: 44px;
+  --tab-h: 49px;
+  --danger: #d9291c;
+  --ok: #3d9c3d;
+  --on-danger: #ffffff;
+  --toast-bg: rgba(20, 24, 30, 0.9);
+  --toast-text: #ffffff;
+  --chip-r: 6px;
+}
+:root[data-skin="gloss"] .nav-bar {
+  background-image: linear-gradient(#a7b4c4, #7a8a9e);
+  border-bottom: 1px solid #4a5666;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+:root[data-skin="gloss"] .nav-bar__title {
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  font-weight: 700;
+}
+:root[data-skin="gloss"] .tab-bar {
+  background-image: linear-gradient(#5d5d5d, #1c1c1c);
+  border-top: 1px solid #000000;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+:root[data-skin="gloss"] .tab-bar__item { color: #8d8d8d; }
+:root[data-skin="gloss"] .tab-bar__item--active { color: var(--tint); }
+:root[data-skin="gloss"] .list {
+  border-radius: var(--card-radius);
+  border: 1px solid var(--sep-strong);
+  margin: 0 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+:root[data-skin="gloss"] .hero__title { font-weight: 700; letter-spacing: -0.02em; }
+:root[data-skin="gloss"] .card__title { font-weight: 700; }
+:root[data-skin="gloss"] .group__title { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); }
+/* ------------------------------------------------ Gloss: вкладки и тумблер */
+/* Выбранная вкладка Gloss — вдавленная светлая плашка под иконкой. */
+:root[data-skin="gloss"] .tab-bar__item { color: #9a9a9a; margin: 3px 2px; border-radius: 4px; }
+:root[data-skin="gloss"] .tab-bar__item--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+:root[data-skin="gloss"] .tab-bar__item--active .tab-bar__icon {
+  color: var(--tint);
+  filter: drop-shadow(0 0 3px var(--tint-soft));
+}
+/* Тумблер Gloss: капсула с вдавленным ложем, синяя слева, серая справа,
+   глянцевая круглая ручка. */
+:root[data-skin="gloss"] .switch { width: 66px; height: 28px; }
+:root[data-skin="gloss"] .switch__track {
+  border-radius: 14px;
+  border: 1px solid #9ea5ad;
+  background: linear-gradient(#e3e3e3, #fdfdfd);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+:root[data-skin="gloss"] .switch__track::before,
+:root[data-skin="gloss"] .switch__track::after {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 700 13px/1 "Helvetica Neue", Helvetica, sans-serif;
+}
+:root[data-skin="gloss"] .switch__track::after { content: "O"; right: 12px; color: #8a8a8a; }
+:root[data-skin="gloss"] .switch__input:checked ~ .switch__track {
+  border-color: color-mix(in srgb, var(--tint) 70%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 75%, #000000), var(--tint));
+}
+:root[data-skin="gloss"] .switch__input:checked ~ .switch__track::after { content: ""; }
+:root[data-skin="gloss"] .switch__input:checked ~ .switch__track::before { content: "I"; left: 16px; color: #ffffff; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4); }
+:root[data-skin="gloss"] .switch__thumb {
+  width: 28px;
+  height: 28px;
+  top: 0;
+  left: 0;
+  border: 1px solid #a8a8a8;
+  background: linear-gradient(#ffffff, #d4d4d4);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+:root[data-skin="gloss"] .switch__input:checked ~ .switch__thumb { transform: translateX(38px); }
+/* --------------------------------------------------------------- Gloss ---
+   Белая глянцевая кнопка со скруглением 10 и синей жирной надписью с
+   тиснением; нажатая и главная — синий глянец, опасная — красный. Кнопки
+   панели — выпуклые «барные» плашки, «Назад» — со стрелкой-клином. Строки-
+   действия — жирный тёмно-синий текст с тиснением.                        */
+:root[data-skin="gloss"] .btn,
+:root[data-skin="gloss"] .btn--ghost,
+:root[data-skin="gloss"] .trbar__btn {
+  border: 1px solid #a5acb5;
+  border-radius: 10px;
+  background: linear-gradient(#ffffff 0%, #f4f5f7 50%, #e6e8eb 51%, #dfe2e6 100%);
+  color: #385487;
+  font-weight: 700;
+  text-shadow: 0 1px 0 #ffffff;
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+:root[data-skin="gloss"] .trbar__btn { border-radius: 6px; font-size: 12px; padding: 4px 10px; }
+:root[data-skin="gloss"] .btn:active,
+:root[data-skin="gloss"] .trbar__btn:active,
+:root[data-skin="gloss"] .btn--filled {
+  border-color: color-mix(in srgb, var(--tint) 62%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 55%, #ffffff) 0%,
+    color-mix(in srgb, var(--tint) 85%, #ffffff) 50%, var(--tint) 51%,
+    color-mix(in srgb, var(--tint) 85%, #000000) 100%);
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+:root[data-skin="gloss"] .btn--danger {
+  border-color: #8e1511;
+  background: linear-gradient(#f28c88 0%, #e44c45 50%, #d2281f 51%, #bb1d16 100%);
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+:root[data-skin="gloss"] .nav-bar__btn {
+  padding: 5px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  border-radius: 5px;
+  background: linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.08) 50%, rgba(0, 0, 0, 0.04) 51%), #6f8199;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+:root[data-skin="gloss"] .nav-bar__btn:active { opacity: 1; background: #4f6179; }
+:root[data-skin="gloss"] .nav-bar__btn--back {
+  padding-left: 16px;
+  clip-path: polygon(11px 0, 100% 0, 100% 100%, 11px 100%, 0 50%);
+}
+:root[data-skin="gloss"] .nav-bar__btn--back .nav-bar__chevron { display: none; }
+:root[data-skin="gloss"] .segmented { border-color: #8e97a3; border-radius: 8px; }
+:root[data-skin="gloss"] .segmented__item {
+  border-left-color: #8e97a3;
+  background: linear-gradient(#ffffff 0%, #f1f2f4 50%, #e3e5e8 51%, #dadde1 100%);
+  color: #4f5b6b;
+  font-weight: 700;
+  text-shadow: 0 1px 0 #ffffff;
+}
+:root[data-skin="gloss"] .segmented__item--active {
+  background: linear-gradient(color-mix(in srgb, var(--tint) 55%, #ffffff) 0%,
+    color-mix(in srgb, var(--tint) 85%, #ffffff) 50%, var(--tint) 51%,
+    color-mix(in srgb, var(--tint) 85%, #000000) 100%);
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+/* ==========================================================================
+   Вторые режимы: у каждой темы теперь есть и светлый, и тёмный вариант.
+   Где у оригинала свой второй режим был — по нему (тёмные панели iOS 6,
+   светлая тема TikTok), где не было — наиболее близкое по духу.
+   ========================================================================== */
+/* ---------------------------------------------- Gloss, тёмный: «чёрный бар» */
+:root[data-skin="gloss"] { --gloss-edge: #3d4754; }
+:root[data-skin="gloss"].theme--dark {
+  --bg: #23262b;
+  --bg-elev: #30343a;
+  --surface: #30343a;
+  --surface-press: #3b4047;
+  --sep: #1a1c20;
+  --sep-strong: #121417;
+  --text: #eef1f4;
+  --text-2: #a7afb9;
+  --text-3: #7b838d;
+  --bar: #2a2d32;
+  --bar-line: #0c0d0f;
+  --toast-bg: rgba(0, 0, 0, 0.85);
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.6);
+  --gloss-edge: #0f1114;
+  color-scheme: dark;
+}
+:root[data-skin="gloss"].theme--dark .nav-bar {
+  background-image: linear-gradient(#5a5f67, #26292e);
+  border-bottom-color: #0c0d0f;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+:root[data-skin="gloss"].theme--dark .nav-bar__btn { background: linear-gradient(rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06) 50%, rgba(0, 0, 0, 0.08) 51%), #3a3e45; }
+:root[data-skin="gloss"].theme--dark .nav-bar__btn:active { background: #24272c; }
+:root[data-skin="gloss"].theme--dark .tab-bar { background-image: linear-gradient(#3a3a3a, #0a0a0a); }
+:root[data-skin="gloss"].theme--dark .list { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06); }
+:root[data-skin="gloss"].theme--dark .group__title { text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6); }
+:root[data-skin="gloss"].theme--dark .btn,
+:root[data-skin="gloss"].theme--dark .btn--ghost,
+:root[data-skin="gloss"].theme--dark .trbar__btn,
+:root[data-skin="gloss"].theme--dark .segmented__item {
+  border-color: #111317;
+  background: linear-gradient(#5c6169 0%, #474c53 50%, #393d43 51%, #2f3338 100%);
+  color: #f2f4f7;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+:root[data-skin="gloss"].theme--dark .segmented { border-color: #111317; }
+/* Клин «Назад» с обводкой: собственная рамка кнопки снята, а родитель
+   обводит уже обрезанный силуэт четырьмя тенями по пикселю — так контур
+   идёт и по диагоналям клина. */
+:root[data-skin="gloss"] #nav-left.has-back {
+  filter: drop-shadow(1px 0 0 var(--gloss-edge)) drop-shadow(-1px 0 0 var(--gloss-edge))
+    drop-shadow(0 1px 0 var(--gloss-edge)) drop-shadow(0 -1px 0 var(--gloss-edge));
+}
+:root[data-skin="gloss"] .nav-bar__btn--back { border: 0; }
+:root[data-skin="gloss"] .nav-bar__btn { border-color: var(--gloss-edge); }
+/* Gloss, тёмный: состояния кнопок и сегментов. Тёмное правило для всех
+   кнопок весит на класс больше, чем правило выделенного сегмента или
+   нажатой кнопки, и перебивало их — выделение пропадало. Здесь те же
+   состояния с тем же весом, но ниже по файлу. */
+:root[data-skin="gloss"].theme--dark .btn:active,
+:root[data-skin="gloss"].theme--dark .trbar__btn:active,
+:root[data-skin="gloss"].theme--dark .btn--filled,
+:root[data-skin="gloss"].theme--dark .segmented__item--active {
+  border-color: color-mix(in srgb, var(--tint) 55%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 55%, #ffffff) 0%,
+    color-mix(in srgb, var(--tint) 85%, #ffffff) 50%, var(--tint) 51%,
+    color-mix(in srgb, var(--tint) 80%, #000000) 100%);
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+:root[data-skin="gloss"].theme--dark .btn--danger {
+  border-color: #5e0d0a;
+  background: linear-gradient(#e0605a 0%, #cc3a33 50%, #b3221b 51%, #9b1a14 100%);
+  color: #ffffff;
+}
+/* ----------------------------------------------------------------------
+   Формы в темах — только переменные: вид поля, цвет кнопки-строки, радиус
+   группы. Раскладка строки — в базовых блоках .field и .list.
+   ---------------------------------------------------------------------- */
+:root[data-skin="gloss"] { --tint-text: #324f85; --group-r: 10px; }
+:root[data-skin="gloss"].theme--dark { --tint-text: #9cc3ff; }
+:root[data-skin="gloss"] { --group-mx: 10px; }
+
+/* Компьютер: боковая навигация в духе iPad на iOS 6 — тёмный «лён» (тонкие
+   диагональные штрихи поверх вертикального градиента), фаска по правому краю,
+   вдавленный текст; выбранный пункт — глянцевая плашка из акцента с бликом,
+   как выделенная ячейка таблицы iOS 6. Градиент нижней панели (49px) на высоте
+   экрана становился плоской заливкой. */
+@media (min-width: 1024px) {
+  :root[data-skin="gloss"] .tab-bar {
+    background-color: #2a2d31;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, #3b3f45, #23262a 60%, #1b1d20);
+    border-right: 1px solid #000000;
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08), 2px 0 6px rgba(0, 0, 0, 0.35);
+    gap: 6px;
+  }
+  :root[data-skin="gloss"] .tab-bar__item {
+    margin: 0 !important;
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    box-shadow: none;
+    color: #c9ccd1;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
+  }
+  :root[data-skin="gloss"] .tab-bar__label { font-size: 15px; font-weight: 700; }
+  :root[data-skin="gloss"] .tab-bar__icon { filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.8)); }
+  :root[data-skin="gloss"] .tab-bar__item--active {
+    color: #ffffff;
+    background-color: var(--tint);
+    background-image: linear-gradient(180deg,
+      color-mix(in srgb, var(--tint) 55%, #ffffff) 0%,
+      color-mix(in srgb, var(--tint) 85%, #ffffff) 49%,
+      var(--tint) 50%,
+      color-mix(in srgb, var(--tint) 80%, #000000) 100%);
+    border-color: color-mix(in srgb, var(--tint) 55%, #000000);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  }
+  :root[data-skin="gloss"] .tab-bar__item--active .tab-bar__icon { color: #ffffff; filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.45)); }
+}
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  :root[data-skin="gloss"] .tab-bar__item:not(.tab-bar__item--active):hover { background: rgba(255, 255, 255, 0.06); color: #ffffff; }
+}
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="gloss"] {
+  --modal-r: 10px;
+  --modal-border: 1px solid rgba(0, 0, 0, 0.55);
+  --modal-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+  --modal-head-bg: linear-gradient(180deg, #b6c2d2 0%, #8d9fb8 50%, #7b8eaa 51%, #6c80a0 100%);
+  --modal-head-text: #ffffff;
+  --modal-head-border: 1px solid #2d3f57;
+  --modal-foot-border: 1px solid var(--sep);
+  --toast-r: 10px;
+}
+:root[data-skin="gloss"].theme--dark { --modal-head-bg: linear-gradient(180deg, #555a63 0%, #3a3e45 50%, #2e3237 51%, #25282c 100%); --modal-head-border: 1px solid #000000; }
+/* Модальный экран iOS 6: шапка — панель навигации с бликом, заголовок по центру,
+   вместо крестика — глянцевая кнопка «Закрыть» (подпись из aria-label). */
+:root[data-skin="gloss"] .modal__panel::before { display: none; }
+:root[data-skin="gloss"] .modal__head { align-items: center; padding: 8px 8px 8px var(--row-px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+:root[data-skin="gloss"] .modal__titles { text-align: center; padding-left: 74px; }
+:root[data-skin="gloss"] .modal__title { font-size: 17px; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45); }
+:root[data-skin="gloss"] .modal__sub { opacity: 0.85; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35); }
+:root[data-skin="gloss"] .modal__close {
+  width: auto;
+  height: 30px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.12) 50%, rgba(0, 0, 0, 0.06) 51%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 0 rgba(255, 255, 255, 0.25);
+  font-size: 0;
+}
+:root[data-skin="gloss"] .modal__close::after { content: attr(aria-label); font-size: 13px; font-weight: 700; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45); }
+:root[data-skin="gloss"] .modal__close:active { background: rgba(0, 0, 0, 0.18); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); }

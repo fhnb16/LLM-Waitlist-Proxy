@@ -1,0 +1,104 @@
+/*!theme
+id: bubble
+name: Bubble
+mode: light
+accent: #3390ec
+barsLight: #ffffff, 1.0, #dfe7ee
+barsDark: #17212b, 1.0, #0e1621
+description: шапка акцентом, сообщения пузырями с малым скруглением в нижнем углу
+*/
+
+/* ======================================================================== */
+/* Bubble — сообщения пузырями                                               */
+/* Шапка залита акцентом, каждое сообщение — пузырь с малым скруглением в
+   нижнем углу, под пузырями спокойный фон переписки.                        */
+:root[data-skin="bubble"] {
+  --font: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", sans-serif;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --card-radius: 14px;
+  --bar-blur: none;
+  --bar-h: 52px;
+  --tab-h: 54px;
+  --hero-size: 26px;
+  --hero-weight: 600;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 500;
+  --sw-w: 40px;
+  --sw-h: 22px;
+  --sw-r: 11px;
+  --sw-thumb: 16px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 3px;
+  --sw-off: #b8c1ca;
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --seg-r: 8px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--tint);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --chip-r: 12px;
+  --bg: #dfe7ee;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #eef2f5;
+  --sep: #e6ebef;
+  --sep-strong: #c9d3dc;
+  --text: #000000;
+  --text-2: #707e8b;
+  --text-3: #9aa7b3;
+  --bar: #ffffff;
+  --bar-line: #dfe5ea;
+  --danger: #e53935;
+  --ok: #4fae4e;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: rgba(0, 0, 0, 0.72);
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.12);
+  color-scheme: light;
+}
+:root[data-skin="bubble"].theme--dark {
+  --bg: #0e1621;
+  --bg-elev: #17212b;
+  --surface: #182533;
+  --surface-press: #202b36;
+  --sep: #101921;
+  --sep-strong: #2b3a4a;
+  --text: #f5f5f5;
+  --text-2: #7f91a4;
+  --text-3: #5f7082;
+  --bar: #17212b;
+  --bar-line: #0b121a;
+  --sw-off: #3b4a5a;
+  --toast-bg: rgba(24, 37, 51, 0.95);
+  --shadow-soft: rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+:root[data-skin="bubble"] .nav-bar { background: var(--tint); box-shadow: none; }
+:root[data-skin="bubble"] .nav-bar__title,
+:root[data-skin="bubble"] .nav-bar__btn { color: var(--on-tint); }
+:root[data-skin="bubble"].theme--dark .nav-bar { background: var(--bar); }
+:root[data-skin="bubble"].theme--dark .nav-bar__title { color: var(--text); }
+:root[data-skin="bubble"].theme--dark .nav-bar__btn { color: var(--tint); }
+:root[data-skin="bubble"] .list { background: none; border: 0; margin: 0 8px; }
+:root[data-skin="bubble"] .card,
+:root[data-skin="bubble"] .reply {
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--card-radius) var(--card-radius) var(--card-radius) 4px;
+  margin: 0 18% 8px 0;
+  box-shadow: 0 1px 1px var(--shadow-soft);
+}
+:root[data-skin="bubble"] .list__cell { background: var(--surface); border-radius: var(--radius); margin-bottom: 1px; }
+:root[data-skin="bubble"] .btn { border-radius: var(--radius); }
+:root[data-skin="bubble"] .btn--filled,
+:root[data-skin="bubble"] .btn:active { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+:root[data-skin="bubble"] { --group-mx: 8px; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="bubble"] { --modal-r: 26px; --modal-head-border: 0; --toast-r: 22px; --callout-r: 16px; }
+:root[data-skin="bubble"] .modal__titles { text-align: center; }

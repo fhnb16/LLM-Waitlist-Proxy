@@ -1,0 +1,114 @@
+/*!theme
+id: ember
+name: Ember
+mode: dark
+accent: #ff9000
+barsLight: #ffffff, 1.0, #ffffff
+barsDark: #000000, 1.0, #000000
+description: чёрный фон, тёмные плашки, оранжевая заливка с тёмным текстом
+*/
+
+/* ======================================================================== */
+/* Ember — чёрный фон и оранжевая заливка                                     */
+/* Чёрный фон, тёмно-серые плашки, оранжевый акцент заливкой с тёмным
+   текстом, жирный заголовок. Только палитра и компоновка — никаких
+   логотипов и изображений.                                                  */
+:root[data-skin="ember"] {
+  --font: Arial, Helvetica, sans-serif;
+  --bg: #000000;
+  --bg-elev: #1b1b1b;
+  --surface: #1b1b1b;
+  --surface-press: #2a2a2a;
+  --sep: #000000;
+  --sep-strong: #333333;
+  --text: #ffffff;
+  --text-2: #c6c6c6;
+  --text-3: #8a8a8a;
+  --bar: #000000;
+  --bar-line: #1b1b1b;
+  --radius: 4px;
+  --radius-lg: 4px;
+  --card-radius: 4px;
+  --bar-blur: none;
+  --shadow-soft: transparent;
+  color-scheme: dark;
+  --hero-size: 30px;
+  --hero-weight: 700;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  --sw-w: 44px;
+  --sw-h: 22px;
+  --sw-r: 4px;
+  --sw-thumb: 16px;
+  --sw-thumb-r: 3px;
+  --sw-pad: 3px;
+  --sw-off: #333333;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 4px;
+  --seg-line: #333333;
+  --seg-text: var(--text-2);
+  --seg-on: var(--tint);
+  --seg-on-text: #000000;
+  --bar-h: 48px;
+  --tab-h: 52px;
+  --danger: #ff4d4d;
+  --ok: #66c05e;
+  --thumb: #ffffff;
+  --on-danger: #000000;
+  --toast-bg: #1b1b1b;
+  --toast-text: #ffffff;
+  --chip-r: 4px;
+}
+:root[data-skin="ember"] .list { background: none; border: 0; margin: 0 8px; }
+:root[data-skin="ember"] .card,
+:root[data-skin="ember"] .list__cell,
+:root[data-skin="ember"] .reply {
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--card-radius);
+  margin-bottom: 4px;
+}
+:root[data-skin="ember"] .hero__title { font-weight: 700; }
+:root[data-skin="ember"] .nav-bar__title { font-weight: 700; }
+:root[data-skin="ember"] .tag {
+  background: var(--tint);
+  border-color: var(--tint);
+  color: #000000;
+  font-weight: 700;
+}
+:root[data-skin="ember"] .btn--filled,
+:root[data-skin="ember"] .btn:active,
+:root[data-skin="ember"] .segmented__item--active {
+  background: var(--tint);
+  border-color: var(--tint);
+  color: #000000;
+  font-weight: 700;
+}
+:root[data-skin="ember"] .tab-bar__item--active { color: var(--tint); }
+/* ---------------------------------------------------------- Ember, светлый */
+:root[data-skin="ember"]:not(.theme--dark) {
+  --bg: #ffffff;
+  --bg-elev: #f2f2f2;
+  --surface: #f2f2f2;
+  --surface-press: #e4e4e4;
+  --sep: #ffffff;
+  --sep-strong: #d9d9d9;
+  --text: #111111;
+  --text-2: #555555;
+  --text-3: #8a8a8a;
+  --bar: #ffffff;
+  --bar-line: #eeeeee;
+  --sw-off: #d0d0d0;
+  --seg-line: #d0d0d0;
+  --toast-bg: #111111;
+  --toast-text: #ffffff;
+  color-scheme: light;
+}
+:root[data-skin="ember"] { --group-mx: 8px; }
+:root[data-skin="ember"]:not(.theme--dark) { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="ember"] { --modal-head-bg: linear-gradient(90deg, var(--tint), var(--warn)); --modal-head-text: #ffffff; --modal-head-border: 0; --modal-shadow: 0 16px 48px color-mix(in srgb, var(--tint) 30%, rgba(0, 0, 0, 0.5)); }

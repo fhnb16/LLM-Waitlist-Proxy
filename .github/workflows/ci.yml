@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  windows:
+    name: Windows (LMQ.exe, lmq-server.exe, установщик)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      - name: Release build
+        run: cargo build --release --workspace
+      - name: Installer (NSIS)
+        run: |
+          cargo install tauri-cli --version "^2" --locked
+          cd crates/lmq-desktop
+          cargo tauri build --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmq-windows-x64
+          path: |
+            target/release/LMQ.exe
+            target/release/lmq-server.exe
+            target/release/bundle/nsis/*.exe
+
+  debian:
+    name: Debian bookworm x64 (lmq-server, .deb)
+    runs-on: ubuntu-latest
+    container: debian:bookworm
+    steps:
+      - name: System packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential pkg-config curl ca-certificates git cmake
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        run: cargo clippy -p lmq-core -p lmq-server --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test -p lmq-core -p lmq-server
+      - name: Release build
+        run: cargo build --release -p lmq-server
+      - name: Package (.deb)
+        run: |
+          cargo install cargo-deb --locked
+          cargo deb -p lmq-server --no-build
+      - name: Smoke test
+        run: |
+          ./target/release/lmq-server --version
+          ./target/release/lmq-server --home /tmp/lmq check-config
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmq-debian-x64
+          path: |
+            target/release/lmq-server
+            target/debian/*.deb

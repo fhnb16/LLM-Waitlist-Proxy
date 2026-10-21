@@ -1,0 +1,101 @@
+/*!theme
+id: flat
+name: Flat
+mode: light
+accent: #007aff
+barsLight: #f7f7f7, 0.84, #efeff4
+barsDark: #141416, 0.8, #000000
+description: текст цветом акцента без рамки | стрелка и текст
+*/
+
+/* ----------------------------------------------------------- Flat ------ */
+:root[data-skin="flat"] {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --hero-size: 40px;
+  --hero-weight: 200;
+  --hero-tracking: -0.03em;
+  --nav-grid: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  --nav-align: center;
+  --nav-weight: 600;
+  --sw-w: 51px;
+  --sw-h: 31px;
+  --sw-r: 16px;
+  --sw-thumb: 27px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: var(--sep);
+  --sw-on: var(--tint);
+  --sw-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --seg-r: 5px;
+  --seg-line: var(--tint);
+  --seg-text: var(--tint);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 44px;
+  --tab-h: 49px;
+  --radius: 5px;
+  --radius-lg: 12px;
+  --card-radius: 0px;
+  --bar-blur: saturate(180%) blur(20px);
+  --bg: #efeff4;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #d9d9de;
+  --sep: #c8c7cc;
+  --sep-strong: #b2b2b7;
+  --text: #000000;
+  --text-2: #8e8e93;
+  --text-3: #aeaeb2;
+  --bar: rgba(247, 247, 247, 0.84);
+  --bar-line: rgba(0, 0, 0, 0.22);
+  --danger: #ff3b30;
+  --ok: #4cd964;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: rgba(0, 0, 0, 0.82);
+  --toast-text: #ffffff;
+  --shadow-soft: rgba(0, 0, 0, 0.22);
+  color-scheme: light;
+  --chip-r: 17px;
+}
+:root[data-skin="flat"].theme--dark {
+  --bg: #000000;
+  --bg-elev: #1c1c1e;
+  --surface: #1c1c1e;
+  --surface-press: #2c2c2e;
+  --sep: #38383a;
+  --sep-strong: #48484a;
+  --text: #ffffff;
+  --text-2: #8e8e93;
+  --text-3: #636366;
+  --bar: rgba(20, 20, 22, 0.8);
+  --bar-line: rgba(255, 255, 255, 0.16);
+  --danger: #ff453a;
+  --ok: #30d158;
+  --sw-on: var(--tint);
+  --sw-off: #39393d;
+  --shadow-soft: rgba(0, 0, 0, 0.5);
+  --toast-bg: rgba(70, 70, 74, 0.92);
+  color-scheme: dark;
+}
+/* ==========================================================================
+   Кнопки по канону каждой темы.
+   Пять видов: обычная (.btn и её варианты), кнопки верхней панели, строки-
+   действия в настройках (.list__cell--tint), мелкая кнопка (.trbar__btn) и
+   сегменты. Раньше в части тем был переопределён только .btn, а остальное
+   оставалось плоскими ссылками цветом акцента — отсюда чужой вид.
+   ========================================================================== */
+/* ---------------------------------------------------------------- Flat ---
+   Кнопки — просто текст цветом акцента, без рамок; нажатие гасит яркость.
+   Заливка — только у главного действия.                                   */
+:root[data-skin="flat"] .btn,
+:root[data-skin="flat"] .btn--ghost { border: 0; background: none; color: var(--tint); }
+:root[data-skin="flat"] .btn:active { background: none; color: var(--tint); opacity: 0.35; }
+:root[data-skin="flat"] .btn--filled { background: var(--tint); color: var(--on-tint); border-radius: var(--radius); }
+:root[data-skin="flat"] .btn--filled:active { background: var(--tint); color: var(--on-tint); opacity: 0.6; }
+:root[data-skin="flat"] .btn--danger { border: 0; color: var(--danger); }
+:root[data-skin="flat"] .trbar__btn { border: 0; padding: 4px 0; }
+:root[data-skin="flat"] .trbar__btn:active { background: none; opacity: 0.35; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="flat"] { --modal-r: 14px; --overlay: rgba(0, 0, 0, 0.4); }

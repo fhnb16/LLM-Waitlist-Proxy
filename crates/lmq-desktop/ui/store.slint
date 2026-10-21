@@ -1,0 +1,121 @@
+// Состояние окна (заполняет Rust) и действия (обрабатывает Rust).
+
+import { Kpi, Chart, ModelRow, RunRow, JobRow, EngineRow, LogLine, ClientRow, GpuRow, FieldRow, BannerRow } from "types.slint";
+
+export global UiData {
+    in-out property <int> page;
+    in property <string> version;
+    in property <string> api-url;
+    in property <bool> paused;
+
+    // Обзор
+    in property <string> status-line;
+    in property <[BannerRow]> banners;
+    in property <[Kpi]> kpis;
+    in property <[Chart]> charts;
+    in-out property <int> range: 1;
+    in property <[ModelRow]> models;
+    in property <[RunRow]> running;
+    in property <[EngineRow]> engines;
+    in property <[GpuRow]> gpus;
+
+    // Очередь
+    in-out property <int> job-filter;
+    in-out property <string> job-query;
+    in property <[JobRow]> jobs;
+    in property <string> jobs-total;
+    in property <int> dead-count;
+    in property <Chart> wait-hist;
+
+    // Движки
+    in-out property <int> engine-selected;
+    in property <[LogLine]> engine-log;
+    in-out property <bool> engine-follow: true;
+
+    // Клиенты
+    in property <[ClientRow]> clients;
+
+    // Журнал
+    in property <[LogLine]> logs;
+    in-out property <int> log-level: 2;
+    in-out property <string> log-query;
+    in-out property <bool> log-follow: true;
+
+    // Настройки
+    in property <[FieldRow]> fields;
+    in property <string> settings-error;
+    in property <bool> settings-dirty;
+    in property <string> settings-file;
+    in-out property <int> scheme;
+    in-out property <int> backdrop;
+    in-out property <int> language;
+    in-out property <bool> autostart;
+    in-out property <bool> start-minimized;
+    in-out property <bool> close-to-tray;
+    in-out property <bool> notifications;
+    in-out property <bool> server-autostart;
+    in-out property <bool> update-auto;
+    in property <string> update-status;
+    in property <string> config-dir;
+    in property <string> data-dir;
+    in property <string> log-dir;
+    in property <bool> mica-available;
+
+    // Модальные окна
+    in property <string> confirm-title;
+    in property <string> confirm-text;
+    in property <string> confirm-ok;
+    in property <bool> confirm-danger;
+    in property <string> secret-title;
+    in property <string> secret-text;
+    in property <string> secret-value;
+    in property <string> toast;
+    in property <string> toast-kind;
+}
+
+export global UiActions {
+    callback navigate(int);
+    callback set-range(int);
+    callback toggle-pause();
+    callback open-panel(string);
+    callback copy(string);
+
+    callback jobs-reload();
+    callback cancel-job(string);
+    callback redeliver-job(string);
+    callback redeliver-all();
+
+    callback model-test(string);
+    callback model-toggle(string, bool);
+
+    callback engine-select(int);
+    callback engine-start(string);
+    callback engine-stop(string);
+    callback engine-restart(string);
+    callback engine-clear(string);
+
+    callback client-create(string, string);
+    callback client-toggle(string, bool);
+    callback client-rotate(string);
+    callback client-delete(string);
+
+    callback logs-reload();
+
+    callback field-text(int, string);
+    callback field-bool(int, bool);
+    callback field-select(int, int);
+    callback settings-save();
+    callback settings-revert();
+    callback set-scheme(int);
+    callback set-backdrop(int);
+    callback set-language(int);
+    callback switch-to-web();
+    callback set-app-flag(string, bool);
+    callback open-folder(string);
+    callback check-updates();
+
+    callback confirm-accept();
+    callback confirm-dismiss();
+    callback secret-dismiss();
+    callback quit();
+}

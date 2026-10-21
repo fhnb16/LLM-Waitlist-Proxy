@@ -1,0 +1,172 @@
+# LMQ 2 — пример настроек со всеми разделами.
+#
+# Где лежит рабочий файл:
+#   Windows (LMQ.exe, lmq-server.exe)  %APPDATA%\LMQ\settings.yaml   (данные — %LOCALAPPDATA%\LMQ)
+#   Linux (пользователь)               ~/.config/lmq/settings.yaml   (данные — ~/.local/share/lmq)
+#   Debian (служба)                    /etc/lmq/settings.yaml        (данные — /var/lib/lmq)
+#   Портативно                         файл `portable` рядом с exe → всё в папке data рядом с ним
+#   Явно                               --home <папка> или LMQ_HOME
+#
+# Приоритет: значения по умолчанию < этот файл < переменные окружения (§6 ТЗ) < флаги командной строки.
+# Поле, перекрытое окружением, панель показывает заблокированным.
+# Секреты (callback.token, api_key апстримов, токены) панель хранит зашифрованными: `enc:…`.
+# Открытое значение, вписанное вручную, зашифруется при следующем сохранении из панели.
+
+schema_version: 1
+
+server:
+  listen: 127.0.0.1:8800          # LISTEN — API для бота. Наружу только через HTTPS-прокси.
+  admin_listen: 127.0.0.1:8801    # ADMIN_LISTEN — панель (/ui/). Пусто — панель выключена.
+  max_body_mb: 8                  # MAX_BODY_MB, сверх — 413
+  max_messages: 500
+  max_string_kb: 512
+  body_read_timeout: 30
+  admin_cors_origins: []
+
+queue:
+  max_queue: 200                  # MAX_QUEUE — всего в очереди, сверх — 429 + Retry-After
+  max_queue_per_chat: 5           # MAX_QUEUE_PER_CHAT
+  max_wait: 300                   # MAX_WAIT, с — не начатое задание становится expired
+  upstream_timeout: 120           # UPSTREAM_TIMEOUT, с
+  sync_timeout: 60                # SYNC_TIMEOUT, с — chat_id 0 («Проверить», «Песочница» бота)
+  supersede_same_chat: false      # SUPERSEDE_SAME_CHAT
+  private_first: true             # PRIVATE_FIRST — личные чаты раньше групп
+  upstream_retries: 1             # UPSTREAM_RETRIES
+
+callback:
+  url: https://bot.example.com/webhook/llm    # BOT_CALLBACK_URL — если задание пришло без callback
+  token: ''                                   # BOT_CALLBACK_TOKEN → заголовок X-Callback-Token
+  allowed_hosts: [bot.example.com]            # CALLBACK_ALLOWED_HOSTS; пусто — хост из url; можно *.example.com
+  allow_http_private: false                   # CALLBACK_ALLOW_HTTP_PRIVATE — http:// для localhost и частных сетей
+  retries: 6                                  # CALLBACK_RETRIES — паузы 2, 5, 15, 30, 60 с
+  timeout: 15
+
+storage:
+  db_path: ''                     # DB_PATH; пусто — queue.sqlite в папке данных
+  models_config: ''               # MODELS_CONFIG — внешний файл таблицы моделей (формат §5.4)
+  retention_hours: 24             # RETENTION_HOURS
+  stats_retention_days: 30        # STATS_RETENTION_DAYS
+
+logging:
+  level: info                     # LOG_LEVEL: error | warn | info | debug | trace
+  content: false                  # LOG_CONTENT — тексты сообщений в журнал (персональные данные!)
+  keep_days: 14
+
+metrics:
+  enabled: true                   # GET /metrics на адресе API
+  token: ''                       # METRICS_TOKEN; пусто — только с localhost
+
+breaker:                          # выключатель апстримов
+  enabled: true
+  failure_threshold: 3            # неудач подряд до исключения
+  open_seconds: 30                # на сколько исключить
+  health_interval: 15             # фоновая проверка GET {base}/models, с; 0 — не проверять
+
+protocol1:                        # старый режим: сервер сам пишет в Telegram
+  enabled: false                  # PROTOCOL1_ENABLED
+  telegram_bot_token: ''          # TELEGRAM_BOT_TOKEN
+  telegram_api: https://api.telegram.org
+
+# Ключи клиентов хранятся только хэшами. Создавайте их в панели («Клиенты») или так:
+#   lmq-server client add bot
+# Можно задать и окружением: API_KEYS=bot:lmq_xxx,other:lmq_yyy
+clients: []
+
+# Таблица моделей (§5.4). Ключ — имя, которое присылает бот.
+models:
+  qwen3-27b:
+    description: основная, 27B Q4_K_M
+    upstreams:
+      # Апстрим, привязанный к локальному движку: url и slots берутся из раздела engines.
+      - engine: llama-main
+        model: qwen3-27b
+      # Второй сервер с той же моделью: задания делятся по свободным слотам.
+      # - url: http://10.0.0.12:8080/v1/chat/completions
+      #   model: qwen3-27b
+      #   slots: 2
+      #   api_key: ''
+      #   stream: false
+    defaults:                     # подставляются, если бот их не прислал
+      temperature: 0.7
+      max_tokens: 1024
+    force: {}                     # перекрывают присланное
+    fallback: [gpt-oss-20b]       # при ошибке, переполнении или исключённом апстриме
+    max_queue: 100
+    enabled: true
+  gpt-oss-20b:
+    description: резервная
+    upstreams:
+      - url: http://127.0.0.1:8081/v1/chat/completions
+        model: gpt-oss-20b
+        slots: 1
+
+# Алиасы видны в /v1/models; в колбэке приходит фактическая модель.
+aliases:
+  fast: gpt-oss-20b
+
+# Локальные движки: LMQ запускает их, ждёт готовности, перезапускает при падении
+# и показывает журнал инференса в реальном времени.
+engines:
+  - id: llama-main
+    name: llama.cpp Qwen
+    kind: llama_cpp               # llama_cpp | vllm | ollama | koboldcpp | custom
+    exe: llama-server             # путь к бинарнику или имя из PATH
+    llama:
+      model: C:\models\qwen3-27b-q4_k_m.gguf
+      host: 127.0.0.1
+      port: 8080
+      ctx_size: 16384
+      parallel: 2                 # = слоты апстрима
+      n_gpu_layers: 99
+      threads: 0
+      chat_template: ''
+      flash_attn: false
+      jinja: true
+      alias: ''
+    args: []                      # дополнительные флаги
+    env: {}
+    cwd: ''
+    autostart: true
+    restart_on_crash: true
+    max_restarts_per_hour: 5
+    health_url: ''                # пусто — /health
+    ready_timeout: 600
+
+# Расписание: пауза приёма (503 + Retry-After), пауза выдачи или «тихие часы» с меньшим числом слотов.
+schedule:
+  - name: ночь
+    enabled: false
+    days: []                      # mon … sun; пусто — каждый день
+    from: '01:00'
+    to: '07:00'
+    action: limit_slots           # pause_intake | pause_dispatch | limit_slots
+    models: []
+    slots: 1
+
+# Только для LMQ.exe (окно Windows).
+ui:
+  mode: native                    # native (Slint + Mica) | web (WebView2, 26 тем)
+  skin: fluent                    # тема веб-панели
+  scheme: system                  # system | light | dark
+  accent: system                  # system | #rrggbb | пусто — акцент темы
+  solid_bars: false
+  backdrop: mica                  # mica | acrylic | none
+  backdrop_opacity: 0.55
+  language: auto                  # auto | ru | en
+
+app:
+  autostart: false                # запуск при входе в Windows (в трей)
+  start_minimized: false
+  close_to_tray: true
+  notifications: true
+  server_autostart: true          # false — старт с выдачей заданий на паузе
+
+updates:
+  auto_check: false
+  channel: stable                 # stable | beta
+  repo: ''                        # owner/name на GitHub
+  pubkey: ''                      # открытый ключ minisign для проверки установщика
+
+debug:                            # встроенный приёмник колбэков /admin/debug/callback
+  reply: ok                       # ok | forbidden | server_error
+  delay_ms: 0

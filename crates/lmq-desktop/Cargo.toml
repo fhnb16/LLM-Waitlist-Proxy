@@ -1,0 +1,45 @@
+[package]
+name = "lmq-desktop"
+description = "LMQ desktop app for Windows: native Fluent window (Slint + Mica) or web window (Tauri + WebView2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+default-run = "LMQ"
+
+[[bin]]
+name = "LMQ"
+path = "src/main.rs"
+
+[features]
+default = ["gpu", "custom-protocol"]
+gpu = ["lmq-core/gpu"]
+# Tauri ждёт этот флаг при сборке установщика (`cargo tauri build`).
+custom-protocol = ["tauri/custom-protocol"]
+
+[dependencies]
+lmq-core = { path = "../lmq-core", default-features = false }
+anyhow = "1"
+auto-launch = "0.6"
+notify-rust = "4"
+open = "5"
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+slint = { version = "1.18", features = ["raw-window-handle-06"] }
+tauri = { version = "2.12", features = ["image-png"] }
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+raw-window-handle = "0.6"
+tracing = "0.1"
+window-vibrancy = "0.8"
+tray-icon = "0.26"
+png = "0.17"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security", "Win32_System_Pipes", "Win32_Storage_FileSystem", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Dwm"] }
+
+[build-dependencies]
+slint-build = "1.18"
+tauri-build = { version = "2.7", features = [] }

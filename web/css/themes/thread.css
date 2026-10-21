@@ -1,0 +1,120 @@
+/*!theme
+id: thread
+name: Thread
+mode: dark
+accent: #f07f2e
+barsLight: #eeeeee, 1.0, #eeeeee
+barsDark: #16202d, 1.0, #16202d
+description: тёмно-синее полотно, посты отдельными панелями, оранжевые кнопки в рамке
+*/
+
+/* ======================================================================== */
+/* Thread — тёмная доска с постами-панелями                                   */
+/* Тёмно-синее полотно, посты — панели с малым скруглением, оранжевые кнопки
+   в тонкой рамке на тёмном фоне, крупный жирный заголовок раздела.          */
+:root[data-skin="thread"] {
+  --font: Roboto, "Segoe UI", Arial, sans-serif;
+  --bg: #16202d;
+  --bg-elev: #1d2a3a;
+  --surface: #1d2a3a;
+  --surface-press: #253549;
+  --sep: #16202d;
+  --sep-strong: #34485f;
+  --text: #d7dde5;
+  --text-2: #9aa7b6;
+  --text-3: #6f7f92;
+  --bar: #16202d;
+  --bar-line: #2a3a4e;
+  --ok: #8bc34a;
+  --radius: 4px;
+  --radius-lg: 4px;
+  --card-radius: 4px;
+  --bar-blur: none;
+  --shadow-soft: transparent;
+  color-scheme: dark;
+  --hero-size: 30px;
+  --hero-weight: 700;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  --sw-w: 44px;
+  --sw-h: 22px;
+  --sw-r: 11px;
+  --sw-thumb: 18px;
+  --sw-thumb-r: 50%;
+  --sw-pad: 2px;
+  --sw-off: var(--sep-strong);
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 4px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--tint);
+  --seg-on: var(--surface-press);
+  --seg-on-text: var(--tint);
+  --bar-h: 44px;
+  --tab-h: 50px;
+  --danger: #ff4c4c;
+  --thumb: #d7dde5;
+  --on-danger: #ffffff;
+  --toast-bg: #253549;
+  --toast-text: #d7dde5;
+  --chip-r: 4px;
+}
+/* Светлый — классическая серая «Двачевская» подложка. */
+:root[data-skin="thread"]:not(.theme--dark) {
+  --bg: #eeeeee;
+  --bg-elev: #dddddd;
+  --surface: #dddddd;
+  --surface-press: #d0d0d0;
+  --sep: #eeeeee;
+  --sep-strong: #bbbbbb;
+  --text: #333333;
+  --text-2: #666666;
+  --text-3: #888888;
+  --bar: #eeeeee;
+  --bar-line: #cccccc;
+  --ok: #4f8a10;
+  color-scheme: light;
+  --danger: #cc0000;
+  --thumb: #ffffff;
+  --toast-bg: #333333;
+  --toast-text: #eeeeee;
+}
+/* Каждый пост — отдельная панель с зазором, а не строка сплошного списка. */
+:root[data-skin="thread"] .list { background: none; border: 0; margin: 0 10px; }
+:root[data-skin="thread"] .card,
+:root[data-skin="thread"] .reply,
+:root[data-skin="thread"] .list__cell {
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--card-radius);
+  margin-bottom: 6px;
+}
+:root[data-skin="thread"] .hero__title,
+:root[data-skin="thread"] .nav-bar__title { color: var(--tint); font-weight: 700; }
+:root[data-skin="thread"] .card__seq { color: var(--ok); }
+:root[data-skin="thread"] .card__author,
+:root[data-skin="thread"] .reply__author { color: var(--text-2); font-weight: 400; }
+:root[data-skin="thread"] .btn,
+:root[data-skin="thread"] .segmented__item {
+  background: var(--surface);
+  color: var(--tint);
+  font-weight: 700;
+}
+:root[data-skin="thread"] .btn { border: 1px solid var(--sep-strong); border-radius: var(--radius); }
+:root[data-skin="thread"] .segmented { border-color: var(--sep-strong); border-radius: var(--radius); }
+:root[data-skin="thread"] .segmented__item { border-left-color: var(--sep-strong); }
+:root[data-skin="thread"] .segmented__item--active,
+:root[data-skin="thread"] .btn--filled { background: var(--surface-press); color: var(--tint); }
+:root[data-skin="thread"] .switch__track { border-radius: 11px; }
+:root[data-skin="thread"] .switch__input:checked ~ .switch__track { background: var(--tint); }
+/* Thread: выделенный сегмент и главная кнопка отличались от обычных лишь
+   оттенком подложки — на экране почти не видно. Черта и рамка акцентом. */
+:root[data-skin="thread"] .segmented__item--active { box-shadow: inset 0 -3px 0 var(--tint); }
+:root[data-skin="thread"] .btn--filled { border-color: var(--tint); box-shadow: inset 0 0 0 1px var(--tint); }
+:root[data-skin="thread"] { --group-mx: 10px; }
+:root[data-skin="thread"]:not(.theme--dark) { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="thread"] { --modal-r: 16px; --overlay: rgba(0, 0, 0, 0.42); }

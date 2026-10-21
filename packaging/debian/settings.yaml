@@ -1,0 +1,34 @@
+# LMQ — настройки службы. Файл меняет и веб-панель (http://127.0.0.1:8801/ui/);
+# ручные правки допустимы, применяются после `systemctl restart lmq`.
+# Секреты, записанные открытым текстом, зашифруются (enc:…) при следующем сохранении из панели.
+schema_version: 1
+server:
+  # Наружу — только через обратный прокси с HTTPS (пример в README).
+  listen: 127.0.0.1:8800
+  admin_listen: 127.0.0.1:8801
+queue:
+  max_queue: 200
+  max_queue_per_chat: 5
+  max_wait: 300
+  upstream_timeout: 120
+callback:
+  # Куда отдавать ответы, если задание пришло без callback.url.
+  url: ''
+  token: ''
+  allowed_hosts: []
+storage:
+  db_path: /var/lib/lmq/queue.sqlite
+  retention_hours: 72
+logging:
+  level: info
+  content: false
+models:
+  # Пример: локальный llama-server на 8080 с двумя слотами (--parallel 2).
+  # qwen3-27b:
+  #   upstreams:
+  #     - url: http://127.0.0.1:8080/v1/chat/completions
+  #       model: qwen3-27b
+  #       slots: 2
+  #   defaults:
+  #     temperature: 0.7
+  #     max_tokens: 1024

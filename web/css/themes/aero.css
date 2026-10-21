@@ -1,0 +1,259 @@
+/*!theme
+id: aero
+name: Aero
+mode: light
+accent: #2a8dd4
+barsLight: #a0c2e8, 0.78, #2f74b8
+barsDark: #1e3a5c, 0.78, #0d2440
+description: серый глянец с переломом; нажатая — голубая; главная — с синим свечением | синий стеклянный шар
+*/
+
+/* ======================================================================== */
+/* Aero — стеклянные окна на синем рабочем столе                              */
+/* Окна — белые панели с голубой рамкой поверх синего «рабочего стола».
+   Заголовок — стекло с бликом и светящейся надписью, внизу — тёмная панель
+   задач со светящейся выбранной кнопкой, кнопки — серый глянец.             */
+:root[data-skin="aero"] {
+  --font: "Segoe UI", Tahoma, Verdana, sans-serif;
+  --bg: #2f74b8;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-press: #e5f1fb;
+  --sep: #dfe8f2;
+  --sep-strong: #8fb0d6;
+  --text: #1e1e1e;
+  --text-2: #4a5d73;
+  --text-3: #7f8fa3;
+  --bar: rgba(160, 194, 232, 0.78);
+  --bar-line: rgba(30, 70, 120, 0.6);
+  --radius: 3px;
+  --radius-lg: 6px;
+  --card-radius: 6px;
+  --bar-blur: saturate(160%) blur(10px);
+  --shadow-soft: rgba(10, 35, 70, 0.4);
+  --thumb: #ffffff;
+  color-scheme: light;
+  --hero-size: 30px;
+  --hero-weight: 300;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 400;
+  --sw-w: 46px;
+  --sw-h: 22px;
+  --sw-r: 3px;
+  --sw-thumb: 18px;
+  --sw-thumb-r: 2px;
+  --sw-pad: 2px;
+  --sw-off: #e4e4e4;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 3px;
+  --seg-line: #707070;
+  --seg-text: #1e1e1e;
+  --seg-on: var(--surface-press);
+  --seg-on-text: #1e1e1e;
+  --bar-h: 44px;
+  --tab-h: 52px;
+  --danger: #c42b1c;
+  --ok: #2c9e2c;
+  --on-danger: #ffffff;
+  --toast-bg: rgba(255, 255, 225, 0.97);
+  --toast-text: #1e1e1e;
+  --chip-r: 3px;
+}
+:root[data-skin="aero"].theme--dark {
+  --bg: #0d2440;
+  --bg-elev: #1b2838;
+  --surface: #1b2838;
+  --surface-press: #24405e;
+  --sep: #2a3b50;
+  --sep-strong: #3f6a98;
+  --text: #eaf2fb;
+  --text-2: #a8bfd6;
+  --text-3: #7089a3;
+  --bar: rgba(30, 58, 92, 0.78);
+  --bar-line: rgba(120, 170, 220, 0.4);
+  --thumb: #eaf2fb;
+  color-scheme: dark;
+  --toast-bg: #1b2838;
+  --toast-text: #eaf2fb;
+}
+/* Рабочий стол: синее свечение по диагонали. */
+:root[data-skin="aero"] body::before {
+  background:
+    radial-gradient(ellipse at 25% -10%, rgba(255, 255, 255, 0.45), transparent 55%),
+    radial-gradient(ellipse at 90% 110%, rgba(120, 200, 255, 0.35), transparent 50%),
+    linear-gradient(165deg, #1b5a9c 0%, #3a86d0 48%, #6fb0ea 100%);
+}
+:root[data-skin="aero"].theme--dark body::before {
+  background:
+    radial-gradient(ellipse at 25% -10%, rgba(120, 180, 255, 0.25), transparent 55%),
+    linear-gradient(165deg, #06162a 0%, #0f2f55 50%, #164576 100%);
+}
+/* Заголовок окна: стекло, блик в верхней половине, светлая кромка. */
+:root[data-skin="aero"] .nav-bar {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.14) 50%, rgba(255, 255, 255, 0) 51%),
+    var(--bar);
+  border-bottom: 1px solid var(--bar-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(255, 255, 255, 0.3);
+}
+/* Та самая надпись заголовка со светлым ореолом. */
+:root[data-skin="aero"] .nav-bar__title {
+  color: #0b1f36;
+  font-weight: 400;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.95), 0 0 3px #ffffff;
+}
+:root[data-skin="aero"].theme--dark .nav-bar__title {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.85);
+}
+/* Панель задач: тёмное стекло, выбранная кнопка светится акцентом. */
+:root[data-skin="aero"] .tab-bar {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05) 50%, rgba(0, 0, 0, 0.1) 51%),
+    rgba(16, 30, 48, 0.86);
+  border-top: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+:root[data-skin="aero"] .tab-bar__item {
+  margin: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.78);
+}
+:root[data-skin="aero"] .tab-bar__item--active {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+  background:
+    radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--tint) 85%, #ffffff) 0%, transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 10px color-mix(in srgb, var(--tint) 65%, transparent);
+}
+/* Окна: белые панели, тонкая голубая рамка, внутренняя светлая кромка. */
+:root[data-skin="aero"] .list,
+:root[data-skin="aero"] .key,
+:root[data-skin="aero"] .banner,
+:root[data-skin="aero"] .post,
+:root[data-skin="aero"] .article,
+:root[data-skin="aero"] .cands,
+:root[data-skin="aero"] .chart {
+  border-radius: var(--card-radius);
+  border: 1px solid var(--sep-strong);
+  margin-left: 10px;
+  margin-right: 10px;
+  overflow: hidden;
+  box-shadow: 0 3px 10px var(--shadow-soft), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+/* Всё, что лежит прямо на рабочем столе, — белым с тенью, как подписи
+   ярлыков. Внутри окон цвета остаются обычными. */
+:root[data-skin="aero"] .hero__title,
+:root[data-skin="aero"] .hero__sub,
+:root[data-skin="aero"] .group__title,
+:root[data-skin="aero"] .group__note,
+:root[data-skin="aero"] .footnote,
+:root[data-skin="aero"] .toolbar__label,
+:root[data-skin="aero"] .state__title,
+:root[data-skin="aero"] .state__text {
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+:root[data-skin="aero"] .hero__title { font-weight: 300; }
+/* Тумблер Aero — глянцевая плашка в тон кнопкам. */
+:root[data-skin="aero"] .switch { width: 46px; height: 22px; }
+:root[data-skin="aero"] .switch__track {
+  border-radius: 3px;
+  border: 1px solid #707070;
+  background: linear-gradient(#dcdcdc, #f4f4f4);
+}
+:root[data-skin="aero"] .switch__input:checked ~ .switch__track {
+  border-color: color-mix(in srgb, var(--tint) 70%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 70%, #ffffff), var(--tint));
+}
+:root[data-skin="aero"] .switch__thumb {
+  width: 18px;
+  height: 18px;
+  top: 2px;
+  left: 2px;
+  border-radius: 2px;
+  border: 1px solid #707070;
+  background: linear-gradient(#ffffff, #d6d6d6);
+  box-shadow: none;
+}
+:root[data-skin="aero"] .switch__input:checked ~ .switch__thumb { transform: translateX(24px); }
+/* ---------------------------------------------------------------- Aero ---
+   Серый глянец с переломом посередине, тёмная рамка и внутренняя светлая
+   кромка; нажатая — голубая и вдавленная. Главная — с синей рамкой и
+   голубым свечением, как кнопка по умолчанию в окне. Кнопки панели — те
+   же кнопки поменьше. «Назад» — синий стеклянный шар со стрелкой.
+   Строки-действия — синие ссылки команд.                                  */
+:root[data-skin="aero"] .btn,
+:root[data-skin="aero"] .btn--ghost,
+:root[data-skin="aero"] .trbar__btn,
+:root[data-skin="aero"] .nav-bar__btn,
+:root[data-skin="aero"] .segmented__item {
+  border: 1px solid #707070;
+  border-radius: 3px;
+  background: linear-gradient(#f2f2f2 0%, #ebebeb 49%, #dddddd 50%, #cfcfcf 100%);
+  color: #1e1e1e;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+  text-shadow: none;
+}
+:root[data-skin="aero"] .btn { min-height: 34px; font-size: 15px; }
+:root[data-skin="aero"] .trbar__btn { font-size: 12px; padding: 3px 10px; }
+:root[data-skin="aero"] .nav-bar__btn { padding: 4px 10px; font-size: 14px; }
+:root[data-skin="aero"] .btn--filled {
+  border-color: color-mix(in srgb, var(--tint) 70%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 8%, #ffffff) 0%, color-mix(in srgb, var(--tint) 14%, #ffffff) 49%, color-mix(in srgb, var(--tint) 27%, #ffffff) 50%, color-mix(in srgb, var(--tint) 38%, #ffffff) 100%);
+  color: #1e1e1e;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 4px color-mix(in srgb, var(--tint) 55%, transparent);
+}
+:root[data-skin="aero"] .btn:active,
+:root[data-skin="aero"] .btn--filled:active,
+:root[data-skin="aero"] .trbar__btn:active,
+:root[data-skin="aero"] .nav-bar__btn:active {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--tint) 55%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 10%, #ffffff) 0%, color-mix(in srgb, var(--tint) 24%, #ffffff) 49%, color-mix(in srgb, var(--tint) 44%, #ffffff) 50%, color-mix(in srgb, var(--tint) 62%, #ffffff) 100%);
+  color: #1e1e1e;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+:root[data-skin="aero"] .btn--danger { color: #b3261e; }
+:root[data-skin="aero"] .segmented { border-color: #707070; border-radius: 3px; }
+:root[data-skin="aero"] .segmented__item { border-radius: 0; border-width: 0 0 0 1px; }
+:root[data-skin="aero"] .segmented__item--active {
+  border-color: color-mix(in srgb, var(--tint) 55%, #000000);
+  background: linear-gradient(color-mix(in srgb, var(--tint) 10%, #ffffff) 0%, color-mix(in srgb, var(--tint) 24%, #ffffff) 49%, color-mix(in srgb, var(--tint) 44%, #ffffff) 50%, color-mix(in srgb, var(--tint) 62%, #ffffff) 100%);
+  color: #1e1e1e;
+}
+:root[data-skin="aero"] .nav-bar__btn--back {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+  border: 1px solid #0a3f86;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 28%, #c8e6ff 0%, #5aa6f0 32%, #1f6fd1 60%, #0b4ea6 100%);
+  color: #ffffff;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+:root[data-skin="aero"] .nav-bar__btn--back .nav-bar__btn-label { display: none; }
+:root[data-skin="aero"] .nav-bar__btn--back:active { background: radial-gradient(circle at 50% 28%, #a9d6ff 0%, #3b8de0 32%, #155fb8 60%, #083f8a 100%); }
+:root[data-skin="aero"] { --tint-text: #0e64b8; --group-r: 6px; }
+:root[data-skin="aero"].theme--dark { --tint-text: #8cc4ff; }
+/* Отступ группы от краёв — чтобы подсказка под группой начиналась там же,
+   где текст в строках. Значения — из собственных правил тем. */
+:root[data-skin="aero"] { --group-mx: 10px; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="aero"] {
+  --modal-r: 8px;
+  --modal-border: 1px solid rgba(0, 0, 0, 0.45);
+  --modal-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset, 0 12px 36px rgba(0, 0, 0, 0.45);
+  --modal-head-bg: linear-gradient(180deg, color-mix(in srgb, var(--tint) 30%, #ffffff) 0%, color-mix(in srgb, var(--tint) 55%, #ffffff) 48%, color-mix(in srgb, var(--tint) 70%, #000000) 52%, color-mix(in srgb, var(--tint) 85%, #ffffff) 100%);
+  --modal-head-text: #ffffff;
+  --modal-head-border: 1px solid rgba(0, 0, 0, 0.35);
+}
+/* Aero: стеклянная шапка из акцента со светящимся текстом. */
+:root[data-skin="aero"] .modal__title { text-shadow: 0 0 8px rgba(255, 255, 255, 0.7), 0 1px 0 rgba(0, 0, 0, 0.45); }

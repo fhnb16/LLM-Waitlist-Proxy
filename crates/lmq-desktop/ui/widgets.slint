@@ -1,0 +1,596 @@
+// Общие блоки нативного окна: карточки, KPI, графики, индикаторы.
+
+import { Palette, Button } from "std-widgets.slint";
+import { Theme, Glyph } from "theme.slint";
+import { Kpi, Chart, LogLine } from "types.slint";
+
+export component Icon inherits Text {
+    in property <string> glyph;
+    text: glyph;
+    font-family: Theme.icon-font;
+    font-size: 16px;
+    color: Theme.text;
+    vertical-alignment: center;
+    horizontal-alignment: center;
+    accessible-role: none;
+}
+
+export component Card inherits Rectangle {
+    background: Theme.card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.stroke;
+}
+
+/// Заголовок экрана: крупный титул, подзаголовок и место для кнопок справа.
+export component PageHeader inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> subtitle;
+    spacing: 12px;
+    padding-bottom: 4px;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 2px;
+        Text {
+            text: title;
+            font-size: 28px;
+            font-weight: 600;
+            color: Theme.text;
+            overflow: elide;
+            accessible-role: none;
+        }
+        if subtitle != "": Text {
+            text: subtitle;
+            font-size: 13px;
+            color: Theme.text-2;
+            overflow: elide;
+        }
+    }
+    @children
+}
+
+export component SectionTitle inherits Text {
+    font-size: 15px;
+    font-weight: 600;
+    color: Theme.text;
+    overflow: elide;
+}
+
+/// Точка состояния. `kind`: ok | run | busy | warn | bad | off.
+export component Dot inherits Rectangle {
+    in property <string> kind;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: Theme.tone(kind);
+}
+
+/// Состояние: точка + подпись (цвет никогда не единственный носитель смысла).
+export component StatusChip inherits HorizontalLayout {
+    in property <string> kind;
+    in property <string> label;
+    spacing: 6px;
+    alignment: start;
+    VerticalLayout {
+        alignment: center;
+        Dot { kind: kind; }
+    }
+    Text {
+        text: label;
+        font-size: 12px;
+        color: Theme.text-2;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+export component Badge inherits Rectangle {
+    in property <string> text;
+    in property <string> kind;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 9px;
+    background: kind == "bad" ? Theme.danger : Theme.accent;
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+        Text {
+            text: root.text;
+            font-size: 11px;
+            font-weight: 600;
+            color: Theme.on-accent;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+/// Кнопка-значок с подсказкой в доступном имени.
+export component IconButton inherits Rectangle {
+    in property <string> glyph;
+    in property <string> label;
+    in property <bool> enabled: true;
+    callback clicked;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: !enabled ? transparent : ta.pressed ? Theme.subtle-2 : ta.has-hover ? Theme.subtle : transparent;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { root.clicked(); }
+    Icon {
+        glyph: root.glyph;
+        font-size: 14px;
+        color: root.enabled ? Theme.text : Theme.off;
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// Сегментированный выбор (как SelectorBar Windows 11).
+export component Segmented inherits Rectangle {
+    in property <[string]> items;
+    in-out property <int> current;
+    callback selected(int);
+    height: 32px;
+    border-radius: 6px;
+    background: Theme.subtle-2;
+    border-width: 1px;
+    border-color: Theme.stroke;
+    HorizontalLayout {
+        padding: 2px;
+        spacing: 2px;
+        for item[i] in items: Rectangle {
+            horizontal-stretch: 1;
+            min-width: 44px;
+            border-radius: 4px;
+            background: i == current ? Theme.card : sta.has-hover ? Theme.subtle : transparent;
+            border-width: i == current ? 1px : 0;
+            border-color: Theme.stroke;
+            accessible-role: tab;
+            accessible-label: item;
+            accessible-item-selected: i == current;
+            Text {
+                text: item;
+                font-size: 13px;
+                font-weight: i == current ? 600 : 400;
+                color: i == current ? Theme.text : Theme.text-2;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            if i == current: Rectangle {
+                y: parent.height - 3px;
+                width: 16px;
+                height: 3px;
+                border-radius: 1.5px;
+                background: Theme.accent;
+            }
+            sta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.current = i;
+                    root.selected(i);
+                }
+            }
+        }
+    }
+}
+
+export component KpiTile inherits Card {
+    in property <Kpi> data;
+    min-width: 132px;
+    min-height: 96px;
+    horizontal-stretch: 1;
+    accessible-role: text;
+    accessible-label: data.title + ": " + data.value + " " + data.unit;
+    VerticalLayout {
+        padding: 14px;
+        padding-bottom: 10px;
+        spacing: 2px;
+        Text {
+            text: data.title;
+            font-size: 12px;
+            color: Theme.text-2;
+            overflow: elide;
+        }
+        HorizontalLayout {
+            spacing: 4px;
+            alignment: start;
+            Text {
+                text: data.value;
+                font-size: 26px;
+                font-weight: 600;
+                color: data.bad ? Theme.danger : Theme.text;
+            }
+            if data.unit != "": VerticalLayout {
+                alignment: end;
+                padding-bottom: 5px;
+                Text {
+                    text: data.unit;
+                    font-size: 13px;
+                    color: Theme.text-3;
+                }
+            }
+        }
+        Text {
+            text: data.sub;
+            font-size: 12px;
+            color: Theme.text-3;
+            overflow: elide;
+        }
+        Rectangle {
+            height: 18px;
+            if data.spark != "": Path {
+                width: 100%;
+                height: 100%;
+                viewbox-width: 100;
+                viewbox-height: 20;
+                commands: data.spark;
+                stroke: data.bad ? Theme.danger : Theme.accent;
+                stroke-width: 1.5px;
+                fill: transparent;
+            }
+        }
+    }
+}
+
+component Legend inherits HorizontalLayout {
+    in property <string> label;
+    in property <brush> color;
+    in property <bool> bar;
+    spacing: 6px;
+    VerticalLayout {
+        alignment: center;
+        Rectangle {
+            width: bar ? 10px : 14px;
+            height: bar ? 10px : 2px;
+            border-radius: bar ? 2px : 1px;
+            background: color;
+        }
+    }
+    Text {
+        text: label;
+        font-size: 12px;
+        color: Theme.text-2;
+        vertical-alignment: center;
+    }
+}
+
+/// График: линии (с заливкой первой серии) или столбцы, одна ось Y, перекрестие и
+/// подсказка по наведению. Пути строятся в Rust в системе координат 1000×100.
+export component ChartCard inherits Card {
+    in property <Chart> data;
+    min-height: 236px;
+    min-width: 260px;
+    horizontal-stretch: 1;
+    accessible-role: image;
+    accessible-label: data.title;
+    accessible-description: data.summary;
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 14px;
+            Text {
+                text: data.title;
+                font-size: 14px;
+                font-weight: 600;
+                color: Theme.text;
+                horizontal-stretch: 1;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+            if data.l1 != "": Legend {
+                label: data.l1;
+                color: data.bars && data.status ? Theme.ok : Theme.accent;
+                bar: data.bars;
+            }
+            if data.l2 != "": Legend {
+                label: data.l2;
+                color: data.bars && data.status ? Theme.danger : Theme.series-2;
+                bar: data.bars;
+            }
+        }
+        plot := Rectangle {
+            vertical-stretch: 1;
+            min-height: 150px;
+            property <length> gutter-left: 48px;
+            property <length> gutter-bottom: 20px;
+            property <length> pw: self.width - gutter-left;
+            property <length> ph: self.height - gutter-bottom;
+
+            // Сетка и подписи оси Y: максимум, середина, ноль.
+            Rectangle { x: gutter-left; y: 0; width: pw; height: 1px; background: Theme.grid; }
+            Rectangle { x: gutter-left; y: ph / 2; width: pw; height: 1px; background: Theme.grid; }
+            Rectangle { x: gutter-left; y: ph; width: pw; height: 1px; background: Theme.divider; }
+            Text { x: 0; y: -7px; width: gutter-left - 8px; height: 14px; text: data.y-max; font-size: 11px; color: Theme.text-3; horizontal-alignment: right; }
+            Text { x: 0; y: ph / 2 - 7px; width: gutter-left - 8px; height: 14px; text: data.y-mid; font-size: 11px; color: Theme.text-3; horizontal-alignment: right; }
+            Text { x: 0; y: ph - 7px; width: gutter-left - 8px; height: 14px; text: data.empty ? "" : "0"; font-size: 11px; color: Theme.text-3; horizontal-alignment: right; }
+            // Подписи оси X.
+            Text { x: gutter-left; y: ph + 4px; width: pw / 3; text: data.x0; font-size: 11px; color: Theme.text-3; overflow: elide; }
+            Text { x: gutter-left + pw / 3; y: ph + 4px; width: pw / 3; text: data.x1; font-size: 11px; color: Theme.text-3; horizontal-alignment: center; overflow: elide; }
+            Text { x: gutter-left + pw * 2 / 3; y: ph + 4px; width: pw / 3; text: data.x2; font-size: 11px; color: Theme.text-3; horizontal-alignment: right; overflow: elide; }
+
+            area := Rectangle {
+                x: gutter-left;
+                y: 0;
+                width: pw;
+                height: ph;
+                if !data.bars && data.a1 != "": Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 1000;
+                    viewbox-height: 100;
+                    commands: data.a1;
+                    fill: Theme.accent.transparentize(0.86);
+                    stroke-width: 0;
+                }
+                if data.bars && data.p1 != "": Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 1000;
+                    viewbox-height: 100;
+                    commands: data.p1;
+                    fill: data.status ? Theme.ok : Theme.accent;
+                    stroke-width: 0;
+                }
+                if data.bars && data.p2 != "": Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 1000;
+                    viewbox-height: 100;
+                    commands: data.p2;
+                    fill: data.status ? Theme.danger : Theme.series-2;
+                    stroke-width: 0;
+                }
+                if !data.bars && data.p2 != "": Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 1000;
+                    viewbox-height: 100;
+                    commands: data.p2;
+                    stroke: Theme.series-2;
+                    stroke-width: 2px;
+                    fill: transparent;
+                }
+                if !data.bars && data.p1 != "": Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 1000;
+                    viewbox-height: 100;
+                    commands: data.p1;
+                    stroke: Theme.accent;
+                    stroke-width: 2px;
+                    fill: transparent;
+                }
+                if data.empty: Text {
+                    width: 100%;
+                    height: 100%;
+                    text: @tr("Пока нет данных за этот период");
+                    font-size: 13px;
+                    color: Theme.text-3;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                property <int> idx: data.n <= 0 ? -1 : max(0, min(data.n - 1, floor(ta.mouse-x / self.width * data.n)));
+                property <length> cx: (idx + 0.5) / max(1, data.n) * self.width;
+                if ta.has-hover && !data.empty && idx >= 0: Rectangle {
+                    x: cx;
+                    y: 0;
+                    width: 1px;
+                    height: parent.height;
+                    background: Theme.text-3;
+                }
+                if ta.has-hover && !data.empty && idx >= 0: tip := Rectangle {
+                    property <length> w: tipText.preferred-width + 20px;
+                    x: cx + 12px + w > parent.width ? max(0, cx - 12px - w) : cx + 12px;
+                    y: 4px;
+                    width: w;
+                    height: tipText.preferred-height + 14px;
+                    border-radius: 6px;
+                    background: Theme.tooltip;
+                    border-width: 1px;
+                    border-color: Theme.stroke;
+                    drop-shadow-blur: 8px;
+                    drop-shadow-color: #00000030;
+                    tipText := Text {
+                        x: 10px;
+                        y: 7px;
+                        text: data.tips[idx];
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                }
+                ta := TouchArea { }
+            }
+        }
+    }
+}
+
+/// Горизонтальная шкала: подпись, значение, полоса.
+export component Meter inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <float> fraction;
+    in property <bool> bad;
+    spacing: 6px;
+    HorizontalLayout {
+        Text { text: label; font-size: 12px; color: Theme.text-2; horizontal-stretch: 1; overflow: elide; }
+        Text { text: value; font-size: 12px; color: Theme.text; }
+    }
+    Rectangle {
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.subtle;
+        Rectangle {
+            x: 0;
+            width: parent.width * max(0, min(1, fraction));
+            height: 100%;
+            border-radius: 2px;
+            background: bad ? Theme.danger : Theme.accent;
+        }
+    }
+}
+
+/// Ячейки слотов: занятые — акцентом.
+export component Slots inherits HorizontalLayout {
+    in property <int> total;
+    in property <int> busy;
+    spacing: 3px;
+    alignment: end;
+    accessible-role: text;
+    accessible-label: busy + " / " + total;
+    for i in min(total, 16): Rectangle {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        background: i < busy ? Theme.accent : Theme.subtle;
+        border-width: i < busy ? 0 : 1px;
+        border-color: Theme.stroke;
+    }
+}
+
+/// Поток строк журнала: моноширинный, уровни подсвечены, автопрокрутка в конец.
+export component LogView inherits Card {
+    in property <[LogLine]> lines;
+    in property <bool> follow: true;
+    background: Theme.dark ? #0000004d : #ffffffcc;
+    min-height: 240px;
+    vertical-stretch: 1;
+    changed lines => {
+        if (follow) {
+            flick.content-y = min(0, flick.height - flick.content-height);
+        }
+    }
+    flick := Flickable {
+        x: 8px;
+        y: 6px;
+        width: parent.width - 16px;
+        height: parent.height - 12px;
+        content-height: col.preferred-height;
+        content-width: max(self.width, col.preferred-width);
+        changed content-height => {
+            if (root.follow) {
+                self.content-y = min(0, self.height - self.content-height);
+            }
+        }
+        col := VerticalLayout {
+            width: max(flick.width, self.preferred-width);
+            for l in lines: HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: l.time;
+                    font-family: "Cascadia Mono";
+                    font-size: 12px;
+                    color: Theme.text-3;
+                }
+                Text {
+                    text: l.level;
+                    width: 44px;
+                    font-family: "Cascadia Mono";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: l.level == "ERROR" || l.level == "error" ? Theme.danger : l.level == "WARN" || l.level == "warn" ? Theme.warn : Theme.text-3;
+                }
+                Text {
+                    text: l.text;
+                    font-family: "Cascadia Mono";
+                    font-size: 12px;
+                    color: l.level == "ERROR" || l.level == "error" ? Theme.danger : Theme.text;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+    }
+    if lines.length == 0: Text {
+        text: @tr("Строк пока нет");
+        font-size: 13px;
+        color: Theme.text-3;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+/// Строка списка-карточки: заголовок, вторая строка, справа — содержимое.
+export component ListRow inherits Rectangle {
+    in property <string> title;
+    in property <string> sub;
+    in property <string> dot: "";
+    in property <bool> clickable: false;
+    in property <bool> selected: false;
+    callback clicked;
+    min-height: 52px;
+    border-radius: 6px;
+    background: selected ? Theme.subtle : (clickable && rta.has-hover) ? Theme.subtle-2 : transparent;
+    rta := TouchArea {
+        enabled: root.clickable;
+        mouse-cursor: root.clickable ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 10px;
+        if dot != "": VerticalLayout {
+            alignment: center;
+            Dot { kind: dot; }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: title;
+                font-size: 14px;
+                color: Theme.text;
+                overflow: elide;
+            }
+            if sub != "": Text {
+                text: sub;
+                font-size: 12px;
+                color: Theme.text-3;
+                overflow: elide;
+            }
+        }
+        @children
+    }
+}
+
+/// Тонкий разделитель между строками.
+export component Divider inherits Rectangle {
+    height: 1px;
+    background: Theme.divider;
+}
+
+/// Плашка-предупреждение над содержимым экрана.
+export component Banner inherits Rectangle {
+    in property <string> title;
+    in property <string> text;
+    in property <string> kind: "warn";
+    border-radius: 6px;
+    background: kind == "bad" ? (Theme.dark ? #442726 : #fde7e9) : kind == "warn" ? (Theme.dark ? #433519 : #fff4ce) : Theme.card;
+    border-width: 1px;
+    border-color: Theme.stroke;
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 12px;
+        Icon {
+            glyph: kind == "info" ? Glyph.info : Glyph.warning;
+            color: kind == "bad" ? Theme.danger : kind == "warn" ? Theme.warn : Theme.accent;
+            vertical-alignment: top;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text { text: title; font-weight: 600; font-size: 13px; color: Theme.text; wrap: word-wrap; }
+            if text != "": Text { text: root.text; font-size: 13px; color: Theme.text-2; wrap: word-wrap; }
+        }
+        @children
+    }
+}

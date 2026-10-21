@@ -1,0 +1,117 @@
+/*!theme
+id: plain
+name: Plain
+mode: light
+accent: #ff6600
+barsLight: #f6f6ef, 1.0, #f6f6ef
+barsDark: #1c1c19, 1.0, #1c1c19
+description: бежевый лист, шапка залита акцентом, мелкий Verdana, строки ссылок без карточек и теней
+*/
+
+/* ======================================================================== */
+/* Plain — агрегатор ссылок                                                  */
+/* Бежевый лист, шапка залита акцентом, мелкий Verdana, ни теней, ни
+   скруглений, ни карточек: строки ссылок одна под другой.                   */
+:root[data-skin="plain"] {
+  --font: Verdana, Geneva, Tahoma, sans-serif;
+  --radius: 2px;
+  --radius-lg: 0px;
+  --card-radius: 0px;
+  --bar-blur: none;
+  --bar-h: 40px;
+  --tab-h: 48px;
+  --hero-size: 20px;
+  --hero-weight: 700;
+  --hero-tracking: 0;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 700;
+  --sw-w: 34px;
+  --sw-h: 16px;
+  --sw-r: 2px;
+  --sw-thumb: 12px;
+  --sw-thumb-r: 1px;
+  --sw-pad: 2px;
+  --sw-off: #d6d6cc;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 2px;
+  --seg-line: #767676;
+  --seg-text: #000000;
+  --seg-on: color-mix(in srgb, var(--tint) 18%, var(--surface));
+  --seg-on-text: #000000;
+  --chip-r: 2px;
+  --bg: #f6f6ef;
+  --bg-elev: #f6f6ef;
+  --surface: #f6f6ef;
+  --surface-press: #ebebe0;
+  --sep: #e6e6dc;
+  --sep-strong: #c8c8bc;
+  --text: #000000;
+  --text-2: #828282;
+  --text-3: #a6a6a0;
+  --bar: #f6f6ef;
+  --bar-line: #e0e0d6;
+  --danger: #cc0000;
+  --ok: #3c8a2e;
+  --thumb: #ffffff;
+  --on-danger: #ffffff;
+  --toast-bg: #000000;
+  --toast-text: #f6f6ef;
+  --shadow-soft: transparent;
+  color-scheme: light;
+}
+:root[data-skin="plain"] body { font-size: 13px; }
+:root[data-skin="plain"] .nav-bar { background: var(--tint); box-shadow: none; }
+:root[data-skin="plain"] .nav-bar__title,
+:root[data-skin="plain"] .nav-bar__btn { color: var(--on-tint); font-size: 14px; }
+:root[data-skin="plain"] .tab-bar { box-shadow: inset 0 2px 0 var(--tint); }
+:root[data-skin="plain"] .tab-bar__item--active { color: var(--text); font-weight: 700; }
+:root[data-skin="plain"] .list { background: none; border: 0; }
+:root[data-skin="plain"] .card,
+:root[data-skin="plain"] .reply,
+:root[data-skin="plain"] .list__cell { background: none; border: 0; padding: 6px 12px; }
+:root[data-skin="plain"] .card__title { font-size: 14px; font-weight: 400; color: var(--text); }
+:root[data-skin="plain"] .card__excerpt,
+:root[data-skin="plain"] .card__foot,
+:root[data-skin="plain"] .card__head { font-size: 11px; }
+:root[data-skin="plain"] .btn {
+  border: 1px solid #767676;
+  border-radius: var(--radius);
+  background: #efefef;
+  color: #000000;
+  font-size: 13px;
+  min-height: 30px;
+}
+:root[data-skin="plain"] .btn--filled,
+:root[data-skin="plain"] .btn:active { background: color-mix(in srgb, var(--tint) 22%, var(--surface)); color: #000000; }
+:root[data-skin="plain"] .rich a { color: var(--text); text-decoration: underline; }
+/* --------------------------------------------------------- Plain, тёмный */
+:root[data-skin="plain"].theme--dark {
+  --bg: #1c1c19;
+  --bg-elev: #1c1c19;
+  --surface: #1c1c19;
+  --surface-press: #2a2a25;
+  --sep: #2e2e29;
+  --sep-strong: #45453e;
+  --text: #e6e6dc;
+  --text-2: #9a9a8f;
+  --text-3: #75756c;
+  --bar: #1c1c19;
+  --bar-line: #2e2e29;
+  --sw-off: #45453e;
+  --seg-line: #6b6b62;
+  --seg-text: #e6e6dc;
+  --seg-on: color-mix(in srgb, var(--tint) 26%, var(--surface));
+  --seg-on-text: #e6e6dc;
+  --toast-bg: #e6e6dc;
+  --toast-text: #1c1c19;
+  color-scheme: dark;
+}
+:root[data-skin="plain"].theme--dark .btn { border-color: #6b6b62; background: #2a2a25; color: #e6e6dc; }
+:root[data-skin="plain"].theme--dark .btn--filled,
+:root[data-skin="plain"].theme--dark .btn:active { background: color-mix(in srgb, var(--tint) 30%, var(--surface)); color: #e6e6dc; }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="plain"] { --modal-r: 0; --modal-border: 1px solid var(--sep-strong); --modal-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25); --modal-head-border: 1px solid var(--sep-strong); --toast-r: 0; --callout-r: 0; }
+:root[data-skin="plain"] .modal__title { font-size: 14px; }

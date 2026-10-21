@@ -1,0 +1,743 @@
+/*!theme
+id: patch
+name: Patch
+mode: dark
+accent: #67c1f5
+accentLight: #1a75b8
+accentDark: #67c1f5
+companion: #a4d007
+companionLight: #5c7e10
+companionDark: #a4d007
+barsLight: #dce2e8, 1, #e9eef2
+barsDark: #202020, 1, #2e2e2e
+description: Технический интерфейс списков изменений клиента Steam (clientNews) — угольная шапка #202020, графитовый фон #2E2E2E, приглушённая серая мета-информация #999797, сворачиваемые плашки патчноутов с индикаторами [-]/[+] и полупрозрачные голубые кнопки .btnv6_blue_hoverfade с градиентным наведением.
+*/
+
+/* ==========================================================================
+Patch — тема в эстетике окна чейнджлогов клиента Steam (Steam Client Beta):
+
+Имя и ID: Patch (patch) — не пересекается с 24 темами каталога;
+
+Основной режим: dark (базируется на :root референса: шапка #202020,
+фон рабочей области #2e2e2e, иконки и даты #999797);
+
+Светлый режим: документация и окна Steam Support (#e9eef2 / #dce2e8 / #ffffff);
+
+Акцент: фирменный голубой Steam #67c1f5 (в светлом режиме — #1a75b8)
+и лаймово-зелёный компаньон #a4d007;
+
+Особые приёмы: кнопки .btnv6_blue_hoverfade (полупрозрачная подложка в покое
+и градиент при наведении), плашки записей в духе .post_header / .post_content,
+технические теги в стиле индикатора [-]/[+] (.post_pmbutton) и тонкий скроллбар.
+========================================================================== */
+
+/* --------------------------------------------------------- Токены: Тёмный --- */
+:root[data-skin="patch"] {
+/* 1. Типографика */
+--font: "Motiva Sans", Arial, Tahoma, Helvetica, sans-serif;
+--hero-size: 20px;
+--hero-weight: 700;
+--hero-tracking: 0.04em;
+--nav-grid: auto minmax(0, 1fr) auto;
+--nav-align: left;
+--nav-weight: 700;
+
+/* 2. Геометрия и радиусы */
+--radius: 2px;
+--radius-lg: 4px;
+--card-radius: 3px;
+--chip-r: 2px;
+--bar-h: 46px;
+--tab-h: 50px;
+--bar-blur: none;
+
+/* 3. Переключатель (строгий прямоугольный тумблер VGUI) */
+--sw-w: 40px;
+--sw-h: 20px;
+--sw-r: 2px;
+--sw-thumb: 14px;
+--sw-thumb-r: 1px;
+--sw-pad: 3px;
+--sw-off: #202020;
+--sw-on: var(--tint);
+--sw-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+
+/* 4. Сегменты */
+--seg-r: 2px;
+--seg-line: #3d3d3d;
+--seg-text: #999797;
+--seg-on: color-mix(in srgb, var(--tint) 24%, #202020);
+--seg-on-text: #ffffff;
+
+/* 5. Палитра и поверхности (из :root референса) */
+--bg: #2e2e2e;
+--bg-elev: #383838;
+--surface: #252525;
+--surface-press: #3d3d3d;
+--sep: #333333;
+--sep-strong: #454545;
+--text: #e6e6e6;
+--text-2: #999797;
+--text-3: #6e6d6d;
+--bar: #202020;
+--bar-line: #3a3a3a;
+--danger: #ff453a;
+--on-danger: #ffffff;
+--ok: #a4d007;
+--thumb: #e6e6e6;
+--toast-bg: rgba(32, 32, 32, 0.96);
+--toast-text: #ffffff;
+--shadow-soft: rgba(0, 0, 0, 0.48);
+
+/* 6. Необязательные токены каркаса */
+--group-r: 3px;
+--group-border: 1px solid var(--sep-strong);
+--group-shadow: none;
+--field-bg: #1e1e1e;
+--field-line: #3d3d3d;
+--field-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+--focus-bg: color-mix(in srgb, var(--tint) 12%, transparent);
+--tint-text: color-mix(in srgb, var(--tint) 82%, #ffffff);
+--seg-pad: 2px;
+--seg-item-r: 2px;
+--modal-r: 4px;
+--overlay: rgba(0, 0, 0, 0.68);
+
+color-scheme: dark;
+scrollbar-width: thin;
+scrollbar-color: var(--text-2) var(--bg);
+}
+
+/* -------------------------------------------------------- Токены: Светлый --- */
+:root[data-skin="patch"]:not(.theme--dark) {
+--bg: #e9eef2;
+--bg-elev: #ffffff;
+--surface: #ffffff;
+--surface-press: #dce2e8;
+--sep: #e1e6eb;
+--sep-strong: #b8c2cc;
+--text: #1f2328;
+--text-2: #57606a;
+--text-3: #8c959f;
+--bar: #dce2e8;
+--bar-line: #bfc8d1;
+--danger: #d1242f;
+--on-danger: #ffffff;
+--ok: #4b6b09;
+--thumb: #ffffff;
+--sw-off: #b8c2cc;
+--sw-on: var(--tint);
+--sw-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+--seg-line: #b8c2cc;
+--seg-text: #57606a;
+--seg-on: var(--tint);
+--seg-on-text: var(--on-tint);
+--field-bg: #f6f8fa;
+--field-line: #b8c2cc;
+--field-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+--focus-bg: color-mix(in srgb, var(--tint) 10%, transparent);
+--tint-text: color-mix(in srgb, var(--tint) 68%, #000000);
+--toast-bg: rgba(31, 35, 40, 0.94);
+--toast-text: #ffffff;
+--shadow-soft: rgba(27, 31, 36, 0.14);
+
+color-scheme: light;
+scrollbar-color: var(--text-2) var(--bg);
+}
+
+/* ==========================================================================
+Правила оформления темы Patch
+========================================================================== */
+
+/* Скроллбар в духе  референса */
+:root[data-skin="patch"] ::-webkit-scrollbar {
+width: 10px;
+height: 10px;
+}
+
+:root[data-skin="patch"] ::-webkit-scrollbar-track {
+background: var(--bg);
+}
+
+:root[data-skin="patch"] ::-webkit-scrollbar-thumb {
+background: var(--text-2);
+}
+
+:root[data-skin="patch"] ::-webkit-scrollbar-thumb:hover {
+background: var(--bar);
+}
+
+/* Фон рабочей области (.clientNews) с лёгким техническим градиентом у шапки */
+:root[data-skin="patch"] body::before {
+background: linear-gradient(180deg, #262626 0%, var(--bg) 140px);
+}
+
+:root[data-skin="patch"]:not(.theme--dark) body::before {
+background: linear-gradient(180deg, #e1e7ec 0%, var(--bg) 140px);
+}
+
+/* --------------------------------------------------------------------------
+Шапка (.header, .extImg) и заголовок экрана (h1, h2)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .nav-bar {
+background: var(--bar);
+border-bottom: 1px solid var(--bar-line);
+box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .nav-bar {
+box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-skin="patch"] .nav-bar__title {
+text-transform: uppercase;
+letter-spacing: 0.04em;
+color: var(--text);
+}
+
+/* Кнопки шапки по мотивам .extImg («Открыть в браузере») */
+:root[data-skin="patch"] .nav-bar__btn {
+border: 1px solid transparent;
+border-radius: var(--radius);
+background: transparent;
+color: var(--text-2);
+font-weight: 600;
+transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .nav-bar__btn:hover {
+background: color-mix(in srgb, var(--tint) 18%, transparent);
+border-color: color-mix(in srgb, var(--tint) 35%, transparent);
+color: var(--text);
+}
+}
+
+:root[data-skin="patch"] .nav-bar__btn:active,
+:root[data-skin="patch"] .nav-bar__btn--back:active {
+background: var(--surface-press);
+color: var(--tint-text);
+}
+
+/* Заголовок экрана: НОВОСТИ — БЕТА КЛИЕНТА STEAM */
+:root[data-skin="patch"] .hero__title {
+text-transform: uppercase;
+color: #ffffff;
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .hero__title {
+color: var(--text);
+}
+
+:root[data-skin="patch"] .hero__sub {
+color: var(--text-2);
+font-weight: 400;
+}
+
+/* --------------------------------------------------------------------------
+Кнопки в стиле Steam .btnv6_blue_hoverfade
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .btn,
+:root[data-skin="patch"] .trbar__btn {
+border: 1px solid color-mix(in srgb, var(--tint) 28%, transparent);
+border-radius: var(--radius);
+background: color-mix(in srgb, var(--tint) 18%, transparent);
+color: var(--tint-text);
+font-weight: 600;
+transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .btn:hover,
+:root[data-skin="patch"] .trbar__btn:hover {
+border-color: var(--tint);
+background: linear-gradient(
+135deg,
+color-mix(in srgb, var(--tint) 82%, #ffffff) 0%,
+color-mix(in srgb, var(--tint) 76%, #000000) 100%
+);
+color: var(--on-tint);
+box-shadow: 0 1px 4px var(--shadow-soft);
+}
+}
+
+:root[data-skin="patch"] .btn:active,
+:root[data-skin="patch"] .trbar__btn:active {
+border-color: var(--tint-press);
+background: var(--tint-press);
+color: var(--on-tint);
+box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Главная кнопка (.btn--filled) */
+:root[data-skin="patch"] .btn--filled {
+border: 1px solid color-mix(in srgb, var(--tint) 85%, #ffffff);
+background: linear-gradient(
+135deg,
+var(--tint) 0%,
+color-mix(in srgb, var(--tint) 75%, #000000) 100%
+);
+color: var(--on-tint);
+box-shadow: 0 1px 3px var(--shadow-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .btn--filled:hover {
+border-color: #ffffff;
+background: linear-gradient(
+135deg,
+color-mix(in srgb, var(--tint) 86%, #ffffff) 0%,
+var(--tint) 100%
+);
+color: var(--on-tint);
+}
+}
+
+:root[data-skin="patch"] .btn--filled:active {
+background: var(--tint-press);
+color: var(--on-tint);
+box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* Опасная кнопка (.btn--danger) */
+:root[data-skin="patch"] .btn--danger {
+border: 1px solid color-mix(in srgb, var(--danger) 38%, transparent);
+background: color-mix(in srgb, var(--danger) 18%, transparent);
+color: var(--danger);
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .btn--danger:hover {
+border-color: var(--danger);
+background: var(--danger);
+color: var(--on-danger);
+}
+}
+
+:root[data-skin="patch"] .btn--danger:active {
+background: color-mix(in srgb, var(--danger) 80%, #000000);
+color: var(--on-danger);
+}
+
+/* Прозрачная кнопка (.btn--ghost) */
+:root[data-skin="patch"] .btn--ghost {
+border: 1px solid var(--sep-strong);
+background: transparent;
+color: var(--text-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .btn--ghost:hover {
+border-color: var(--text-2);
+background: var(--bg-elev);
+color: var(--text);
+}
+}
+
+/* Недоступная кнопка */
+:root[data-skin="patch"] .btn:disabled {
+border-color: var(--sep);
+background: color-mix(in srgb, var(--text-3) 14%, transparent);
+color: var(--text-3);
+box-shadow: none;
+opacity: 0.6;
+cursor: default;
+}
+
+/* Клавиатурный фокус */
+:root[data-skin="patch"] .btn:focus-visible,
+:root[data-skin="patch"] .trbar__btn:focus-visible,
+:root[data-skin="patch"] .nav-bar__btn:focus-visible,
+:root[data-skin="patch"] .tab-bar__item:focus-visible,
+:root[data-skin="patch"] .segmented__item:focus-visible,
+:root[data-skin="patch"] .card:focus-visible,
+:root[data-skin="patch"] .list__cell--link:focus-visible,
+:root[data-skin="patch"] .hot__chip:focus-visible {
+outline: 2px solid var(--tint);
+outline-offset: 1px;
+}
+
+/* --------------------------------------------------------------------------
+Списки, группы и строки (.group, .list, .list__cell)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .group__title {
+color: var(--tint-text);
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.04em;
+}
+
+:root[data-skin="patch"] .group__note {
+color: var(--text-2);
+}
+
+:root[data-skin="patch"] .list {
+border: 1px solid var(--sep-strong);
+border-radius: var(--card-radius);
+background: var(--surface);
+}
+
+:root[data-skin="patch"] .list__cell + .list__cell {
+border-top: 1px solid var(--sep);
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .list__cell--link:hover {
+background: var(--bg-elev);
+}
+}
+
+:root[data-skin="patch"] .list__cell--link:active {
+background: var(--surface-press);
+}
+
+:root[data-skin="patch"] .list__cell--link:active .list__chevron {
+color: var(--tint-text);
+}
+
+/* --------------------------------------------------------------------------
+Карточки, посты и строки логов в стиле плашек (.post_header, .post_content)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .card,
+:root[data-skin="patch"] .post,
+:root[data-skin="patch"] .article,
+:root[data-skin="patch"] .reply,
+:root[data-skin="patch"] .log__row {
+border: 1px solid var(--sep-strong);
+border-radius: var(--card-radius);
+background: var(--surface);
+box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .card,
+:root[data-skin="patch"]:not(.theme--dark) .post,
+:root[data-skin="patch"]:not(.theme--dark) .article,
+:root[data-skin="patch"]:not(.theme--dark) .reply,
+:root[data-skin="patch"]:not(.theme--dark) .log__row {
+box-shadow: 0 1px 2px var(--shadow-soft);
+}
+
+/* Шапка карточки с отсылкой к плашке .post_header */
+:root[data-skin="patch"] .card__head,
+:root[data-skin="patch"] .log__head {
+background: color-mix(in srgb, var(--bg-elev) 55%, transparent);
+border-bottom: 1px solid var(--sep);
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .card:hover {
+border-color: color-mix(in srgb, var(--tint) 55%, var(--sep-strong));
+background: color-mix(in srgb, var(--bg-elev) 75%, var(--surface));
+}
+}
+
+:root[data-skin="patch"] .card:active,
+:root[data-skin="patch"] .reply:active {
+border-color: var(--tint);
+background: var(--surface-press);
+}
+
+:root[data-skin="patch"] .card--pinned {
+border-left: 3px solid var(--tint);
+}
+
+/* Заголовки записей (.post_title) и даты (.post_date) */
+:root[data-skin="patch"] .card__title,
+:root[data-skin="patch"] .post__title,
+:root[data-skin="patch"] .article__title {
+color: #ffffff;
+font-weight: 700;
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .card__title,
+:root[data-skin="patch"]:not(.theme--dark) .post__title,
+:root[data-skin="patch"]:not(.theme--dark) .article__title {
+color: var(--text);
+}
+
+:root[data-skin="patch"] .card__author,
+:root[data-skin="patch"] .reply__author {
+color: var(--tint-text);
+font-weight: 600;
+}
+
+:root[data-skin="patch"] .card__time,
+:root[data-skin="patch"] .post__meta,
+:root[data-skin="patch"] .reply__time,
+:root[data-skin="patch"] .card__foot {
+color: var(--text-2);
+}
+
+/* Технические теги и номера в стиле кнопки сворачивания [-]/[+] (.post_pmbutton) */
+:root[data-skin="patch"] .tag,
+:root[data-skin="patch"] .card__seq,
+:root[data-skin="patch"] .key {
+border: 1px solid var(--sep-strong);
+border-radius: var(--chip-r);
+background: var(--bar);
+color: var(--text-2);
+font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+font-weight: 600;
+}
+
+:root[data-skin="patch"] .tag--warn {
+border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+background: color-mix(in srgb, var(--warn) 16%, var(--bar));
+color: var(--warn);
+}
+
+/* Чипы тем (.hot__chip) */
+:root[data-skin="patch"] .hot__chip {
+border: 1px solid var(--sep-strong);
+border-radius: var(--chip-r);
+background: var(--bg-elev);
+color: var(--text);
+font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .hot__chip:hover {
+border-color: var(--tint);
+color: var(--tint-text);
+}
+}
+
+:root[data-skin="patch"] .hot__chip--live {
+border-color: var(--ok);
+background: color-mix(in srgb, var(--ok) 18%, var(--bar));
+color: var(--ok);
+}
+
+/* --------------------------------------------------------------------------
+Типографика чейнджлога (.rich, b, ul.bb_ul, code)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .rich strong,
+:root[data-skin="patch"] .rich b,
+:root[data-skin="patch"] .rich h2,
+:root[data-skin="patch"] .rich h3 {
+color: #ffffff;
+font-weight: 700;
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .rich strong,
+:root[data-skin="patch"]:not(.theme--dark) .rich b,
+:root[data-skin="patch"]:not(.theme--dark) .rich h2,
+:root[data-skin="patch"]:not(.theme--dark) .rich h3 {
+color: var(--text);
+}
+
+:root[data-skin="patch"] .rich ul {
+list-style-type: square;
+}
+
+:root[data-skin="patch"] .rich li::marker {
+color: var(--text-2);
+}
+
+:root[data-skin="patch"] .rich a {
+color: var(--tint-text);
+text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .rich a:hover {
+color: var(--tint);
+text-decoration: underline;
+}
+}
+
+:root[data-skin="patch"] .rich code,
+:root[data-skin="patch"] .rich pre {
+border: 1px solid var(--sep-strong);
+border-radius: var(--radius);
+background: var(--bar);
+color: var(--text);
+}
+
+:root[data-skin="patch"] .rich blockquote {
+border-left: 3px solid var(--tint);
+background: color-mix(in srgb, var(--bg-elev) 50%, transparent);
+color: var(--text-2);
+}
+
+/* --------------------------------------------------------------------------
+Переключатели, сегменты, индикаторы (.switch, .segmented, .meter, .chart)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .switch__track {
+border: 1px solid var(--sep-strong);
+background: var(--sw-off);
+box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-skin="patch"] .switch__thumb {
+background: var(--thumb);
+box-shadow: var(--sw-shadow);
+}
+
+:root[data-skin="patch"] .switch__input:checked ~ .switch__track {
+border-color: var(--tint);
+background: color-mix(in srgb, var(--tint) 75%, #000000);
+}
+
+:root[data-skin="patch"] .switch__input:checked ~ .switch__thumb {
+background: #ffffff;
+}
+
+:root[data-skin="patch"] .segmented {
+border: 1px solid var(--seg-line);
+border-radius: var(--seg-r);
+background: var(--bar);
+}
+
+:root[data-skin="patch"] .segmented__item {
+color: var(--seg-text);
+font-weight: 600;
+}
+
+:root[data-skin="patch"] .segmented__item--active {
+border-radius: var(--seg-item-r);
+background: var(--seg-on);
+color: var(--seg-on-text);
+box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 55%, transparent);
+}
+
+:root[data-skin="patch"] .meter__track,
+:root[data-skin="patch"] .chart__track {
+border: 1px solid var(--sep-strong);
+border-radius: var(--radius);
+background: var(--bar);
+box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-skin="patch"] .meter__fill,
+:root[data-skin="patch"] .chart__bar {
+border-radius: 1px;
+background: linear-gradient(
+90deg,
+color-mix(in srgb, var(--tint) 75%, #000000) 0%,
+var(--tint) 100%
+);
+}
+
+:root[data-skin="patch"] .meter__fill--warn {
+background: var(--warn);
+}
+
+/* --------------------------------------------------------------------------
+Баннеры, модальные окна и всплывающие уведомления (.banner, .modal, .toast)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .banner {
+border: 1px solid var(--sep-strong);
+border-left: 3px solid var(--tint);
+border-radius: var(--card-radius);
+background: var(--bg-elev);
+color: var(--text);
+}
+
+:root[data-skin="patch"] .banner--warn {
+border-color: color-mix(in srgb, var(--warn) 45%, var(--sep-strong));
+border-left: 3px solid var(--warn);
+background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+}
+
+:root[data-skin="patch"] .banner--danger {
+border-color: color-mix(in srgb, var(--danger) 45%, var(--sep-strong));
+border-left: 3px solid var(--danger);
+background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+}
+
+:root[data-skin="patch"] .modal__panel {
+border: 1px solid var(--sep-strong);
+border-radius: var(--radius-lg);
+background: var(--bg);
+box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+}
+
+:root[data-skin="patch"] .modal__head {
+background: var(--bar);
+border-bottom: 1px solid var(--bar-line);
+}
+
+:root[data-skin="patch"] .modal__title {
+text-transform: uppercase;
+letter-spacing: 0.03em;
+font-weight: 700;
+}
+
+:root[data-skin="patch"] .toast {
+border: 1px solid var(--sep-strong);
+border-left: 3px solid var(--tint);
+border-radius: var(--radius);
+background: var(--toast-bg);
+color: var(--toast-text);
+box-shadow: 0 4px 14px var(--shadow-soft);
+}
+
+/* --------------------------------------------------------------------------
+Нижняя панель и боковая навигация (.tab-bar)
+-------------------------------------------------------------------------- */
+:root[data-skin="patch"] .tab-bar {
+background: var(--bar);
+border-top: 1px solid var(--bar-line);
+}
+
+:root[data-skin="patch"] .tab-bar__item {
+color: var(--text-2);
+font-weight: 600;
+}
+
+:root[data-skin="patch"] .tab-bar__item--active {
+background: color-mix(in srgb, var(--tint) 16%, transparent);
+box-shadow: inset 0 2px 0 var(--tint);
+color: #ffffff;
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .tab-bar__item--active {
+color: var(--tint-text);
+}
+
+:root[data-skin="patch"] .tab-bar__item--active .tab-bar__icon {
+color: var(--tint);
+}
+
+:root[data-skin="patch"] .tab-bar__badge {
+border-radius: var(--radius);
+background: var(--ok);
+color: #101010;
+font-weight: 700;
+}
+
+/* Адаптивность для ПК (боковая панель клиента Steam от 1024px) */
+@media (min-width: 1024px) {
+:root[data-skin="patch"] .tab-bar {
+background: var(--bar);
+border-right: 1px solid var(--bar-line);
+}
+
+:root[data-skin="patch"] .tab-bar__item {
+border-radius: var(--radius);
+box-shadow: none;
+transition: background 0.12s ease, color 0.12s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+:root[data-skin="patch"] .tab-bar__item:not(.tab-bar__item--active):hover {
+background: color-mix(in srgb, var(--tint) 12%, transparent);
+color: var(--text);
+}
+}
+
+:root[data-skin="patch"] .tab-bar__item--active {
+background: linear-gradient(
+90deg,
+color-mix(in srgb, var(--tint) 24%, transparent) 0%,
+color-mix(in srgb, var(--tint) 8%, transparent) 100%
+);
+box-shadow: inset 3px 0 0 var(--tint);
+color: #ffffff;
+}
+
+:root[data-skin="patch"]:not(.theme--dark) .tab-bar__item--active {
+color: var(--tint-text);
+}
+}

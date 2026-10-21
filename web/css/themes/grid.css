@@ -1,0 +1,145 @@
+/*!theme
+id: grid
+name: GRiD
+mode: dark
+accent: #ffb000
+barsLight: #f6efe0, 1.0, #f6efe0
+barsDark: #0a0805, 1.0, #0a0805
+description: монохромный терминал, инверсия строки вместо подсветки
+*/
+
+/* ------------------------------------------ GRiD, монохромный терминал --
+   Плазменный терминал: моноширинный шрифт, нулевые
+   скругления, сплошные панели без размытия, инверсия вместо подсветки.
+   Оформление одинаково в светлой и тёмной теме: у янтарного терминала
+   светлого режима не бывает. */
+:root[data-skin="grid"] {
+  /* Цвета GRiD выводятся из акцента: текст — сам акцент, остальное — смесь с фоном. */
+  --font: "IBM Plex Mono", "Roboto Mono", "SF Mono", Menlo, Consolas, "Courier New", ui-monospace, monospace;
+  --danger: #ff5c33;
+  --radius: 0px;
+  --radius-lg: 0px;
+  --card-radius: 0px;
+  --bar-blur: none;
+  --shadow-soft: transparent;
+  color-scheme: dark;
+  --bg: #0a0805;
+  --bg: color-mix(in srgb, var(--tint) 4%, #050505);
+  --surface: color-mix(in srgb, var(--tint) 8%, #050505);
+  --bg-elev: color-mix(in srgb, var(--tint) 8%, #050505);
+  --surface-press: color-mix(in srgb, var(--tint) 18%, #050505);
+  --text: var(--tint);
+  --text-2: color-mix(in srgb, var(--tint) 74%, #050505);
+  --text-3: color-mix(in srgb, var(--tint) 50%, #050505);
+  --sep: color-mix(in srgb, var(--tint) 26%, #050505);
+  --sep-strong: color-mix(in srgb, var(--tint) 42%, #050505);
+  --bar: color-mix(in srgb, var(--tint) 4%, #050505);
+  --bar-line: color-mix(in srgb, var(--tint) 42%, #050505);
+  --thumb: var(--tint);
+  --ok: var(--tint);
+  --toast-bg: color-mix(in srgb, var(--tint) 18%, #050505);
+  --toast-text: var(--tint);
+  --on-danger: #050505;
+  --hero-size: 26px;
+  --hero-weight: 400;
+  --hero-tracking: 0.04em;
+  --nav-grid: auto minmax(0, 1fr) auto;
+  --nav-align: left;
+  --nav-weight: 400;
+  --sw-w: 44px;
+  --sw-h: 22px;
+  --sw-r: 0px;
+  --sw-thumb: 16px;
+  --sw-thumb-r: 0px;
+  --sw-pad: 3px;
+  --sw-off: transparent;
+  --sw-on: var(--tint);
+  --sw-shadow: none;
+  --seg-r: 0px;
+  --seg-line: var(--sep-strong);
+  --seg-text: var(--text);
+  --seg-on: var(--tint);
+  --seg-on-text: var(--on-tint);
+  --bar-h: 44px;
+  --tab-h: 49px;
+  --chip-r: 0px;
+}
+:root[data-skin="grid"] .list,
+:root[data-skin="grid"] .key,
+:root[data-skin="grid"] .banner,
+:root[data-skin="grid"] .article__svg,
+:root[data-skin="grid"] .media__item {
+  border-radius: 0;
+  border: 1px solid var(--sep);
+  margin-left: 12px;
+  margin-right: 12px;
+}
+:root[data-skin="grid"] .hero__title {
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 26px;
+}
+:root[data-skin="grid"] .nav-bar__title,
+:root[data-skin="grid"] .group__title,
+:root[data-skin="grid"] .toolbar__label,
+:root[data-skin="grid"] .tab-bar__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-skin="grid"] .nav-bar,
+:root[data-skin="grid"] .tab-bar { box-shadow: none; border-color: var(--sep); }
+:root[data-skin="grid"] .nav-bar { border-bottom: 1px solid var(--sep); }
+:root[data-skin="grid"] .tab-bar { border-top: 1px solid var(--sep); }
+/* Выделение в меню GRiD — инверсия строки, а не цветной штрих. */
+:root[data-skin="grid"] .tab-bar__item--active { background: var(--tint); color: var(--on-tint); }
+:root[data-skin="grid"] .segmented,
+:root[data-skin="grid"] .btn,
+:root[data-skin="grid"] .tag,
+:root[data-skin="grid"] .hot__chip,
+:root[data-skin="grid"] .cands__tab,
+:root[data-skin="grid"] .trbar__btn { border-radius: 0; }
+:root[data-skin="grid"] .switch { width: 44px; height: 22px; }
+:root[data-skin="grid"] .switch__track { border-radius: 0; background: none; border: 1px solid var(--sep-strong); }
+:root[data-skin="grid"] .switch__thumb { border-radius: 0; width: 16px; height: 16px; top: 3px; left: 3px; background: var(--text-3); box-shadow: none; }
+:root[data-skin="grid"] .switch__input:checked ~ .switch__track { background: none; border-color: var(--tint); }
+:root[data-skin="grid"] .switch__input:checked ~ .switch__thumb { background: var(--tint); transform: translateX(22px); }
+:root[data-skin="grid"] .card__title { font-weight: 400; }
+/* ==========================================================================
+   Оформление — это компоновка, а цвет берётся из акцента.
+   GRiD и Board — монохромные терминалы: текст, рамки, приглушённые подписи и
+   подложки выводятся из --tint смешиванием с фоном. Выбрали янтарь — янтарный
+   терминал, зелень — зелёный, синий — синий. Первая строка каждого токена —
+   запас для браузеров без color-mix.
+   ========================================================================== */
+/* Светлый янтарный — бумага распечатки: фон светлый, текст — акцент,
+   утемнённый до читаемого. */
+:root[data-skin="grid"]:not(.theme--dark) {
+  --bg: #f6efe0;
+  --bg: color-mix(in srgb, var(--tint) 7%, #fbfaf6);
+  --surface: color-mix(in srgb, var(--tint) 4%, #ffffff);
+  --bg-elev: color-mix(in srgb, var(--tint) 4%, #ffffff);
+  --surface-press: color-mix(in srgb, var(--tint) 16%, #ffffff);
+  --text: color-mix(in srgb, var(--tint) 45%, #000000);
+  --text-2: color-mix(in srgb, var(--tint) 55%, #3a3a3a);
+  --text-3: color-mix(in srgb, var(--tint) 45%, #8a8a8a);
+  --sep: color-mix(in srgb, var(--tint) 30%, #ffffff);
+  --sep-strong: color-mix(in srgb, var(--tint) 50%, #ffffff);
+  --bar: color-mix(in srgb, var(--tint) 7%, #fbfaf6);
+  --bar-line: color-mix(in srgb, var(--tint) 50%, #ffffff);
+  --thumb: color-mix(in srgb, var(--tint) 45%, #000000);
+  --toast-bg: color-mix(in srgb, var(--tint) 45%, #000000);
+  --toast-text: #ffffff;
+  color-scheme: light;
+}
+:root[data-skin="grid"] { --group-mx: 12px; }
+:root[data-skin="grid"] { --group-r: 0; }
+:root[data-skin="grid"]:not(.theme--dark) { --tint-text: color-mix(in srgb, var(--tint) 50%, #000000); }
+
+/* Элементы интерфейса (модальное окно, уведомление, выноска) — оформление темы. */
+:root[data-skin="grid"] { --modal-r: 0; --modal-border: 1px solid var(--tint); --modal-shadow: none; --modal-head-bg: var(--tint); --modal-head-text: var(--bg); --modal-head-border: 0; --overlay: rgba(0, 0, 0, 0.72); --toast-r: 0; --callout-r: 0; }
+/* Терминал: рамка цветом акцента, инверсная шапка, заголовок прописными. */
+:root[data-skin="grid"] .modal__title { text-transform: uppercase; letter-spacing: 0.06em; font-size: 15px; }
+:root[data-skin="grid"] .modal__close { border-radius: 0; background: none; }
+:root[data-skin="grid"] .modal__foot { border-top: 1px dashed var(--tint); }
+:root[data-skin="grid"] .toast { border: 1px solid var(--tint); }
