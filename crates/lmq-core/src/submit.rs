@@ -11,7 +11,7 @@ use crate::callback::validate_url;
 use crate::engines::EngineStatus;
 use crate::queue::{QItem, SyncCtx, SyncResult, TIER_GROUP, TIER_PRIVATE, TIER_SYNC};
 use crate::routing::ModelRt;
-use crate::store::NewJob;
+use crate::store::{NewJob, SyncRecord};
 use crate::upstream::QUEUE_FIELDS;
 use crate::util::{now_ms, random_hex, valid_job_id};
 
@@ -183,6 +183,14 @@ pub async fn submit(app: &Arc<App>, client: &str, body: Map<String, Value>, opts
     }
 
     let payload: Map<String, Value> = body.iter().filter(|(k, _)| !QUEUE_FIELDS.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect();
+    // Для журнала: сколько сообщений и картинок пришло, какие параметры (без текстов).
+    let images = crate::admin::image_count(payload.get("messages"));
+    let msg_count = payload.get("messages").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    let body_keys: Vec<String> = payload.keys().filter(|k| *k != "messages").cloned().collect();
+    if cfg.logging.requests {
+        let shape = payload.get("messages").map(crate::admin::messages_summary).unwrap_or_default();
+        tracing::info!(client, model = %model.name, chat_id, sync = chat_id == 0, params = ?body_keys, images, messages = %shape, "incoming request");
+    }
 
     // Синхронный режим (§2.3).
     if chat_id == 0 {
@@ -272,7 +280,7 @@ pub async fn submit(app: &Arc<App>, client: &str, body: Map<String, Value>, opts
     let body = queued_body(app, &job_id, &model.name, "queued");
     tracing::info!(
         job_id = %job_id, client, model = %model.name, requested = %requested, chat_id, state = "queued",
-        position = body["position"].as_u64().unwrap_or(0), protocol = if protocol1 { 1 } else { 2 }, "job queued"
+        position = body["position"].as_u64().unwrap_or(0), protocol = if protocol1 { 1 } else { 2 }, messages = msg_count, images, "job queued"
     );
     Ok(Submitted::Queued { status: 202, body })
 }
@@ -288,13 +296,14 @@ async fn submit_sync(
     let cfg = app.settings();
     let job_id = format!("sync-{}", random_hex(8));
     let (tx, rx) = oneshot::channel::<SyncResult>();
+    let created_at = now_ms();
     app.queue.push(
         &model.name,
         TIER_SYNC,
         QItem {
             job_id: job_id.clone(),
             chat_id: 0,
-            created_at: now_ms(),
+            created_at,
             client: client.to_string(),
             sync: Some(SyncCtx { payload, tx: Some(tx), deltas, client: client.to_string(), requested_model: requested.to_string() }),
         },
@@ -306,6 +315,26 @@ async fn submit_sync(
         Ok(Ok(Err((status, code, msg)))) => Err(ApiError::new(status, format!("{code}: {msg}"))),
         Ok(Err(_)) => Err(ApiError::new(502, "request dropped")),
         Err(_) => {
+            // Запись — до отмены: отменённый запрос потом не перезапишет её «cancelled».
+            let rec = SyncRecord {
+                job_id: &job_id,
+                client,
+                model: requested,
+                model_used: &model.name,
+                state: "failed",
+                error_code: Some("upstream_timeout"),
+                error: Some("no answer within SYNC_TIMEOUT"),
+                created_at,
+                finished_at: now_ms(),
+                ..Default::default()
+            };
+            if let Err(e) = app.store.insert_sync_record(&rec).await {
+                tracing::error!(job_id = %job_id, error = %e, "store sync record failed");
+            }
+            tracing::warn!(
+                job_id = %job_id, client, model = %model.name, chat_id = 0, state = "failed", error_code = "upstream_timeout",
+                timeout_s = cfg.queue.sync_timeout, "sync request timed out"
+            );
             if !app.queue.remove_sync(&job_id) {
                 app.queue.cancel_running(&job_id);
             }

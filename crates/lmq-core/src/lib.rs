@@ -19,6 +19,8 @@ pub mod events;
 pub mod gpu;
 pub mod logging;
 pub mod metrics;
+pub mod net;
+pub mod netdiag;
 pub mod queue;
 pub mod routing;
 pub mod schedule;

@@ -330,6 +330,33 @@ export component SettingsPage inherits Rectangle {
                 }
             }
 
+            Card {
+                VerticalLayout {
+                    SettingRow {
+                        label: @tr("Проверить маршруты");
+                        hint: @tr("Бот, каждый апстрим и Telegram: DNS, соединение, HTTP и внешний IP. Запросы — GET без данных.");
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: UiData.netcheck-running ? @tr("Проверяю…") : @tr("Проверить");
+                                enabled: !UiData.netcheck-running;
+                                clicked => { UiActions.netcheck(); }
+                            }
+                        }
+                    }
+                    if UiData.netcheck != "": HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 0;
+                        Text {
+                            text: UiData.netcheck;
+                            font-size: 12px;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+
             SectionTitle { text: @tr("Обновления и о программе"); }
             Card {
                 VerticalLayout {

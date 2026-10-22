@@ -51,6 +51,7 @@ logging:
   level: info                     # LOG_LEVEL: error | warn | info | debug | trace
   content: false                  # LOG_CONTENT — тексты сообщений в журнал (персональные данные!)
   keep_days: 14
+  requests: false                 # подробно: строение запроса бота, что ушло модели, ответы апстрима и бота
 
 metrics:
   enabled: true                   # GET /metrics на адресе API
@@ -61,6 +62,19 @@ breaker:                          # выключатель апстримов
   failure_threshold: 3            # неудач подряд до исключения
   open_seconds: 30                # на сколько исключить
   health_interval: 15             # фоновая проверка GET {base}/models, с; 0 — не проверять
+
+# Маршруты исходящих запросов. Пример: модели за рубежом доступны только через VPN, а
+# сервер бота — только из РФ. Тогда модели — через прокси VPN-клиента, бот — напрямую.
+network:
+  upstream:
+    interface: ''                 # имя (Ethernet, happ-tun, eth0), IP или system; пусто — системный маршрут
+    proxy: ''                     # socks5h://127.0.0.1:10808 (xray/v2rayN), http://…; none — напрямую; пусто — HTTP(S)_PROXY системы
+  callback:
+    interface: ''                 # например Ethernet, если VPN в режиме TUN забирает весь трафик
+    proxy: ''                     # none — напрямую
+  telegram:                       # только для протокола 1
+    interface: ''
+    proxy: ''
 
 protocol1:                        # старый режим: сервер сам пишет в Telegram
   enabled: false                  # PROTOCOL1_ENABLED
@@ -86,6 +100,9 @@ models:
       #   slots: 2
       #   api_key: ''
       #   stream: false
+      #   interface: ''           # свой маршрут; пусто — как в network.upstream
+      #   proxy: ''
+      #   drop_params: [mirostat] # не отправлять; отклонённые апстримом LMQ убирает и сам
     defaults:                     # подставляются, если бот их не прислал
       temperature: 0.7
       max_tokens: 1024
@@ -93,6 +110,7 @@ models:
     fallback: [gpt-oss-20b]       # при ошибке, переполнении или исключённом апстриме
     max_queue: 100
     enabled: true
+    vision: false                 # true — модель понимает картинки, /v1/models сообщит об этом боту
   gpt-oss-20b:
     description: резервная
     upstreams:

@@ -11,6 +11,7 @@ use tokio_util::sync::CancellationToken;
 use crate::app::App;
 use crate::queue::{QItem, SyncCtx, TIER_GROUP, TIER_PRIVATE};
 use crate::routing::{ModelRt, UpstreamRt};
+use crate::store::SyncRecord;
 use crate::upstream::{self, UpErr, UpOk};
 use crate::util::{now_ms, strip_think};
 
@@ -168,7 +169,11 @@ pub async fn execute(
             tried.insert(up.id.clone());
             app.queue.set_running_upstream(job_id, &up.id);
             let timeout = up.timeout.unwrap_or(Duration::from_secs(cfg.queue.upstream_timeout.max(1)));
-            let res = upstream::call(&app.http, &up, payload, &model.cfg, timeout, cancel, deltas).await;
+            let trace = upstream::Trace { job_id, requests: cfg.logging.requests, content: cfg.logging.content };
+            let res = match app.upstream_client(&up) {
+                Ok(http) => upstream::call(&http, &up, payload, &model.cfg, timeout, cancel, deltas, trace).await,
+                Err(e) => Err(UpErr::Connect(format!("route: {e}"))),
+            };
             drop(permit);
             match res {
                 Ok(ok) => {
@@ -298,14 +303,40 @@ async fn run_sync(
     mut ctx: SyncCtx,
     cancel: CancellationToken,
 ) {
-    let wait_ms = now_ms() - item.created_at;
+    let started = now_ms();
+    let wait_ms = started - item.created_at;
     app.emit_job(&item.job_id, "running", &model.name, 0, None);
     let res = execute(app, &item.job_id, model, (up, permit), &ctx.payload, &cancel, ctx.deltas.as_ref()).await;
+    // Итог попадает в журнал и в историю очереди (без текстов), как у обычных заданий.
+    let mut rec = SyncRecord {
+        job_id: &item.job_id,
+        client: &ctx.client,
+        model: &ctx.requested_model,
+        model_used: &model.name,
+        state: "done",
+        created_at: item.created_at,
+        started_at: Some(started),
+        finished_at: now_ms(),
+        queued_ms: Some(wait_ms),
+        ..Default::default()
+    };
+    let usage_text;
+    let up_id;
+    let fail_msg;
     let result = match res {
         Ok((ok, up)) => {
             let (pt, ct) = upstream::usage_tokens(ok.usage.as_ref());
             app.record(&model.name, Some(&up.id), &ctx.client, "sync", None, Some(wait_ms), Some(ok.latency_ms), pt, ct);
-            app.emit_job(&item.job_id, "done", &model.name, 0, None);
+            let images = crate::admin::image_count(ctx.payload.get("messages"));
+            tracing::info!(
+                job_id = %item.job_id, client = %ctx.client, model = %model.name, chat_id = 0, state = "done", upstream = %up.id,
+                wait_ms, latency_ms = ok.latency_ms, tokens = pt + ct, images, "sync request done"
+            );
+            usage_text = ok.usage.as_ref().map(|u| u.to_string());
+            up_id = up.id.clone();
+            rec.usage = usage_text.as_deref();
+            rec.upstream = Some(&up_id);
+            rec.latency_ms = Some(ok.latency_ms);
             let mut body = ok.body;
             if let Some(o) = body.as_object_mut() {
                 o.insert("model".into(), Value::String(ctx.requested_model.clone()));
@@ -313,16 +344,29 @@ async fn run_sync(
             Ok(body)
         }
         Err(ExecErr::Cancelled) => {
-            app.emit_job(&item.job_id, "cancelled", &model.name, 0, Some("cancelled"));
+            tracing::info!(job_id = %item.job_id, client = %ctx.client, model = %model.name, chat_id = 0, state = "cancelled", wait_ms, "sync request cancelled");
+            rec.state = "cancelled";
+            rec.error_code = Some("cancelled");
             Err((504, "cancelled".to_string(), "request cancelled".to_string()))
         }
         Err(ExecErr::Failed { code, msg }) => {
             app.record(&model.name, None, &ctx.client, "sync", Some(code), Some(wait_ms), None, 0, 0);
-            app.emit_job(&item.job_id, "failed", &model.name, 0, Some(code));
+            tracing::warn!(
+                job_id = %item.job_id, client = %ctx.client, model = %model.name, chat_id = 0, state = "failed",
+                wait_ms, error_code = code, error = %msg, "sync request failed"
+            );
+            fail_msg = msg.clone();
+            rec.state = "failed";
+            rec.error_code = Some(code);
+            rec.error = Some(&fail_msg);
             let status = if code == "upstream_timeout" { 504 } else { 502 };
             Err((status, code.to_string(), msg))
         }
     };
+    if let Err(e) = app.store.insert_sync_record(&rec).await {
+        tracing::error!(job_id = %item.job_id, error = %e, "store sync record failed");
+    }
+    app.emit_job(&item.job_id, rec.state, &model.name, 0, rec.error_code);
     if let Some(tx) = ctx.tx.take() {
         let _ = tx.send(result);
     }

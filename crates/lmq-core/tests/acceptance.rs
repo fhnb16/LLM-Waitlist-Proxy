@@ -99,6 +99,15 @@ async fn t03_sync_mode() {
     assert_eq!(st, StatusCode::OK);
     tokio::time::sleep(Duration::from_millis(500)).await;
     assert!(callbacks(&env.bot).await.is_empty(), "sync mode must not call back");
+    // Оба запроса видны в истории очереди: итог и тайминги, без текстов и колбэка.
+    let (rows, total) = env.core.app.store.list_jobs(&lmq_core::store::JobFilter { limit: 10, ..Default::default() }).await.unwrap();
+    assert_eq!(total, 2);
+    for r in &rows {
+        assert!(r.job_id.starts_with("sync-"));
+        assert_eq!((r.chat_id, r.state.as_str(), r.delivery.as_str()), (0, "done", "none"));
+        assert!(r.payload.is_none() && r.result_text.is_none() && r.callback_url.is_none());
+        assert!(r.latency_ms.is_some() && r.upstream_used.is_some());
+    }
 }
 
 /// 3а. Синхронный режим: таймаут → 504.
@@ -109,6 +118,11 @@ async fn t03b_sync_timeout() {
     let (st, _, body) = post_job(&env, json!({"model": "m", "messages": [{"role": "user", "content": "ping"}], "chat_id": 0})).await;
     assert_eq!(st, StatusCode::GATEWAY_TIMEOUT);
     assert!(body["error"]["message"].is_string());
+    // Таймаут остаётся в истории как ошибка, отмена после него запись не меняет.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let (rows, _) = env.core.app.store.list_jobs(&lmq_core::store::JobFilter { limit: 10, ..Default::default() }).await.unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!((rows[0].state.as_str(), rows[0].error_code.as_deref()), ("failed", Some("upstream_timeout")));
 }
 
 /// 4. Результат приходит на callback.url с X-Callback-Token; в теле job_id, chat_id,
@@ -417,4 +431,45 @@ async fn t15_body_too_large() {
     let (st, _, v) = post_job(&env, job("big", -1, &big)).await;
     assert_eq!(st, StatusCode::PAYLOAD_TOO_LARGE, "{v}");
     assert!(v["error"]["message"].is_string());
+}
+
+/// Пути клиентов: завершающий `/`, префикс прокси, путь без `/v1`, база с повтором пути.
+/// Неизвестный путь и неверный метод — понятная JSON-ошибка и строка в журнале.
+#[tokio::test]
+async fn t16_path_variants_and_hints() {
+    let up = upstream("OK", 0).await;
+    let env = start(&model(&url(&up), 1), &[], bot_ok().await).await;
+    let sync = json!({"model": "m", "messages": [{"role": "user", "content": "ping"}]});
+    for path in [
+        "/v1/chat/completions",
+        "/v1/chat/completions/",
+        "/chat/completions",
+        "/chat/completions/",
+        "/lmq/v1/chat/completions",
+        "/v1/chat/completions/chat/completions",
+    ] {
+        let (st, _, body) = call(&env.router, "POST", path, Some(KEY), Some(sync.clone())).await;
+        assert_eq!(st, StatusCode::OK, "{path}: {body}");
+        assert_eq!(body["choices"][0]["message"]["content"], "OK", "{path}");
+    }
+    for path in ["/v1/models/", "/models", "/lmq/v1/models"] {
+        let (st, _, body) = call(&env.router, "GET", path, Some(KEY), None).await;
+        assert_eq!(st, StatusCode::OK, "{path}");
+        assert_eq!(body["data"][0]["id"], "m", "{path}");
+    }
+    let (st, _, _) = call(&env.router, "GET", "/lmq/v1/jobs/nope/", Some(KEY), None).await;
+    assert_eq!(st, StatusCode::NOT_FOUND, "job lookup reaches the jobs route");
+
+    // Браузер: корень — описание, GET на completions — 405 с подсказкой.
+    let (st, _, body) = call(&env.router, "GET", "/", None, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(body["endpoints"]["chat"], "POST /v1/chat/completions");
+    let (st, _, body) = call(&env.router, "GET", "/v1/chat/completions/", None, None).await;
+    assert_eq!(st, StatusCode::METHOD_NOT_ALLOWED);
+    assert!(body["error"]["message"].as_str().unwrap().contains("POST"));
+    let (st, _, body) = call(&env.router, "POST", "/v1/completions", Some(KEY), Some(sync)).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+    assert!(body["error"]["message"].as_str().unwrap().contains("/v1/chat/completions"));
+    let logged = lmq_core::logging::hub().tail(500, None, Some("unknown API path"));
+    assert!(logged.iter().any(|e| e.fields.get("path").and_then(|v| v.as_str()) == Some("/v1/completions")));
 }

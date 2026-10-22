@@ -22,6 +22,8 @@ pub struct Settings {
     pub metrics: MetricsCfg,
     pub protocol1: Protocol1Cfg,
     pub breaker: BreakerCfg,
+    /// Через какой интерфейс или прокси ходит каждое направление.
+    pub network: NetworkCfg,
     pub clients: Vec<ClientCfg>,
     pub models: BTreeMap<String, ModelCfg>,
     /// Алиасы моделей: `fast: qwen3-27b`.
@@ -46,6 +48,7 @@ impl Default for Settings {
             metrics: Default::default(),
             protocol1: Default::default(),
             breaker: Default::default(),
+            network: Default::default(),
             clients: Vec::new(),
             models: BTreeMap::new(),
             aliases: BTreeMap::new(),
@@ -174,11 +177,14 @@ pub struct LoggingCfg {
     pub content: bool,
     /// Сколько дней хранить файлы журнала.
     pub keep_days: u32,
+    /// Подробный журнал запросов: строение входящего запроса, что ушло апстриму и что
+    /// ответил бот. Тексты — только вместе с `content`.
+    pub requests: bool,
 }
 
 impl Default for LoggingCfg {
     fn default() -> Self {
-        Self { level: "info".into(), content: false, keep_days: 14 }
+        Self { level: "info".into(), content: false, keep_days: 14, requests: false }
     }
 }
 
@@ -230,6 +236,36 @@ impl Default for BreakerCfg {
     }
 }
 
+/// Маршрут исходящих запросов: интерфейс и прокси.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[serde(default)]
+pub struct RouteCfg {
+    /// Имя интерфейса (`Ethernet`, `happ-tun`, `eth0`) или его IP. Пусто или `system` — системный маршрут.
+    pub interface: String,
+    /// `socks5://host:port`, `socks5h://…`, `http://host:port`. Пусто — как в системе
+    /// (переменные `HTTP(S)_PROXY`), `none` — напрямую.
+    pub proxy: String,
+}
+
+impl RouteCfg {
+    /// Поле за полем: своё значение, иначе — из `base`.
+    pub fn inherit(&self, base: &RouteCfg) -> RouteCfg {
+        let pick = |own: &String, base: &String| if own.trim().is_empty() { base.clone() } else { own.clone() };
+        RouteCfg { interface: pick(&self.interface, &base.interface), proxy: pick(&self.proxy, &base.proxy) }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct NetworkCfg {
+    /// Запросы к моделям (у апстрима можно задать свой маршрут).
+    pub upstream: RouteCfg,
+    /// Колбэки боту.
+    pub callback: RouteCfg,
+    /// Telegram Bot API (протокол 1).
+    pub telegram: RouteCfg,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct ClientCfg {
@@ -261,6 +297,9 @@ pub struct ModelCfg {
     pub max_queue: Option<u32>,
     pub enabled: bool,
     pub description: String,
+    /// Модель понимает картинки: `/v1/models` сообщает об этом клиентам (бот по этому
+    /// признаку решает, отправлять ли фото).
+    pub vision: bool,
 }
 
 impl Default for ModelCfg {
@@ -273,6 +312,7 @@ impl Default for ModelCfg {
             max_queue: None,
             enabled: true,
             description: String::new(),
+            vision: false,
         }
     }
 }
@@ -296,6 +336,13 @@ pub struct UpstreamCfg {
     pub stream: bool,
     /// Свой таймаут, с. 0 — `UPSTREAM_TIMEOUT`.
     pub timeout: u64,
+    /// Интерфейс (`Ethernet`, `happ-tun`, IP) или `system`. Пусто — как в `network.upstream`.
+    pub interface: String,
+    /// Прокси (`socks5://127.0.0.1:10808`, `http://…`) или `none`. Пусто — как в `network.upstream`.
+    pub proxy: String,
+    /// Параметры, которые апстрим не принимает (`mirostat`, `chat_template_kwargs`): убираются
+    /// из запроса. Отклонённые апстримом параметры LMQ находит и убирает и сам.
+    pub drop_params: Vec<String>,
 }
 
 impl Default for UpstreamCfg {
@@ -309,6 +356,9 @@ impl Default for UpstreamCfg {
             engine: String::new(),
             stream: false,
             timeout: 0,
+            interface: String::new(),
+            proxy: String::new(),
+            drop_params: Vec::new(),
         }
     }
 }

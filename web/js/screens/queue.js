@@ -117,7 +117,7 @@ function jobCell(ctx, j) {
       h(
         'span.jobline__meta',
         h('span', j.model_used !== j.model ? `${j.model} → ${j.model_used}` : j.model),
-        h('span', 'chat ' + j.chat_id),
+        h('span', j.chat_id ? 'chat ' + j.chat_id : t('синхронный запрос')),
         h('span', j.client),
         j.position ? h('span', t('позиция {n}', { n: j.position })) : null,
         j.queued_ms != null ? h('span', t('ожидание {v}', { v: fmt.ms(j.queued_ms) })) : null,

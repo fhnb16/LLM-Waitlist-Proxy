@@ -1,6 +1,6 @@
-import { desktop } from '../api.js';
+import { api, desktop } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, field, input, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state } from '../ui.js';
+import { h, clear, hero, group, list, cell, cstate, field, input, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state } from '../ui.js';
 import { store, saveSettings, isLocked } from '../store.js';
 
 const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v }));
@@ -55,8 +55,21 @@ const SECTIONS = [
       { path: 'logging.level', label: 'Уровень журнала', env: 'LOG_LEVEL', type: 'select', options: LEVELS },
       { path: 'logging.content', label: 'Писать тексты сообщений', env: 'LOG_CONTENT', type: 'bool', hint: 'Персональные данные. Оставьте выключенным.' },
       { path: 'logging.keep_days', label: 'Файлы журнала, дн', type: 'number', min: 1 },
+      { path: 'logging.requests', label: 'Подробный журнал запросов', type: 'bool', hint: 'Строение запроса бота, что ушло модели, ответы апстрима и бота. Тексты — только вместе с «Писать тексты».' },
       { path: 'metrics.enabled', label: 'Метрики Prometheus', type: 'bool', hint: 'GET /metrics на адресе API.' },
       { path: 'metrics.token', label: 'Токен метрик', env: 'METRICS_TOKEN', type: 'secret', hint: 'Пусто — /metrics только с localhost.' },
+    ],
+  },
+  {
+    id: 'network', title: 'Сеть и маршруты', icon: 'clients',
+    note: 'Через какой интерфейс или прокси ходит каждое направление. Например: модели — через VPN (happ-tun или socks5-прокси VPN-клиента), бот — напрямую (Ethernet). Пусто — системный маршрут.',
+    fields: [
+      { path: 'network.upstream.interface', label: 'Модели: интерфейс', type: 'iface', placeholder: 'system', hint: 'Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой.' },
+      { path: 'network.upstream.proxy', label: 'Модели: прокси', placeholder: 'socks5://127.0.0.1:10808', hint: 'socks5://, socks5h://, http://. none — напрямую.' },
+      { path: 'network.callback.interface', label: 'Бот: интерфейс', type: 'iface', placeholder: 'system', hint: 'Колбэки на адрес бота.' },
+      { path: 'network.callback.proxy', label: 'Бот: прокси', placeholder: 'none' },
+      { path: 'network.telegram.interface', label: 'Telegram: интерфейс', type: 'iface', placeholder: 'system', hint: 'Только для протокола 1.' },
+      { path: 'network.telegram.proxy', label: 'Telegram: прокси', placeholder: 'socks5://127.0.0.1:10808' },
     ],
   },
   {
@@ -182,16 +195,52 @@ function renderSection(ctx, sec) {
       el = input(value, { type: 'number', min: f.min, max: f.max, inputmode: 'numeric', disabled: locked });
       el.addEventListener('input', () => { setPath(draft, f.path, el.value === '' ? 0 : Number(el.value)); touch(); });
     } else {
-      el = input(value, { placeholder: f.placeholder || '', disabled: locked });
+      el = input(value, { placeholder: f.placeholder || '', disabled: locked, list: f.type === 'iface' ? 'lmq-ifaces' : null });
       el.addEventListener('input', () => { setPath(draft, f.path, el.value); touch(); });
     }
     const secretHint = f.type === 'secret' && value === mask ? t('Сохранён. Введите новый, чтобы заменить, или сотрите, чтобы удалить') : null;
     return field(t(f.label), el, { hint: [secretHint, hint].filter(Boolean).join(' · ') || null, lock });
   });
   root.append(hero(t(sec.title)), err, group(null, h('div.list', ...rows), sec.note ? t(sec.note) : null));
+  if (sec.id === 'network') root.append(networkTools(save, () => dirty));
   ctx.onDestroy(() => {
     if (dirty) toast(t('Изменения не сохранены'), 'warn');
   });
+}
+
+/** Список интерфейсов для полей и проверка маршрутов: бот, каждый апстрим, Telegram. */
+function networkTools(save, isDirty) {
+  const datalist = h('datalist', { id: 'lmq-ifaces' });
+  const ifaces = h('div');
+  const out = h('div');
+  api('/admin/api/network').then((n) => {
+    datalist.append(h('option', { value: 'system' }), ...n.interfaces.map((i) => h('option', { value: i.name }, [...i.ipv4, ...i.ipv6].join(', '))));
+    ifaces.append(group(t('Интерфейсы'), list(...n.interfaces.map((i) => cell({ label: i.name, value: [...i.ipv4, ...i.ipv6].join(', '), wrap: true })))));
+  }).catch(errorToast);
+  async function run() {
+    if (isDirty()) await save();
+    clear(out).append(h('div.summary__wait', h('span.ring'), t('Проверяю маршруты…')));
+    try {
+      const r = await api('/admin/api/network/check', { method: 'POST', body: {} });
+      const rows = r.items.map((it) => {
+        const p = it.probe;
+        const ok = p.http_status != null;
+        return cell({
+          label: h('span.jobline',
+            h('span.jobline__top', h('span.jobline__id', it.name), cstate(ok ? 'HTTP ' + p.http_status : t('недоступен'), ok ? 'run' : 'bad')),
+            h('span.jobline__meta', h('span', p.url), h('span', p.route), p.exit_ip ? h('span', t('выход {ip}', { ip: p.exit_ip })) : null),
+            h('span.jobline__meta', h('span', p.verdict))),
+          wrap: true,
+        });
+      });
+      clear(out).append(group(t('Результат проверки'), list(...rows), t('Запросы — GET без данных: ни модели, ни боту ничего не отправляется.')));
+    } catch (e) {
+      clear(out).append(callout(e.message, 'error'));
+    }
+  }
+  return h('div', datalist,
+    group(t('Проверка'), list(cell({ label: t('Проверить маршруты'), kind: 'tint', onClick: run })), t('DNS, соединение, HTTP и внешний IP каждого направления.')),
+    out, ifaces);
 }
 
 export { SECTIONS, state };

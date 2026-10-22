@@ -71,6 +71,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/api/clients/{name}/rotate", post(client_rotate))
         .route("/admin/api/models/{name}/test", post(model_test))
         .route("/admin/api/upstreams/{id}/reset", post(upstream_reset))
+        .route("/admin/api/network", get(network_get))
+        .route("/admin/api/network/check", post(network_check))
         .route("/admin/api/engines", get(engines))
         .route("/admin/api/engines/detect", post(engine_detect))
         .route("/admin/api/engines/{id}/start", post(engine_start))
@@ -105,9 +107,30 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/debug/callback", post(debug_sink))
         .route("/healthz", get(|| async { Json(json!({ "ok": true })) }))
         .merge(protected)
+        .layer(middleware::from_fn(log_failures))
         .layer(DefaultBodyLimit::max(16 * 1024 * 1024))
         .layer(cors)
         .with_state(app)
+}
+
+/// Ошибки API панели — в журнал с путём и сообщением: иначе неудачная кнопка в панели
+/// видна только в браузере. 401 не пишется (вход без токена — обычное дело).
+async fn log_failures(req: Request, next: Next) -> Response {
+    let method = req.method().clone();
+    let path = req.uri().path().to_string();
+    let resp = next.run(req).await;
+    let status = resp.status();
+    if !path.starts_with("/admin/api") || !(status.is_client_error() || status.is_server_error()) || status == StatusCode::UNAUTHORIZED {
+        return resp;
+    }
+    let (parts, body) = resp.into_parts();
+    let bytes = axum::body::to_bytes(body, 256 * 1024).await.unwrap_or_default();
+    let msg = serde_json::from_slice::<Value>(&bytes)
+        .ok()
+        .and_then(|v| v["error"]["message"].as_str().map(String::from))
+        .unwrap_or_else(|| String::from_utf8_lossy(&bytes).chars().take(300).collect());
+    tracing::warn!(method = %method, path = %path, status = status.as_u16(), error = %msg, "admin request failed");
+    Response::from_parts(parts, axum::body::Body::from(bytes))
 }
 
 fn cookie_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -416,6 +439,29 @@ async fn upstream_reset(State(app): State<AppState>, Path(id): Path<String>) -> 
     app.emit_upstream(up, "closed", None);
     app.queue.wake.notify_one();
     Ok(Json(json!({ "ok": true })))
+}
+
+// ---------------------------------------------------------------- сеть
+
+async fn network_get(State(app): State<AppState>) -> Json<Value> {
+    Json(svc::network_view(&app))
+}
+
+#[derive(Deserialize, Default)]
+struct NetCheckReq {
+    /// Свой адрес; без него проверяются все маршруты из настроек.
+    url: Option<String>,
+    interface: Option<String>,
+    proxy: Option<String>,
+}
+
+async fn network_check(State(app): State<AppState>, body: Option<Json<NetCheckReq>>) -> Json<Value> {
+    let req = body.map(|Json(b)| b).unwrap_or_default();
+    let custom = req
+        .url
+        .filter(|u| !u.trim().is_empty())
+        .map(|u| (u, crate::config::RouteCfg { interface: req.interface.unwrap_or_default(), proxy: req.proxy.unwrap_or_default() }));
+    Json(json!({ "items": svc::network_check(&app, custom).await }))
 }
 
 // ---------------------------------------------------------------- движки

@@ -383,3 +383,12 @@ msgstr "Mica needs Windows 11; Acrylic is used here"
 
 msgid "WebView2: 26 тем оформления, полная панель. Приложение перезапустится."
 msgstr "WebView2: 26 themes, the full panel. The app will restart."
+
+msgid "Проверить маршруты"
+msgstr "Check routes"
+
+msgid "Бот, каждый апстрим и Telegram: DNS, соединение, HTTP и внешний IP. Запросы — GET без данных."
+msgstr "The bot, every upstream and Telegram: DNS, connection, HTTP and external IP. Requests are GET without data."
+
+msgid "Проверяю…"
+msgstr "Checking…"

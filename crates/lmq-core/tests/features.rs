@@ -379,3 +379,58 @@ async fn engine_runs_captures_output_and_restarts() {
     let file = std::fs::read_to_string(app.paths.engine_log("fake")).unwrap();
     assert!(file.contains("engine-line-1"));
 }
+
+/// Имя модели со слешем (`qwen/qwen3-27b`, как у облачных провайдеров) работает в путях панели.
+#[tokio::test]
+async fn model_name_with_slash_in_admin_paths() {
+    let up = upstream("OK", 0).await;
+    let models = format!("  qwen/q-27b:\n    upstreams:\n      - url: {}\n", url(&up));
+    let env = start(&models, &[], bot_ok().await).await;
+    let (st, _, v) = call(&env.admin, "POST", "/admin/api/models/qwen%2Fq-27b/test", Some(ADMIN), Some(json!({}))).await;
+    assert_eq!(st, StatusCode::OK, "{v}");
+    assert_eq!(v["ok"], true, "{v}");
+}
+
+/// Апстрим отклоняет параметр (как Groq с `mirostat`): LMQ убирает его, повторяет запрос,
+/// запоминает и дальше не отправляет. Параметры из `drop_params` не уходят никогда.
+#[tokio::test]
+async fn rejected_params_are_dropped_and_remembered() {
+    use wiremock::matchers::{body_string_contains, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let s = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .and(body_string_contains("mirostat"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({"error": {"message": "property 'mirostat' is unsupported"}})))
+        .with_priority(1)
+        .mount(&s)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .and(body_string_contains("top_k"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({"error": {"message": "property 'top_k' is unsupported"}})))
+        .with_priority(2)
+        .mount(&s)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"choices": [{"message": {"role": "assistant", "content": "OK"}}]})))
+        .with_priority(5)
+        .mount(&s)
+        .await;
+    let models = format!("  m:\n    upstreams:\n      - url: {}/v1/chat/completions\n        drop_params: [top_k]\n", s.uri());
+    let env = start(&models, &[], bot_ok().await).await;
+    let req = json!({"model": "m", "messages": [{"role": "user", "content": "ping"}], "mirostat": 2, "top_k": 40});
+    let (st, _, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(req.clone())).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let up = env.core.app.routing().models["m"].upstreams[0].clone();
+    assert!(up.learned_drops.lock().contains("mirostat"));
+    let sent_before = s.received_requests().await.unwrap().len();
+    // Второй запрос: mirostat уже не уходит — одна попытка.
+    let (st, _, _) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(req)).await;
+    assert_eq!(st, StatusCode::OK);
+    let reqs = s.received_requests().await.unwrap();
+    assert_eq!(reqs.len(), sent_before + 1);
+    let last = String::from_utf8_lossy(&reqs.last().unwrap().body).to_string();
+    assert!(!last.contains("mirostat") && !last.contains("top_k"), "{last}");
+}

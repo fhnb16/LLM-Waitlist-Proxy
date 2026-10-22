@@ -67,8 +67,8 @@ pub struct App {
     pub delivery_wake: Notify,
     /// Запросы к апстримам и Telegram.
     pub http: reqwest::Client,
-    /// Обратные вызовы: без редиректов (SSRF).
-    pub cb_http: reqwest::Client,
+    /// Клиенты исходящих запросов по маршрутам (интерфейс, прокси).
+    pub net: crate::net::NetPool,
     pub engines: Arc<EngineManager>,
     pub gpu: GpuMonitor,
     pub debug: DebugSink,
@@ -294,6 +294,20 @@ impl App {
     pub fn db_path(&self) -> PathBuf {
         db_path(&self.paths, &self.settings())
     }
+
+    /// Клиент для апстрима по его маршруту.
+    pub fn upstream_client(&self, up: &crate::routing::UpstreamRt) -> Result<reqwest::Client, String> {
+        self.net.client(&up.route, crate::net::Kind::General)
+    }
+
+    /// Клиент колбэков (без редиректов) по маршруту `network.callback`.
+    pub fn callback_client(&self) -> Result<reqwest::Client, String> {
+        self.net.client(&self.settings().network.callback, crate::net::Kind::NoRedirect)
+    }
+
+    pub fn telegram_client(&self) -> Result<reqwest::Client, String> {
+        self.net.client(&self.settings().network.telegram, crate::net::Kind::General)
+    }
 }
 
 fn db_path(paths: &AppPaths, s: &Settings) -> PathBuf {
@@ -342,11 +356,7 @@ impl Core {
             .pool_idle_timeout(Duration::from_secs(90))
             .user_agent(format!("LMQ/{VERSION}"))
             .build()?;
-        let cb_http = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .connect_timeout(Duration::from_secs(10))
-            .user_agent(format!("LMQ/{VERSION}"))
-            .build()?;
+
         let events = EventBus::default();
         let engines = Arc::new(EngineManager::new(paths.clone(), events.clone()));
         let (epoch_tx, _) = watch::channel(0u64);
@@ -377,7 +387,7 @@ impl Core {
             queue: Queue::default(),
             delivery_wake: Notify::new(),
             http,
-            cb_http,
+            net: crate::net::NetPool::default(),
             engines,
             gpu: GpuMonitor::default(),
             debug: DebugSink::default(),
@@ -536,7 +546,10 @@ async fn health_checks(app: Arc<App>) {
                         return;
                     }
                     let before = u.health.breaker();
-                    let (ok, ms, err) = crate::upstream::check(&app.http, &u).await;
+                    let (ok, ms, err) = match app.upstream_client(&u) {
+                        Ok(http) => crate::upstream::check(&http, &u).await,
+                        Err(e) => (false, 0, Some(format!("route: {e}"))),
+                    };
                     u.health.on_check(ok, ms, err.clone());
                     if before != u.health.breaker() {
                         app.emit_upstream(&u, if ok { "half_open" } else { "open" }, err);

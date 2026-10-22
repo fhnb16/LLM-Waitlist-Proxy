@@ -98,6 +98,61 @@ pub fn extract_text(body: &Value) -> String {
     from_message.or_else(|| choice.and_then(|c| c.get("text")).and_then(Value::as_str).map(String::from)).unwrap_or_default()
 }
 
+/// Имя параметра из ответа апстрима, отклонившего его: Groq «property 'x' is unsupported»,
+/// OpenAI «Unrecognized request argument supplied: x» / «Unsupported parameter: 'x'»,
+/// serde «unknown field `x`» и похожие.
+pub fn rejected_param(msg: &str) -> Option<String> {
+    let lower = msg.to_lowercase();
+    let quoted = |s: &str| -> Option<String> {
+        let s = s.trim_start();
+        let (open, close) = match s.chars().next()? {
+            '\'' => ('\'', '\''),
+            '"' => ('"', '"'),
+            '`' => ('`', '`'),
+            _ => {
+                let name: String = s.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+                return (!name.is_empty()).then_some(name);
+            }
+        };
+        let rest = &s[open.len_utf8()..];
+        let end = rest.find(close)?;
+        Some(rest[..end].to_string())
+    };
+    // «… 'x' is unsupported» / «… 'x' is not supported» — имя перед фразой.
+    for phrase in ["is unsupported", "is not supported", "is not allowed", "not permitted"] {
+        if let Some(i) = lower.find(phrase) {
+            let before = &msg[..i];
+            let before = before.trim_end();
+            if let Some(close) = before.chars().last().filter(|c| matches!(c, '\'' | '"' | '`')) {
+                let inner = &before[..before.len() - close.len_utf8()];
+                if let Some(open) = inner.rfind(close) {
+                    return Some(inner[open + close.len_utf8()..].to_string());
+                }
+            }
+        }
+    }
+    // «… argument supplied: x», «unsupported parameter: 'x'», «unknown field `x`».
+    for marker in ["argument supplied:", "unsupported parameter:", "unknown parameter:", "unknown field", "unrecognized field", "extra field"] {
+        if let Some(i) = lower.find(marker) {
+            return quoted(&msg[i + marker.len()..]);
+        }
+    }
+    None
+}
+
+/// Копия для журнала: строки `data:…` (картинки base64) заменены на `<data:image/jpeg, N bytes>`.
+pub fn shrink_data_urls(v: &Value) -> Value {
+    match v {
+        Value::String(s) if s.starts_with("data:") && s.len() > 200 => Value::String(format!("<{}, {} bytes>", crate::admin::image_source(s), s.len())),
+        Value::Array(a) => Value::Array(a.iter().map(shrink_data_urls).collect()),
+        Value::Object(o) => Value::Object(o.iter().map(|(k, v)| (k.clone(), shrink_data_urls(v))).collect()),
+        other => other.clone(),
+    }
+}
+
+/// Эти поля без модели не обойдутся — их не убираем, даже если апстрим ругается.
+const ESSENTIAL: &[&str] = &["model", "messages", "prompt", "stream"];
+
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n { s.to_string() } else { format!("{}…", s.chars().take(n).collect::<String>()) }
 }
@@ -112,6 +167,15 @@ fn error_message(body: &str) -> String {
 
 /// Один запрос к апстриму. `deltas` — куда слать куски текста (песочница); при нём
 /// запрос идёт стримом, даже если апстрим настроен без стрима.
+/// Как писать в журнал запрос к апстриму (`logging.requests`, `logging.content`).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Trace<'a> {
+    pub job_id: &'a str,
+    pub requests: bool,
+    pub content: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn call(
     http: &reqwest::Client,
     up: &UpstreamRt,
@@ -120,22 +184,63 @@ pub async fn call(
     timeout: Duration,
     cancel: &CancellationToken,
     deltas: Option<&mpsc::UnboundedSender<String>>,
+    trace: Trace<'_>,
 ) -> Result<UpOk, UpErr> {
     let stream = up.stream || deltas.is_some();
-    let body = build_payload(payload, model, &up.target_model, stream);
+    let mut body = build_payload(payload, model, &up.target_model, stream);
+    let mut dropped: Vec<String> = Vec::new();
+    for k in up.drop_params.iter().chain(up.learned_drops.lock().iter()) {
+        if !ESSENTIAL.contains(&k.as_str()) && body.remove(k).is_some() {
+            dropped.push(k.clone());
+        }
+    }
     let started = Instant::now();
     let fut = async {
-        let mut req = http.post(&up.url).json(&body);
-        if !up.api_key.is_empty() {
-            req = req.bearer_auth(&up.api_key);
+        // Отклонённый апстримом параметр убираем и повторяем (не больше 8 раз за запрос).
+        for _ in 0..8 {
+            if trace.requests {
+                let msgs = body.get("messages").map(crate::admin::messages_summary).unwrap_or(Value::Null);
+                let params: Vec<&String> = body.keys().filter(|k| *k != "messages").collect();
+                if trace.content {
+                    let full = shrink_data_urls(&Value::Object(body.clone())).to_string();
+                    tracing::info!(job_id = trace.job_id, upstream = %up.id, url = %up.url, route = %crate::net::describe(&up.route),
+                        params = ?params, dropped = ?dropped, messages = %msgs, body = %full, "upstream request");
+                } else {
+                    tracing::info!(job_id = trace.job_id, upstream = %up.id, url = %up.url, route = %crate::net::describe(&up.route),
+                        params = ?params, dropped = ?dropped, messages = %msgs, "upstream request");
+                }
+            }
+            let t = Instant::now();
+            let mut req = http.post(&up.url).json(&body);
+            if !up.api_key.is_empty() {
+                req = req.bearer_auth(&up.api_key);
+            }
+            let resp = req.send().await.map_err(|e| UpErr::Connect(format!("{} ({})", short_reqwest(&e), crate::net::describe(&up.route))))?;
+            let status = resp.status();
+            if !status.is_success() {
+                let text = resp.text().await.unwrap_or_default();
+                let msg = error_message(&text);
+                if trace.requests {
+                    tracing::info!(job_id = trace.job_id, upstream = %up.id, status = status.as_u16(), ms = t.elapsed().as_millis() as u64,
+                        body = %truncate(&text, 2000), "upstream response");
+                }
+                if matches!(status.as_u16(), 400 | 422)
+                    && let Some(p) = rejected_param(&msg).filter(|p| !ESSENTIAL.contains(&p.as_str()))
+                    && body.remove(&p).is_some()
+                {
+                    tracing::warn!(job_id = trace.job_id, upstream = %up.id, param = %p, error = %msg, "upstream rejected parameter, retrying without it");
+                    up.learned_drops.lock().insert(p.clone());
+                    dropped.push(p);
+                    continue;
+                }
+                return Err(UpErr::Status(status.as_u16(), msg));
+            }
+            if trace.requests {
+                tracing::info!(job_id = trace.job_id, upstream = %up.id, status = status.as_u16(), ms = t.elapsed().as_millis() as u64, stream, "upstream response");
+            }
+            return if stream { read_stream(resp, &up.target_model, deltas).await } else { read_json(resp).await };
         }
-        let resp = req.send().await.map_err(|e| UpErr::Connect(short_reqwest(&e)))?;
-        let status = resp.status();
-        if !status.is_success() {
-            let text = resp.text().await.unwrap_or_default();
-            return Err(UpErr::Status(status.as_u16(), error_message(&text)));
-        }
-        if stream { read_stream(resp, &up.target_model, deltas).await } else { read_json(resp).await }
+        Err(UpErr::Bad("upstream rejected too many parameters".into()))
     };
     let res = tokio::select! {
         r = tokio::time::timeout(timeout, fut) => match r {
@@ -148,13 +253,7 @@ pub async fn call(
 }
 
 fn short_reqwest(e: &reqwest::Error) -> String {
-    let mut s = e.to_string();
-    let mut src = std::error::Error::source(e);
-    while let Some(inner) = src {
-        s = format!("{s}: {inner}");
-        src = inner.source();
-    }
-    truncate(&s, 300)
+    truncate(&crate::netdiag::error_chain(e), 600)
 }
 
 async fn read_json(resp: reqwest::Response) -> Result<(Value, String, Option<Value>), UpErr> {
@@ -260,6 +359,29 @@ pub fn usage_tokens(usage: Option<&Value>) -> (u64, u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejected_param_messages() {
+        // Из журнала (Groq).
+        assert_eq!(rejected_param("property 'mirostat' is unsupported").as_deref(), Some("mirostat"));
+        assert_eq!(rejected_param("property 'chat_template_kwargs' is unsupported").as_deref(), Some("chat_template_kwargs"));
+        // OpenAI.
+        assert_eq!(rejected_param("Unrecognized request argument supplied: top_k").as_deref(), Some("top_k"));
+        assert_eq!(rejected_param("Unsupported parameter: 'logit_bias' is not supported with this model.").as_deref(), Some("logit_bias"));
+        // serde / Rust-серверы.
+        assert_eq!(rejected_param("Failed to deserialize the JSON body: unknown field `repeat_penalty`").as_deref(), Some("repeat_penalty"));
+        assert_eq!(rejected_param("model not found"), None);
+        assert_eq!(rejected_param("rate limit reached"), None);
+    }
+
+    #[test]
+    fn data_urls_are_shortened_for_logs() {
+        let big = format!("data:image/jpeg;base64,{}", "A".repeat(5000));
+        let v = json!({"messages": [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": big}}, {"type": "text", "text": "что тут?"}]}]});
+        let s = shrink_data_urls(&v).to_string();
+        assert!(s.contains("<data:image/jpeg, 5023 bytes>"), "{s}");
+        assert!(s.contains("что тут?") && s.len() < 300);
+    }
 
     #[test]
     fn payload_rules() {

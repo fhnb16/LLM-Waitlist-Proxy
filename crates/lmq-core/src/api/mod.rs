@@ -45,7 +45,10 @@ pub fn bearer(headers: &HeaderMap) -> Option<&str> {
 
 /// Клиент по ключу `Authorization: Bearer` (сравнение хэшей за постоянное время).
 pub fn client_auth(app: &App, headers: &HeaderMap) -> Result<String, ApiError> {
-    let key = bearer(headers).ok_or_else(|| ApiError::new(401, "invalid api key"))?;
+    let Some(key) = bearer(headers) else {
+        tracing::info!("api request without Authorization: Bearer <key>");
+        return Err(ApiError::new(401, "invalid api key"));
+    };
     let h = hash_key(key);
     let cfg = app.settings();
     let mut found: Option<String> = None;
@@ -55,7 +58,11 @@ pub fn client_auth(app: &App, headers: &HeaderMap) -> Result<String, ApiError> {
             found = Some(c.name.clone());
         }
     }
-    found.ok_or_else(|| ApiError::new(401, "invalid api key"))
+    found.ok_or_else(|| {
+        // Сам ключ не пишем: только начало и длину, чтобы отличить чужой или обрезанный.
+        tracing::info!(key = %crate::util::mask_secret(key), "api key rejected (unknown or disabled client)");
+        ApiError::new(401, "invalid api key")
+    })
 }
 
 #[derive(Clone, Copy, Debug)]

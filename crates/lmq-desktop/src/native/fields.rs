@@ -41,6 +41,9 @@ const fn note(label: &'static str) -> Def {
 
 const LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];
 
+/// Служебный «путь» заметки, в которую подставляется список интерфейсов системы.
+const IFACES: &str = "@interfaces";
+
 pub static DEFS: &[Def] = &[
     head("Сервер"),
     note("Смена адреса или лимитов перезапускает слушатель внутри процесса."),
@@ -75,8 +78,25 @@ pub static DEFS: &[Def] = &[
     f(Kind::Select(LEVELS), "logging.level", "Уровень журнала", ""),
     f(Kind::Bool, "logging.content", "Писать тексты сообщений", "Персональные данные. Оставьте выключенным."),
     f(Kind::Number, "logging.keep_days", "Файлы журнала, дн", ""),
+    f(
+        Kind::Bool,
+        "logging.requests",
+        "Подробный журнал запросов",
+        "Строение запроса бота, что ушло модели, ответы апстрима и бота. Тексты — только вместе с «Писать тексты».",
+    ),
     f(Kind::Bool, "metrics.enabled", "Метрики Prometheus", "GET /metrics на адресе API."),
     f(Kind::Secret, "metrics.token", "Токен метрик", "Пусто — /metrics только с localhost."),
+    head("Сеть и маршруты"),
+    note(
+        "Через какой интерфейс или прокси ходит каждое направление. Например: модели — через VPN (happ-tun или socks5-прокси VPN-клиента), бот — напрямую (Ethernet). Пусто — системный маршрут.",
+    ),
+    Def { kind: Kind::Note, path: IFACES, label: "Интерфейсы", hint: "" },
+    f(Kind::Text, "network.upstream.interface", "Модели: интерфейс", "Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой."),
+    f(Kind::Text, "network.upstream.proxy", "Модели: прокси", "socks5://, socks5h://, http://. none — напрямую."),
+    f(Kind::Text, "network.callback.interface", "Бот: интерфейс", "Колбэки на адрес бота."),
+    f(Kind::Text, "network.callback.proxy", "Бот: прокси", ""),
+    f(Kind::Text, "network.telegram.interface", "Telegram: интерфейс", "Только для протокола 1."),
+    f(Kind::Text, "network.telegram.proxy", "Telegram: прокси", ""),
     head("Выключатель апстримов"),
     note("Упавший апстрим временно исключается; фоновая проверка возвращает его, когда он ожил."),
     f(Kind::Bool, "breaker.enabled", "Включён", ""),
@@ -132,10 +152,19 @@ pub fn rows(draft: &Value, locked: &[String]) -> Vec<FieldRow> {
                     ("select", opts.iter().map(|o| SharedString::from(*o)).collect(), opts.iter().position(|o| *o == cur).unwrap_or(0) as i32)
                 }
             };
+            let label = if d.path == IFACES {
+                let list: Vec<String> = lmq_core::net::interfaces()
+                    .into_iter()
+                    .map(|i| format!("{} ({})", i.name, i.ipv4.iter().chain(i.ipv6.iter().take(1)).map(|a| a.to_string()).collect::<Vec<_>>().join(", ")))
+                    .collect();
+                format!("{}: {}", t(d.label), list.join(" · "))
+            } else {
+                t(d.label)
+            };
             FieldRow {
                 kind: kind.into(),
-                path: d.path.into(),
-                label: t(d.label).into(),
+                path: if d.path == IFACES { "".into() } else { d.path.into() },
+                label: label.into(),
                 hint: if d.hint.is_empty() { SharedString::new() } else { t(d.hint).into() },
                 value: text_of(v).into(),
                 checked: v.and_then(Value::as_bool).unwrap_or(false),

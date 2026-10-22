@@ -338,19 +338,7 @@ pub async fn job_detail(app: &App, job_id: &str) -> Result<Option<Value>> {
     let payload: Option<Map<String, Value>> = j.payload.as_deref().and_then(|p| serde_json::from_str(p).ok());
     let params: Option<Map<String, Value>> =
         payload.as_ref().map(|p| p.iter().filter(|(k, _)| *k != "messages").map(|(k, v)| (k.clone(), v.clone())).collect());
-    let messages = payload.as_ref().and_then(|p| p.get("messages")).and_then(Value::as_array).map(|m| {
-        m.iter()
-            .map(|x| {
-                let role = x.get("role").and_then(Value::as_str).unwrap_or("?");
-                let (kind, len) = match x.get("content") {
-                    Some(Value::String(s)) => ("text", s.chars().count()),
-                    Some(Value::Array(parts)) => ("parts", parts.len()),
-                    _ => ("none", 0),
-                };
-                json!({ "role": role, "kind": kind, "size": len })
-            })
-            .collect::<Vec<_>>()
-    });
+    let messages = payload.as_ref().and_then(|p| p.get("messages")).map(messages_summary);
     let mut v = serde_json::to_value(&j)?;
     v["public_state"] = json!(j.public_state());
     v["position"] = json!(app.queue.position(job_id).map(|p| p + 1));
@@ -360,6 +348,132 @@ pub async fn job_detail(app: &App, job_id: &str) -> Result<Option<Value>> {
     v["has_result"] = json!(j.result_text.is_some());
     v["result_chars"] = json!(j.result_text.as_ref().map(|t| t.chars().count()));
     Ok(Some(v))
+}
+
+/// Строение сообщений без текстов: роль, вид содержимого, длина; у частей — тип и
+/// для картинок источник (`data:image/jpeg`, хост ссылки) и размер.
+pub fn messages_summary(messages: &Value) -> Value {
+    let Some(list) = messages.as_array() else { return json!([]) };
+    Value::Array(
+        list.iter()
+            .map(|x| {
+                let role = x.get("role").and_then(Value::as_str).unwrap_or("?");
+                match x.get("content") {
+                    Some(Value::String(s)) => json!({ "role": role, "kind": "text", "size": s.chars().count() }),
+                    Some(Value::Array(parts)) => json!({
+                        "role": role,
+                        "kind": "parts",
+                        "size": parts.len(),
+                        "parts": parts.iter().map(part_summary).collect::<Vec<_>>(),
+                    }),
+                    Some(Value::Null) | None => json!({ "role": role, "kind": "none", "size": 0 }),
+                    Some(other) => json!({ "role": role, "kind": "other", "type": json_type(other) }),
+                }
+            })
+            .collect(),
+    )
+}
+
+fn json_type(v: &Value) -> &'static str {
+    match v {
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+fn part_summary(p: &Value) -> Value {
+    let ty = p.get("type").and_then(Value::as_str).unwrap_or("?");
+    match ty {
+        "text" => json!({ "type": "text", "size": p.get("text").and_then(Value::as_str).map(|s| s.chars().count()).unwrap_or(0) }),
+        "image_url" | "input_image" => {
+            let url = p.get("image_url").and_then(|u| u.get("url").or(Some(u))).and_then(Value::as_str).unwrap_or("");
+            json!({ "type": ty, "source": image_source(url), "bytes": url.len(), "detail": p.get("image_url").and_then(|u| u.get("detail")) })
+        }
+        other => json!({ "type": other, "keys": p.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()) }),
+    }
+}
+
+// ---------------------------------------------------------------------- сеть
+
+/// Интерфейсы и действующие маршруты (для полей `network.*` и проверки).
+pub fn network_view(app: &App) -> Value {
+    let s = app.settings();
+    let routing = app.routing();
+    let ups: Vec<Value> = routing.upstreams().map(|u| json!({ "id": u.id, "url": u.url, "route": crate::net::describe(&u.route) })).collect();
+    json!({
+        "interfaces": crate::net::interfaces(),
+        "routes": {
+            "upstream": crate::net::describe(&s.network.upstream),
+            "callback": crate::net::describe(&s.network.callback),
+            "telegram": crate::net::describe(&s.network.telegram),
+        },
+        "upstreams": ups,
+    })
+}
+
+/// Проверка всех маршрутов: бот (адрес колбэка), каждый апстрим, Telegram (если включён
+/// протокол 1). Запросы — `GET` без данных. `custom` — свой адрес и маршрут.
+pub async fn network_check(app: &Arc<App>, custom: Option<(String, crate::config::RouteCfg)>) -> Vec<Value> {
+    let timeout = std::time::Duration::from_secs(8);
+    let s = app.settings();
+    let mut targets: Vec<(String, String, crate::config::RouteCfg)> = Vec::new();
+    if let Some((url, route)) = custom {
+        targets.push(("custom".into(), url, route));
+    } else {
+        let mut cb = s.callback.url.clone();
+        if cb.trim().is_empty() {
+            let recent = app.store.list_jobs(&crate::store::JobFilter { limit: 50, ..Default::default() }).await.map(|r| r.0).unwrap_or_default();
+            cb = recent.iter().find_map(|j| j.callback_url.clone().filter(|u| !u.is_empty())).unwrap_or_default();
+        }
+        if !cb.is_empty() {
+            targets.push(("callback".into(), cb, s.network.callback.clone()));
+        }
+        for u in app.routing().upstreams() {
+            targets.push((format!("upstream {}", u.id), format!("{}/models", u.base_url()), u.route.clone()));
+        }
+        if s.protocol1.enabled {
+            targets.push(("telegram".into(), s.protocol1.telegram_api.clone(), s.network.telegram.clone()));
+        }
+    }
+    let probes = targets.into_iter().map(|(name, url, route)| async move {
+        let p = crate::netdiag::probe_route(&url, timeout, &route).await;
+        json!({ "name": name, "probe": p })
+    });
+    let out = futures::future::join_all(probes).await;
+    for v in &out {
+        tracing::info!(target_name = %v["name"].as_str().unwrap_or(""), verdict = %v["probe"]["verdict"].as_str().unwrap_or(""), "network check");
+    }
+    out
+}
+
+/// Сколько картинок в сообщениях (части `image_url` / `input_image`).
+pub fn image_count(messages: Option<&Value>) -> usize {
+    messages
+        .and_then(Value::as_array)
+        .map(|list| {
+            list.iter()
+                .filter_map(|m| m.get("content").and_then(Value::as_array))
+                .flatten()
+                .filter(|p| matches!(p.get("type").and_then(Value::as_str), Some("image_url" | "input_image")))
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+/// `data:image/jpeg;base64` → `data:image/jpeg`; ссылка → её хост; пусто — `none`.
+pub fn image_source(url: &str) -> String {
+    if let Some(rest) = url.strip_prefix("data:") {
+        return format!("data:{}", rest.split([';', ',']).next().unwrap_or(""));
+    }
+    match reqwest::Url::parse(url) {
+        Ok(u) => format!("{}://{}", u.scheme(), u.host_str().unwrap_or("")),
+        Err(_) if url.is_empty() => "none".into(),
+        Err(_) => "invalid".into(),
+    }
 }
 
 pub async fn redeliver(app: &App, job_id: &str) -> Result<bool> {
@@ -396,7 +510,10 @@ pub async fn test_model(app: &Arc<App>, model: &str, prompt: Option<&str>) -> Va
             "usage": b.get("usage"),
         }),
         Ok(Submitted::Queued { .. }) => json!({ "ok": false, "error": "unexpected queued answer" }),
-        Err(e) => json!({ "ok": false, "status": e.status, "error": e.message, "latency_ms": now_ms() - started }),
+        Err(e) => {
+            tracing::warn!(model, status = e.status, error = %e.message, "model test failed");
+            json!({ "ok": false, "status": e.status, "error": e.message, "latency_ms": now_ms() - started })
+        }
     }
 }
 

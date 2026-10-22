@@ -976,6 +976,41 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
         });
     });
     a.on_open_folder(|which| on_ui_now(|s, _| s.d.open_path(&which)));
+    a.on_netcheck(|| {
+        on_ui_now(|s, ui| {
+            let g = ui.global::<UiData>();
+            g.set_netcheck_running(true);
+            g.set_netcheck(t("Проверяю маршруты…").into());
+            let app = s.d.app.clone();
+            s.d.rt.spawn(async move {
+                let items = admin::network_check(&app, None).await;
+                let text = if items.is_empty() {
+                    t("Проверять нечего: нет ни адреса колбэка, ни апстримов.")
+                } else {
+                    items
+                        .iter()
+                        .map(|v| {
+                            let p = &v["probe"];
+                            let mark = if p["http_status"].is_null() { "✗" } else { "✓" };
+                            format!(
+                                "{mark} {} — {}\n    {} · {}",
+                                v["name"].as_str().unwrap_or(""),
+                                p["verdict"].as_str().unwrap_or(""),
+                                p["url"].as_str().unwrap_or(""),
+                                p["route"].as_str().unwrap_or("")
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                };
+                on_ui(move |_, ui| {
+                    let g = ui.global::<UiData>();
+                    g.set_netcheck(text.into());
+                    g.set_netcheck_running(false);
+                });
+            });
+        });
+    });
     a.on_check_updates(|| {
         on_ui_now(|s, ui| {
             ui.global::<UiData>().set_update_status(t("Проверяю…").into());

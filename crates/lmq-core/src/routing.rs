@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use tokio::sync::Semaphore;
 
-use crate::config::{BreakerCfg, EngineCfg, EngineKind, ModelCfg, Settings};
+use crate::config::{BreakerCfg, EngineCfg, EngineKind, ModelCfg, RouteCfg, Settings};
 use crate::util::now_ms;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -179,6 +179,12 @@ pub struct UpstreamRt {
     pub engine: Option<String>,
     pub sem: Arc<Semaphore>,
     pub health: Arc<Health>,
+    /// Маршрут: свой у апстрима, иначе `network.upstream`.
+    pub route: RouteCfg,
+    /// Параметры из настроек, которые не отправляются.
+    pub drop_params: Vec<String>,
+    /// Параметры, которые апстрим отклонил сам; переживают перезагрузку настроек.
+    pub learned_drops: Arc<parking_lot::Mutex<std::collections::BTreeSet<String>>>,
 }
 
 impl UpstreamRt {
@@ -255,6 +261,8 @@ impl Routing {
                     _ => Arc::new(Semaphore::new(slots as usize)),
                 };
                 let health = old.map(|o| o.health.clone()).unwrap_or_default();
+                let learned_drops = old.map(|o| o.learned_drops.clone()).unwrap_or_default();
+                let own = RouteCfg { interface: u.interface.clone(), proxy: u.proxy.clone() };
                 ups.push(Arc::new(UpstreamRt {
                     id,
                     model: name.clone(),
@@ -268,6 +276,9 @@ impl Routing {
                     engine: (!u.engine.is_empty()).then(|| u.engine.clone()),
                     sem,
                     health,
+                    route: own.inherit(&s.network.upstream),
+                    drop_params: u.drop_params.iter().map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect(),
+                    learned_drops,
                 }));
             }
             models.insert(name.clone(), Arc::new(ModelRt { name: name.clone(), cfg: m.clone(), upstreams: ups }));

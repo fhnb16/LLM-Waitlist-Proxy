@@ -168,12 +168,32 @@ async fn deliver(app: &Arc<App>, row: JobRow) {
         Some(t) => app.cipher.decrypt_str(t).unwrap_or_default(),
         None => String::new(),
     };
-    let mut req = app.cb_http.post(&url).timeout(Duration::from_secs(cfg.callback.timeout.max(1))).json(&body);
+    let route = crate::net::describe(&cfg.network.callback);
+    let http = match app.callback_client() {
+        Ok(c) => c,
+        Err(e) => {
+            schedule_retry(app, &row, &format!("route: {e}"), now).await;
+            return;
+        }
+    };
+    let mut req = http.post(&url).timeout(Duration::from_secs(cfg.callback.timeout.max(1))).json(&body);
     if !token.is_empty() {
         req = req.header("X-Callback-Token", token);
     }
     let attempt = row.delivery_attempts + 1;
-    match req.send().await {
+    let host = reqwest::Url::parse(&url).ok().and_then(|u| u.host_str().map(String::from)).unwrap_or_default();
+    if cfg.logging.requests {
+        let shown = if cfg.logging.content { body.to_string() } else { callback_shape(&body).to_string() };
+        tracing::info!(job_id = %row.job_id, url = %url, route = %route, attempt, body = %shown, "callback request");
+    }
+    let t = std::time::Instant::now();
+    let res = req.send().await;
+    if cfg.logging.requests
+        && let Ok(r) = &res
+    {
+        tracing::info!(job_id = %row.job_id, status = r.status().as_u16(), ms = t.elapsed().as_millis() as u64, "callback response");
+    }
+    match res {
         Ok(r) if r.status().is_success() => {
             if let Err(e) = app.store.mark_delivered(&row.job_id, now_ms()).await {
                 tracing::error!(job_id = %row.job_id, error = %e, "mark delivered failed");
@@ -201,9 +221,33 @@ async fn deliver(app: &Arc<App>, row: JobRow) {
                 error_code: Some("callback_forbidden".into()),
             });
         }
-        Ok(r) => schedule_retry(app, &row, &format!("HTTP {}", r.status().as_u16()), now).await,
-        Err(e) => schedule_retry(app, &row, &format!("network: {}", e.without_url()), now).await,
+        Ok(r) => {
+            let status = r.status().as_u16();
+            let text = r.text().await.unwrap_or_default();
+            let excerpt: String = text.trim().chars().take(300).collect();
+            let err = if excerpt.is_empty() { format!("HTTP {status}") } else { format!("HTTP {status}: {excerpt}") };
+            schedule_retry(app, &row, &err, now).await
+        }
+        Err(e) => {
+            // Полная цепочка причин и маршрут: «connect timed out … (интерфейс Ethernet)».
+            let chain = crate::netdiag::error_chain(&e.without_url());
+            schedule_retry(app, &row, &format!("network to {host}: {chain} ({route}, {} ms)", t.elapsed().as_millis()), now).await
+        }
     }
+}
+
+/// Тело колбэка без текста ответа — для подробного журнала при `LOG_CONTENT=false`.
+fn callback_shape(body: &Value) -> Value {
+    let mut b = body.clone();
+    if let Some(o) = b.as_object_mut() {
+        for k in ["text", "result"] {
+            if let Some(v) = o.get_mut(k) {
+                let n = v.as_str().map(|s| s.chars().count()).unwrap_or(0);
+                *v = json!(format!("<{n} chars>"));
+            }
+        }
+    }
+    b
 }
 
 async fn schedule_retry(app: &Arc<App>, row: &JobRow, err: &str, now: i64) {
@@ -234,8 +278,8 @@ async fn telegram_result(app: &Arc<App>, row: &JobRow) -> anyhow::Result<Value> 
         return Ok(serde_json::from_str(saved)?);
     }
     let cfg = app.settings();
-    let msg =
-        crate::telegram::send_message(&app.http, &cfg.protocol1, row.chat_id, row.result_text.as_deref().unwrap_or(""), row.reply_to, row.thread_id).await?;
+    let http = app.telegram_client().map_err(|e| anyhow::anyhow!("route: {e}"))?;
+    let msg = crate::telegram::send_message(&http, &cfg.protocol1, row.chat_id, row.result_text.as_deref().unwrap_or(""), row.reply_to, row.thread_id).await?;
     app.store.save_tg_result(&row.job_id, &msg.to_string()).await?;
     Ok(msg)
 }

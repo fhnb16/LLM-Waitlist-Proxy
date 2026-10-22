@@ -82,7 +82,7 @@ function addModel(ctx) {
           const file = clone(store.settings.file);
           if (file.models[n]) throw new Error(t('Модель {n} уже есть', { n }));
           file.models[n] = {
-            upstreams: [{ name: '', url: engine.value ? '' : url.value.trim(), model: '', api_key: '', slots: Number(slots.value) || 1, engine: engine.value, stream: false, timeout: 0 }],
+            upstreams: [{ name: '', url: engine.value ? '' : url.value.trim(), model: '', api_key: '', slots: Number(slots.value) || 1, engine: engine.value, stream: false, timeout: 0, interface: '', proxy: '', drop_params: [] }],
             defaults: {}, force: {}, fallback: [], max_queue: null, enabled: true, description: '',
           };
           await saveSettings(file);
@@ -167,13 +167,17 @@ async function renderModel(ctx, name) {
   const [defArea, defErr] = jsonArea(m.defaults, (v) => { if (v) { m.defaults = v; invalid.delete('d'); } else invalid.add('d'); touch(); });
   const [forceArea, forceErr] = jsonArea(m.force, (v) => { if (v) { m.force = v; invalid.delete('f'); } else invalid.add('f'); touch(); });
   const testOut = h('div');
+  const ifaceList = h('datalist', { id: 'lmq-ifaces' }, h('option', { value: 'system' }));
+  api('/admin/api/network').then((n) => ifaceList.append(...n.interfaces.map((i) => h('option', { value: i.name }, [...i.ipv4, ...i.ipv6].join(', '))))).catch(() => {});
 
   root.append(
+    ifaceList,
     hero(name, m.description || t('Модель')),
     runtime,
     group(t('Основное'), list(
       field(t('Описание'), desc),
       cellSwitch(t('Включена'), m.enabled, (v) => { m.enabled = v; touch(); }, { sub: t('Выключенная модель пропадает из /v1/models') }),
+      cellSwitch(t('Понимает картинки'), !!m.vision, (v) => { m.vision = v; touch(); }, { sub: t('В /v1/models появится признак vision — бот будет отправлять фото') }),
       field(t('Предел очереди'), maxQ, { hint: t('Сверх — резервная модель или 429') }),
       field(t('Алиасы'), aliasInput, { hint: t('Через запятую. Бот может указать любой из них') }),
     )),
@@ -188,6 +192,13 @@ async function renderModel(ctx, name) {
     charts,
     locked ? null : group(null, list(cell({ label: t('Удалить модель'), kind: 'danger', onClick: remove }))),
   );
+
+  /** Параметры, которые апстрим не принимает: через запятую. */
+  function dropField(u) {
+    const el = input((u.drop_params || []).join(', '), { placeholder: 'mirostat, chat_template_kwargs' });
+    el.addEventListener('input', () => { u.drop_params = el.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean); touch(); });
+    return field(t('Не отправлять параметры'), el, { hint: t('Через запятую. Отклонённые апстримом параметры LMQ убирает и сам') });
+  }
 
   function paintUpstreams() {
     clear(ups);
@@ -209,10 +220,13 @@ async function renderModel(ctx, name) {
         f(t('Слоты'), 'slots', { type: 'number', min: '1', max: '256' }, u.engine ? t('1 — взять --parallel из движка') : t('Одновременных запросов')),
         f(t('Таймаут, с'), 'timeout', { type: 'number', min: '0' }, t('0 — UPSTREAM_TIMEOUT')),
         cellSwitch(t('Стрим к апстриму'), u.stream, (v) => { u.stream = v; touch(); }, { sub: t('Ответ собирается внутри; боту всё равно уходит целиком') }),
+        f(t('Интерфейс'), 'interface', { placeholder: t('как в «Сеть и маршруты»'), list: 'lmq-ifaces' }, t('Ethernet, happ-tun, IP или system')),
+        f(t('Прокси'), 'proxy', { placeholder: t('как в «Сеть и маршруты»') }, t('socks5://127.0.0.1:10808, http://… или none')),
+        dropField(u),
         m.upstreams.length > 1 ? cell({ label: t('Удалить апстрим'), kind: 'danger', onClick: () => { m.upstreams.splice(i, 1); touch(); paintUpstreams(); } }) : null,
       )));
     });
-    ups.append(group(null, list(cell({ label: t('Добавить апстрим'), kind: 'tint', onClick: () => { m.upstreams.push({ name: '', url: '', model: '', api_key: '', slots: 1, engine: '', stream: false, timeout: 0 }); touch(); paintUpstreams(); } })),
+    ups.append(group(null, list(cell({ label: t('Добавить апстрим'), kind: 'tint', onClick: () => { m.upstreams.push({ name: '', url: '', model: '', api_key: '', slots: 1, engine: '', stream: false, timeout: 0, interface: '', proxy: '', drop_params: [] }); touch(); paintUpstreams(); } })),
       t('При ошибке соединения или 5xx задание переходит к следующему апстриму; 4xx — ошибка задания.')));
   }
 

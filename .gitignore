@@ -1,5 +1,6 @@
-# Сборка Rust
+# Сборка Rust и готовые релизы
 /target/
+/dist/
 **/*.rs.bk
 *.pdb
 

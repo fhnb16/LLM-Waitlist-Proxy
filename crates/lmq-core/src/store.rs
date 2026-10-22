@@ -154,6 +154,26 @@ pub struct QueuedLite {
     pub created_at: i64,
 }
 
+/// Завершённый синхронный запрос (см. [`Store::insert_sync_record`]).
+#[derive(Clone, Debug, Default)]
+pub struct SyncRecord<'a> {
+    pub job_id: &'a str,
+    pub client: &'a str,
+    pub model: &'a str,
+    pub model_used: &'a str,
+    /// `done` | `failed` | `cancelled`
+    pub state: &'a str,
+    pub error_code: Option<&'a str>,
+    pub error: Option<&'a str>,
+    pub upstream: Option<&'a str>,
+    pub usage: Option<&'a str>,
+    pub created_at: i64,
+    pub started_at: Option<i64>,
+    pub finished_at: i64,
+    pub queued_ms: Option<i64>,
+    pub latency_ms: Option<i64>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct JobFilter {
     pub state: Option<String>,
@@ -331,6 +351,33 @@ impl Store {
         Ok(r.rows_affected() == 1)
     }
 
+    /// Итог синхронного запроса (§2.3) для очереди и истории: без текстов и колбэка
+    /// (`delivery = 'none'`), удаляется по `RETENTION_HOURS`. Повтор того же `job_id` ничего не меняет.
+    pub async fn insert_sync_record(&self, r: &SyncRecord<'_>) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO jobs (job_id, client, model, model_used, chat_id, protocol, priority, state, delivery, \
+             created_at, started_at, finished_at, error, error_code, usage, upstream_used, queued_ms, latency_ms) \
+             VALUES (?, ?, ?, ?, 0, 2, 0, ?, 'none', ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(job_id) DO NOTHING",
+        )
+        .bind(r.job_id)
+        .bind(r.client)
+        .bind(r.model)
+        .bind(r.model_used)
+        .bind(r.state)
+        .bind(r.created_at)
+        .bind(r.started_at)
+        .bind(r.finished_at)
+        .bind(r.error)
+        .bind(r.error_code)
+        .bind(r.usage)
+        .bind(r.upstream)
+        .bind(r.queued_ms)
+        .bind(r.latency_ms)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     /// Возвращает задание в очередь (резервная модель).
     pub async fn requeue(&self, job_id: &str, model_used: &str, hops: i64) -> Result<()> {
         sqlx::query("UPDATE jobs SET state = 'queued', model_used = ?, hops = ?, started_at = NULL WHERE job_id = ?")
@@ -384,7 +431,9 @@ impl Store {
     }
 
     pub async fn mark_dead(&self, job_id: &str, attempts: i64, err: &str) -> Result<()> {
-        sqlx::query("UPDATE jobs SET delivery = 'dead', delivery_attempts = ?, delivery_error = ?, payload = NULL WHERE job_id = ?")
+        // payload остаётся до RETENTION_HOURS: по нему разбирают, что прислал бот (§7: удаляется
+        // после доставки или по сроку хранения).
+        sqlx::query("UPDATE jobs SET delivery = 'dead', delivery_attempts = ?, delivery_error = ? WHERE job_id = ?")
             .bind(attempts)
             .bind(err)
             .bind(job_id)

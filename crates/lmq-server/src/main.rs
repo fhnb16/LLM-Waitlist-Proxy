@@ -49,6 +49,24 @@ enum Cmd {
     AdminToken(AdminCmd),
     /// Сгенерировать значение для SECRET_KEY.
     GenKey,
+    /// Задания в базе: список и подробности (без текстов сообщений).
+    #[command(subcommand)]
+    Job(JobCmd),
+    /// Сетевые интерфейсы с адресами (для network.*.interface).
+    Interfaces,
+    /// Проверить путь до адреса: DNS, TCP, HTTP и внешний IP через выбранный маршрут.
+    CheckUrl {
+        url: String,
+        /// Маршрут из настроек: upstream, callback или telegram.
+        #[arg(long)]
+        route: Option<String>,
+        /// Интерфейс вместо маршрута из настроек (имя или IP).
+        #[arg(long)]
+        interface: Option<String>,
+        /// Прокси вместо маршрута из настроек (socks5://…, http://…, none).
+        #[arg(long)]
+        proxy: Option<String>,
+    },
     /// Служба Windows.
     #[command(subcommand)]
     Service(ServiceCmd),
@@ -83,6 +101,20 @@ enum ClientCmd {
     Remove { name: String },
     /// Выдать новый ключ.
     Rotate { name: String },
+}
+
+#[derive(Subcommand)]
+enum JobCmd {
+    /// Последние задания.
+    List {
+        /// Состояние: active, queued, running, done, failed, dead, expired, cancelled, superseded.
+        #[arg(long)]
+        state: Option<String>,
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+    },
+    /// Подробности задания: параметры и строение сообщений (части, картинки), без текстов.
+    Show { job_id: String },
 }
 
 #[derive(Subcommand)]
@@ -127,7 +159,85 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some(Cmd::Service(s)) => service::handle(s, &cli.paths),
+        Some(Cmd::Job(j)) => runtime()?.block_on(job_cmd(&cli.paths, j)),
+        Some(Cmd::Interfaces) => {
+            for i in lmq_core::net::interfaces() {
+                let ips: Vec<String> = i.ipv4.iter().chain(i.ipv6.iter()).map(|a| a.to_string()).collect();
+                println!("{:<32} {}", i.name, ips.join(", "));
+            }
+            Ok(())
+        }
+        Some(Cmd::CheckUrl { url, route, interface, proxy }) => runtime()?.block_on(check_url(&cli.paths, &url, route, interface, proxy)),
     }
+}
+
+/// Только чтение базы: сервер для этого не запускается (может работать параллельно).
+async fn job_cmd(p: &PathArgs, cmd: JobCmd) -> Result<()> {
+    let o = offline(p)?;
+    let eff = config::build_effective(&o.paths, &o.profile, &o.cipher, &CliOverrides::default(), &config::system_env)?;
+    let db = if eff.settings.storage.db_path.trim().is_empty() { o.paths.default_db() } else { PathBuf::from(&eff.settings.storage.db_path) };
+    let store = lmq_core::store::Store::open(&db).await?;
+    match cmd {
+        JobCmd::List { state, limit } => {
+            let f = lmq_core::store::JobFilter { state, limit, ..Default::default() };
+            let (rows, total) = store.list_jobs(&f).await?;
+            for j in &rows {
+                let t = chrono::DateTime::from_timestamp_millis(j.created_at)
+                    .map(|d| d.with_timezone(&chrono::Local).format("%d.%m %H:%M:%S").to_string())
+                    .unwrap_or_default();
+                println!(
+                    "{t}  {:<28} {:<10} {:<9} chat {:<14} {} {}",
+                    j.job_id,
+                    j.public_state(),
+                    j.delivery,
+                    j.chat_id,
+                    j.model_used,
+                    j.error_code.as_deref().or(j.delivery_error.as_deref()).unwrap_or("")
+                );
+            }
+            println!("показано {} из {total}", rows.len());
+        }
+        JobCmd::Show { job_id } => {
+            let j = store.get_job(&job_id).await?.with_context(|| format!("задания '{job_id}' нет"))?;
+            let payload: Option<serde_json::Map<String, serde_json::Value>> = j.payload.as_deref().and_then(|s| serde_json::from_str(s).ok());
+            let mut v = serde_json::to_value(&j)?;
+            v["public_state"] = serde_json::json!(j.public_state());
+            v["has_result"] = serde_json::json!(j.result_text.is_some());
+            match &payload {
+                Some(p) => {
+                    v["params"] = serde_json::Value::Object(p.iter().filter(|(k, _)| *k != "messages").map(|(k, v)| (k.clone(), v.clone())).collect());
+                    v["messages"] = p.get("messages").map(lmq_core::admin::messages_summary).unwrap_or_default();
+                }
+                None => v["payload"] = serde_json::json!("стёрт после доставки или задание синхронное"),
+            }
+            println!("{}", serde_json::to_string_pretty(&v)?);
+        }
+    }
+    Ok(())
+}
+
+async fn check_url(p: &PathArgs, url: &str, route: Option<String>, interface: Option<String>, proxy: Option<String>) -> Result<()> {
+    let mut r = lmq_core::config::RouteCfg::default();
+    if let Some(name) = route {
+        let o = offline(p)?;
+        let eff = config::build_effective(&o.paths, &o.profile, &o.cipher, &CliOverrides::default(), &config::system_env)?;
+        r = match name.as_str() {
+            "upstream" => eff.settings.network.upstream.clone(),
+            "callback" => eff.settings.network.callback.clone(),
+            "telegram" => eff.settings.network.telegram.clone(),
+            other => bail!("маршрут '{other}': upstream, callback или telegram"),
+        };
+    }
+    if let Some(i) = interface {
+        r.interface = i;
+    }
+    if let Some(x) = proxy {
+        r.proxy = x;
+    }
+    println!("маршрут: {}", lmq_core::net::describe(&r));
+    let res = lmq_core::netdiag::probe_route(url, std::time::Duration::from_secs(10), &r).await;
+    println!("{}", serde_json::to_string_pretty(&res)?);
+    Ok(())
 }
 
 fn runtime() -> Result<tokio::runtime::Runtime> {

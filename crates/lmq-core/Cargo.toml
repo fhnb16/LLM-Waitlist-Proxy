@@ -25,12 +25,13 @@ directories = "6"
 futures = "0.3"
 hex = "0.4"
 http = "1"
+if-addrs = "0.15.0"
 mime_guess = "2"
 minisign-verify = "0.2"
 nvml-wrapper = { version = "0.11", optional = true }
 parking_lot = "0.12"
 rand = "0.8"
-reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "http2", "rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "http2", "rustls", "socks"] }
 rust-embed = { version = "8", features = ["include-exclude", "mime-guess", "interpolate-folder-path"] }
 semver = "1"
 serde = { version = "1", features = ["derive"] }
@@ -43,7 +44,7 @@ thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
-tower = "0.5"
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["limit", "timeout", "trace", "cors"] }
 tracing = "0.1"
 tracing-appender = "0.2"

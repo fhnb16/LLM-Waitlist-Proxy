@@ -7,12 +7,13 @@ use std::time::Duration;
 
 use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
-use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Request, State};
+use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
 use serde_json::{Map, Value, json};
+use tower::ServiceExt;
 use tower_http::timeout::RequestBodyTimeoutLayer;
 
 use super::{bearer, client_auth};
@@ -23,18 +24,96 @@ use crate::util::ct_eq;
 pub fn router(app: Arc<App>) -> Router {
     let cfg = app.settings();
     let limit = (cfg.server.max_body_mb.max(1) as usize) * 1024 * 1024;
-    Router::new()
+    let inner = Router::new()
+        .route("/", get(index))
         .route("/v1/chat/completions", post(chat))
-        .route("/chat/completions", post(chat))
         .route("/v1/models", get(models))
-        .route("/models", get(models))
         .route("/v1/jobs/{job_id}", get(job_get).delete(job_delete))
         .route("/v1/queue", get(queue_summary))
         .route("/healthz", get(healthz))
         .route("/metrics", get(metrics))
+        .fallback(not_found)
+        .method_not_allowed_fallback(wrong_method)
         .layer(DefaultBodyLimit::max(limit))
         .layer(RequestBodyTimeoutLayer::new(Duration::from_secs(cfg.server.body_read_timeout.max(1))))
-        .with_state(app)
+        .with_state(app);
+    // Путь приводится к каноническому до маршрутизации: клиенты и прокси присылают
+    // `/chat/completions/`, `/v1/chat/completions` с префиксом прокси и т. п.
+    Router::new().fallback(move |mut req: Request| {
+        let inner = inner.clone();
+        async move {
+            if let Some(uri) = canonical_uri(req.uri()) {
+                tracing::debug!(from = %req.uri().path(), to = %uri.path(), "api path normalized");
+                *req.uri_mut() = uri;
+            }
+            inner.oneshot(req).await.unwrap_or_else(|e| match e {})
+        }
+    })
+}
+
+/// Канонический путь клиентского API: без завершающего `/`, без префикса прокси, с `/v1`.
+/// `None` — путь уже канонический или не относится к API.
+pub fn canonical_path(path: &str) -> Option<&'static str> {
+    let p = path.trim_end_matches('/');
+    const SUFFIXES: [(&str, &str); 5] =
+        [("/chat/completions", "/v1/chat/completions"), ("/models", "/v1/models"), ("/queue", "/v1/queue"), ("/healthz", "/healthz"), ("/metrics", "/metrics")];
+    SUFFIXES.iter().find(|(s, _)| p.ends_with(s)).map(|(_, t)| *t).filter(|t| *t != path)
+}
+
+fn canonical_uri(uri: &Uri) -> Option<Uri> {
+    let path = uri.path();
+    let target = match canonical_path(path) {
+        Some(t) => t.to_string(),
+        // `/jobs/{id}` с любым префиксом или завершающим `/`.
+        None => {
+            let p = path.trim_end_matches('/');
+            let i = p.rfind("/jobs/")?;
+            let id = &p[i + "/jobs/".len()..];
+            if id.is_empty() || id.contains('/') {
+                return None;
+            }
+            let t = format!("/v1/jobs/{id}");
+            if t == path {
+                return None;
+            }
+            t
+        }
+    };
+    let pq = match uri.query() {
+        Some(q) => format!("{target}?{q}"),
+        None => target,
+    };
+    let mut parts = uri.clone().into_parts();
+    parts.path_and_query = Some(pq.parse().ok()?);
+    Uri::from_parts(parts).ok()
+}
+
+/// `GET /` — подсказка вместо пустого 404, если адрес открыли в браузере.
+async fn index() -> Json<Value> {
+    Json(json!({
+        "service": "LMQ queue server",
+        "version": crate::app::VERSION,
+        "endpoints": {
+            "chat": "POST /v1/chat/completions",
+            "models": "GET /v1/models",
+            "job": "GET|DELETE /v1/jobs/{job_id}",
+            "queue": "GET /v1/queue",
+            "health": "GET /healthz",
+        },
+        "auth": "Authorization: Bearer <client key>",
+    }))
+}
+
+async fn not_found(method: Method, uri: Uri, peer: Option<Extension<ConnectInfo<SocketAddr>>>) -> ApiError {
+    let ip = peer.map(|Extension(ConnectInfo(a))| a.ip().to_string()).unwrap_or_default();
+    tracing::info!(method = %method, path = %uri.path(), peer = %ip, "unknown API path");
+    ApiError::new(404, format!("unknown path {} {}: the bot API is POST /v1/chat/completions and GET /v1/models", method, uri.path()))
+}
+
+async fn wrong_method(method: Method, uri: Uri) -> ApiError {
+    tracing::info!(method = %method, path = %uri.path(), "wrong method for API path");
+    let hint = if uri.path() == "/v1/chat/completions" { "use POST with a JSON body" } else { "use GET" };
+    ApiError::new(405, format!("method {} is not allowed for {}: {hint}", method, uri.path()))
 }
 
 /// Тело запроса как JSON-объект; превышение лимита — 413 в форме ошибки OpenAI.
@@ -60,7 +139,12 @@ async fn chat(State(app): State<Arc<App>>, headers: HeaderMap, body: Result<Byte
         // Синхронный стрим сервер не отдаёт: отвечаем обычным ответом.
         tracing::debug!(client = %client, "stream=true ignored in sync mode");
     }
-    match submit::submit(&app, &client, body, SubmitOpts::default()).await? {
+    let model = body.get("model").and_then(Value::as_str).unwrap_or("").to_string();
+    let res = submit::submit(&app, &client, body, SubmitOpts::default()).await.inspect_err(|e| {
+        // Отказ до постановки (400, 429, 503 …) — иначе в журнале его не видно.
+        tracing::info!(client = %client, model = %model, status = e.status, error = %e.message, "request rejected");
+    })?;
+    match res {
         Submitted::Queued { status, body } => Ok((StatusCode::from_u16(status).unwrap_or(StatusCode::ACCEPTED), Json(body)).into_response()),
         Submitted::Sync(body) => Ok(Json(body).into_response()),
     }
@@ -77,13 +161,27 @@ async fn models(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json<
             if !m.cfg.description.is_empty() {
                 v["description"] = json!(m.cfg.description);
             }
+            add_capabilities(&mut v, m.cfg.vision);
             v
         })
         .collect();
     for (alias, target) in &routing.aliases {
-        data.push(json!({ "id": alias, "object": "model", "owned_by": "local", "alias_of": target }));
+        let mut v = json!({ "id": alias, "object": "model", "owned_by": "local", "alias_of": target });
+        add_capabilities(&mut v, routing.models.get(target).is_some_and(|m| m.cfg.vision));
+        data.push(v);
     }
     Ok(Json(json!({ "object": "list", "data": data })))
+}
+
+/// Возможности модели в распространённых формах (OpenAI-совместимые серверы, OpenRouter).
+fn add_capabilities(v: &mut Value, vision: bool) {
+    let input: &[&str] = if vision { &["text", "image"] } else { &["text"] };
+    v["input_modalities"] = json!(input);
+    v["architecture"] = json!({ "input_modalities": input, "output_modalities": ["text"] });
+    if vision {
+        v["capabilities"] = json!(["chat", "vision"]);
+        v["vision"] = json!(true);
+    }
 }
 
 fn job_view(app: &App, j: &crate::store::JobRow) -> Value {

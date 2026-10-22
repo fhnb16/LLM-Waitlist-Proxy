@@ -60,6 +60,8 @@ export global UiData {
     in property <string> data-dir;
     in property <string> log-dir;
     in property <bool> mica-available;
+    in property <string> netcheck;
+    in property <bool> netcheck-running;
 
     // Модальные окна
     in property <string> confirm-title;
@@ -113,6 +115,7 @@ export global UiActions {
     callback set-app-flag(string, bool);
     callback open-folder(string);
     callback check-updates();
+    callback netcheck();
 
     callback confirm-accept();
     callback confirm-dismiss();
