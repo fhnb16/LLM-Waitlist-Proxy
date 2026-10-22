@@ -88,6 +88,10 @@ fn webview2_available() -> bool {
 fn main() {
     let args = parse_args();
     let wait = if args.after { Duration::from_secs(20) } else { Duration::ZERO };
+    // Один экземпляр на папку настроек (см. single.rs).
+    if let Ok(paths) = lmq_core::config::AppPaths::resolve(&PathOverrides { home: args.home.clone(), ..Default::default() }) {
+        single::init(&paths.config_dir);
+    }
     if !single::acquire(wait) {
         single::signal_show();
         return;

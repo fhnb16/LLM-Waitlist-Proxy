@@ -1,8 +1,21 @@
 import { api } from '../api.js';
 import { t } from '../i18n.js';
 import { lineChart, barChart, sparkline } from '../charts.js';
-import { h, clear, hero, group, list, cell, field, input, select, textarea, cellSwitch, pick, btn, cstate, fmt, modal, toast, errorToast, confirmDialog, state, callout, clone, navBtn } from '../ui.js';
+import { h, clear, hero, group, list, cell, field, input, combo, numberInput, select, textarea, cellSwitch, pick, btn, cstate, fmt, modal, toast, errorToast, confirmDialog, state, callout, clone, navBtn } from '../ui.js';
 import { store, on, saveSettings, isLocked } from '../store.js';
+import { netOptions, ifaceOptions, proxyOptions } from './settings.js';
+
+/** Адреса популярных OpenAI-совместимых серверов для списка «Адрес». */
+const ENDPOINTS = [
+  { value: 'http://127.0.0.1:8080/v1/chat/completions', hint: 'llama.cpp' },
+  { value: 'http://127.0.0.1:11434/v1/chat/completions', hint: 'Ollama' },
+  { value: 'http://127.0.0.1:8000/v1/chat/completions', hint: 'vLLM' },
+  { value: 'http://127.0.0.1:1234/v1/chat/completions', hint: 'LM Studio' },
+  { value: 'http://127.0.0.1:5001/v1/chat/completions', hint: 'KoboldCpp' },
+  { value: 'https://api.groq.com/openai/v1/chat/completions', hint: 'Groq' },
+  { value: 'https://api.openai.com/v1/chat/completions', hint: 'OpenAI' },
+  { value: 'https://openrouter.ai/api/v1/chat/completions', hint: 'OpenRouter' },
+];
 
 const BREAKER = { closed: ['в работе', 'run'], open: ['исключён', 'bad'], half_open: ['проверка', 'busy'] };
 
@@ -59,8 +72,9 @@ export async function render(ctx) {
 
 function addModel(ctx) {
   const name = input('', { placeholder: 'qwen3-27b' });
-  const url = input('http://127.0.0.1:8080/v1/chat/completions', { placeholder: 'http://127.0.0.1:8080/v1/chat/completions', inputmode: 'url' });
-  const slots = input('1', { type: 'number', min: '1', max: '64' });
+  const url = combo('http://127.0.0.1:8080/v1/chat/completions', ENDPOINTS, { placeholder: 'http://127.0.0.1:8080/v1/chat/completions', inputmode: 'url', label: t('Адрес') });
+  let slotsValue = 1;
+  const slots = numberInput(1, { min: 1, max: 256, presets: [1, 2, 4, 8, 16], label: t('Слоты'), onChange: (v) => { slotsValue = v; } });
   const engineOpts = [{ value: '', label: t('нет — адрес вручную') }, ...(store.settings.file.engines || []).map((e) => ({ value: e.id, label: e.name || e.id }))];
   const engine = select(engineOpts, '');
   modal({
@@ -82,7 +96,7 @@ function addModel(ctx) {
           const file = clone(store.settings.file);
           if (file.models[n]) throw new Error(t('Модель {n} уже есть', { n }));
           file.models[n] = {
-            upstreams: [{ name: '', url: engine.value ? '' : url.value.trim(), model: '', api_key: '', slots: Number(slots.value) || 1, engine: engine.value, stream: false, timeout: 0, interface: '', proxy: '', drop_params: [] }],
+            upstreams: [{ name: '', url: engine.value ? '' : url.input.value.trim(), model: '', api_key: '', slots: slotsValue || 1, engine: engine.value, stream: false, timeout: 0, interface: '', proxy: '', drop_params: [] }],
             defaults: {}, force: {}, fallback: [], max_queue: null, enabled: true, description: '',
           };
           await saveSettings(file);
@@ -158,8 +172,7 @@ async function renderModel(ctx, name) {
   });
   const desc = input(m.description, { placeholder: t('например: основная, 27B Q4') });
   desc.addEventListener('input', () => { m.description = desc.value; touch(); });
-  const maxQ = input(m.max_queue ?? '', { type: 'number', min: '1', placeholder: t('без предела') });
-  maxQ.addEventListener('input', () => { m.max_queue = maxQ.value === '' ? null : Number(maxQ.value); touch(); });
+  const maxQ = numberInput(m.max_queue, { min: 1, nullable: true, placeholder: t('без предела'), presets: [10, 20, 50, 100, 200], label: t('Предел очереди'), onChange: (v) => { m.max_queue = v; touch(); } });
 
   const runtime = h('div');
   const charts = h('div.plots');
@@ -167,11 +180,8 @@ async function renderModel(ctx, name) {
   const [defArea, defErr] = jsonArea(m.defaults, (v) => { if (v) { m.defaults = v; invalid.delete('d'); } else invalid.add('d'); touch(); });
   const [forceArea, forceErr] = jsonArea(m.force, (v) => { if (v) { m.force = v; invalid.delete('f'); } else invalid.add('f'); touch(); });
   const testOut = h('div');
-  const ifaceList = h('datalist', { id: 'lmq-ifaces' }, h('option', { value: 'system' }));
-  api('/admin/api/network').then((n) => ifaceList.append(...n.interfaces.map((i) => h('option', { value: i.name }, [...i.ipv4, ...i.ipv6].join(', '))))).catch(() => {});
 
   root.append(
-    ifaceList,
     hero(name, m.description || t('Модель')),
     runtime,
     group(t('Основное'), list(
@@ -200,6 +210,15 @@ async function renderModel(ctx, name) {
     return field(t('Не отправлять параметры'), el, { hint: t('Через запятую. Отклонённые апстримом параметры LMQ убирает и сам') });
   }
 
+  /** «Имя у апстрима»: список моделей самого апстрима (по сохранённым адресу и ключу). */
+  function upstreamModelField(u, i) {
+    const el = combo(u.model, [], { placeholder: name, label: t('Имя у апстрима'), onChange: (v) => { u.model = v.trim(); touch(); } });
+    api(`/admin/api/models/${encodeURIComponent(name)}/upstreams/${i}/models`)
+      .then((r) => el.setOptions([{ value: '', label: t('как имя модели'), hint: name }, ...r.items.map((id) => ({ value: id }))]))
+      .catch((e) => el.setOptions([{ value: '', label: t('как имя модели'), hint: name }, { value: u.model || '', label: t('Список недоступен'), hint: e.message }]));
+    return field(t('Имя у апстрима'), el, { hint: t('Что ждёт сервер модели. Пусто — имя модели') });
+  }
+
   function paintUpstreams() {
     clear(ups);
     const engines = [{ value: '', label: t('нет') }, ...(draft.engines || []).map((e) => ({ value: e.id, label: e.name || e.id }))];
@@ -209,19 +228,26 @@ async function renderModel(ctx, name) {
         el.addEventListener('input', () => { u[key] = attrs.type === 'number' ? Number(el.value) || 0 : el.value; touch(); });
         return field(label, el, { hint });
       };
+      /** Поле со списком вариантов; later(n) — варианты из /admin/api/network. */
+      const cf = (label, key, options, attrs = {}, hint, later) => {
+        const el = combo(u[key], options, { ...attrs, label, onChange: (v) => { u[key] = v.trim(); touch(); } });
+        if (later) netOptions().then((n) => el.setOptions(later(n)));
+        return field(label, el, { hint });
+      };
+      const nf = (label, key, opts, hint) => field(label, numberInput(u[key], { ...opts, label, zero: opts.zero, onChange: (v) => { u[key] = v ?? 0; touch(); } }), { hint });
       const eng = select(engines, u.engine);
       eng.addEventListener('change', () => { u.engine = eng.value; touch(); paintUpstreams(); });
       ups.append(group(t('Апстрим {n}', { n: i + 1 }) + (u.name ? ' · ' + u.name : ''), list(
         f(t('Подпись'), 'name', { placeholder: `${name}#${i}` }),
         field(t('Движок'), eng, { hint: u.engine ? t('Адрес и слоты берутся из движка, поля ниже можно оставить пустыми') : null }),
-        f(t('Адрес'), 'url', { placeholder: u.engine ? t('из движка') : 'http://127.0.0.1:8080/v1/chat/completions', inputmode: 'url' }),
-        f(t('Имя у апстрима'), 'model', { placeholder: name }, t('Что ждёт сервер модели. Пусто — имя модели')),
+        cf(t('Адрес'), 'url', ENDPOINTS, { placeholder: u.engine ? t('из движка') : 'http://127.0.0.1:8080/v1/chat/completions', inputmode: 'url' }),
+        upstreamModelField(u, i),
         f(t('Ключ'), 'api_key', { type: 'password', placeholder: t('не нужен'), autocomplete: 'new-password' }, u.api_key === mask ? t('Сохранён. Введите новый, чтобы заменить') : null),
-        f(t('Слоты'), 'slots', { type: 'number', min: '1', max: '256' }, u.engine ? t('1 — взять --parallel из движка') : t('Одновременных запросов')),
-        f(t('Таймаут, с'), 'timeout', { type: 'number', min: '0' }, t('0 — UPSTREAM_TIMEOUT')),
+        nf(t('Слоты'), 'slots', { min: 1, max: 256, presets: [1, 2, 4, 8, 16] }, u.engine ? t('1 — взять --parallel из движка') : t('Одновременных запросов')),
+        nf(t('Таймаут, с'), 'timeout', { min: 0, presets: [0, 30, 60, 120, 300, 600], unit: 's', zero: 'UPSTREAM_TIMEOUT' }, null),
         cellSwitch(t('Стрим к апстриму'), u.stream, (v) => { u.stream = v; touch(); }, { sub: t('Ответ собирается внутри; боту всё равно уходит целиком') }),
-        f(t('Интерфейс'), 'interface', { placeholder: t('как в «Сеть и маршруты»'), list: 'lmq-ifaces' }, t('Ethernet, happ-tun, IP или system')),
-        f(t('Прокси'), 'proxy', { placeholder: t('как в «Сеть и маршруты»') }, t('socks5://127.0.0.1:10808, http://… или none')),
+        cf(t('Интерфейс'), 'interface', [], { placeholder: t('как в «Сеть и маршруты»') }, t('Ethernet, happ-tun, IP или system'), (n) => ifaceOptions(n, true)),
+        cf(t('Прокси'), 'proxy', [], { placeholder: t('как в «Сеть и маршруты»') }, t('socks5://127.0.0.1:10808, http://… или none'), (n) => proxyOptions(n, true)),
         dropField(u),
         m.upstreams.length > 1 ? cell({ label: t('Удалить апстрим'), kind: 'danger', onClick: () => { m.upstreams.splice(i, 1); touch(); paintUpstreams(); } }) : null,
       )));

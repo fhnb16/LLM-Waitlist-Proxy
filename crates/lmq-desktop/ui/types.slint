@@ -113,7 +113,8 @@ export struct GpuRow {
     hot: bool,
 }
 
-/// Поле настроек. `kind`: header | text | number | bool | select | secret.
+/// Поле настроек. `kind`: header | note | text | number | combo | bool | select | secret.
+/// У `number` и `combo` — варианты `options` (значения), `labels` (подписи), `hints`.
 export struct FieldRow {
     kind: string,
     path: string,
@@ -123,7 +124,12 @@ export struct FieldRow {
     checked: bool,
     locked: bool,
     options: [string],
+    labels: [string],
+    hints: [string],
     index: int,
+    minimum: float,
+    maximum: float,
+    placeholder: string,
 }
 
 export struct BannerRow {

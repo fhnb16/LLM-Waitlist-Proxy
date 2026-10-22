@@ -71,6 +71,7 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/api/clients/{name}/rotate", post(client_rotate))
         .route("/admin/api/models/{name}/test", post(model_test))
         .route("/admin/api/upstreams/{id}/reset", post(upstream_reset))
+        .route("/admin/api/models/{name}/upstreams/{index}/models", get(upstream_models))
         .route("/admin/api/network", get(network_get))
         .route("/admin/api/network/check", post(network_check))
         .route("/admin/api/engines", get(engines))
@@ -441,10 +442,15 @@ async fn upstream_reset(State(app): State<AppState>, Path(id): Path<String>) -> 
     Ok(Json(json!({ "ok": true })))
 }
 
+async fn upstream_models(State(app): State<AppState>, Path((name, index)): Path<(String, usize)>) -> R<Json<Value>> {
+    let ids = svc::upstream_models(&app, &name, index).await.map_err(|e| ApiError::new(502, e.to_string()))?;
+    Ok(Json(json!({ "items": ids })))
+}
+
 // ---------------------------------------------------------------- сеть
 
 async fn network_get(State(app): State<AppState>) -> Json<Value> {
-    Json(svc::network_view(&app))
+    Json(svc::network_view(&app).await)
 }
 
 #[derive(Deserialize, Default)]

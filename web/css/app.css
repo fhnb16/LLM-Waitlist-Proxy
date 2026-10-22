@@ -228,6 +228,106 @@ html.vibrancy body::before { opacity: var(--backdrop-opacity, 0.55); }
 .field__row { display: flex; gap: 6px; align-items: center; min-width: 0; }
 .field__row > .field__input { flex: 1 1 auto; }
 .field__btn { flex: none; margin: var(--field-inset) 0; }
+
+/* ---------------------------------------------------- combo: ввод + список -- */
+.combo {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: var(--field-h);
+  margin: var(--field-inset) 0;
+  border: 1px solid var(--field-line);
+  border-radius: max(2px, calc(var(--group-r) - var(--field-inset)));
+  background: var(--field-bg);
+  box-shadow: var(--field-shadow);
+}
+.combo__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 var(--field-pad);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+  caret-color: var(--tint);
+}
+.combo__input::placeholder { color: var(--text-3); }
+.combo__input:focus { outline: none; }
+.combo__toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--field-line);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.combo__toggle:hover { color: var(--tint); }
+.combo__icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.15s; }
+.combo--open .combo__icon { transform: rotate(180deg); }
+.combo--open,
+.combo:focus-within { border-color: var(--tint); }
+.combo--invalid,
+.stepper--invalid .combo { border-color: var(--danger); }
+.combo:has(.combo__input[disabled]) { opacity: 0.6; }
+.field:has(> .combo:focus-within, > .stepper:focus-within) { background: var(--focus-bg); box-shadow: inset 3px 0 0 var(--tint); }
+
+.combo__list {
+  position: fixed;
+  z-index: 1000;
+  max-height: min(320px, 50vh);
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  box-sizing: border-box;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-lg, 8px);
+  background: var(--surface);
+  box-shadow: 0 8px 24px var(--shadow-soft);
+}
+.combo__option {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius, 4px);
+  color: var(--text);
+  cursor: pointer;
+}
+.combo__option:hover,
+.combo__option--active { background: var(--tint-soft); }
+.combo__option[aria-selected="true"] .combo__value { color: var(--tint); font-weight: 600; }
+.combo__value { flex: none; font-size: 15px; }
+.combo__hint { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--text-3); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo__empty { padding: 8px 10px; font-size: 13px; color: var(--text-3); }
+
+/* ------------------------------------------------ stepper: число −/+ ----- */
+.stepper { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.stepper > .combo { flex: 1 1 auto; max-width: 260px; }
+.stepper__btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--field-h);
+  height: var(--field-h);
+  margin: var(--field-inset) 0;
+  padding: 0;
+  border: 1px solid var(--field-line);
+  border-radius: max(2px, calc(var(--group-r) - var(--field-inset)));
+  background: var(--field-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.stepper__btn:hover:not([disabled]) { color: var(--tint); border-color: var(--tint); }
+.stepper__btn:active:not([disabled]) { background: var(--tint-soft); }
+.stepper__btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.stepper__icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .field__range { width: 100%; margin: calc(var(--field-inset) + 10px) 0; accent-color: var(--tint); }
 
 /* ------------------------------------------------------------- состояние -- */

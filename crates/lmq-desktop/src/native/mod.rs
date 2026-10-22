@@ -62,6 +62,8 @@ struct State {
     dark: bool,
     tray: Option<Tray>,
     ticks: u64,
+    /// Локальные прокси VPN-клиентов, найденные на этой машине (варианты полей «прокси»).
+    proxies: Vec<lmq_core::net::ProxyHint>,
 }
 
 thread_local! {
@@ -355,7 +357,7 @@ fn load_settings(s: &mut State, ui: &AppWindow) {
     s.draft = v["file"].clone();
     s.locked = v["locked"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()).unwrap_or_default();
     let g = ui.global::<UiData>();
-    g.set_fields(model(fields::rows(&s.draft, &s.locked)));
+    g.set_fields(model(fields::rows(&s.draft, &s.locked, &s.proxies)));
     g.set_settings_dirty(false);
     g.set_settings_error("".into());
     g.set_settings_file(v["paths"]["settings_file"].as_str().unwrap_or("").into());
@@ -369,6 +371,28 @@ fn load_settings(s: &mut State, ui: &AppWindow) {
     g.set_notifications(st.app.notifications);
     g.set_server_autostart(st.app.server_autostart);
     g.set_update_auto(st.updates.auto_check);
+}
+
+/// Ищет локальные прокси и подставляет их в варианты полей «прокси», не трогая введённое.
+fn detect_proxies(d: &Arc<Desktop>) {
+    d.rt.spawn(async move {
+        let found = lmq_core::net::detect_local_proxies().await;
+        on_ui(move |s, ui| {
+            s.proxies = found;
+            let fresh = fields::rows(&s.draft, &s.locked, &s.proxies);
+            let rows = ui.global::<UiData>().get_fields();
+            for (i, f) in fresh.into_iter().enumerate() {
+                if f.path.ends_with(".proxy")
+                    && let Some(mut cur) = rows.row_data(i)
+                {
+                    cur.options = f.options;
+                    cur.labels = f.labels;
+                    cur.hints = f.hints;
+                    rows.set_row_data(i, cur);
+                }
+            }
+        });
+    });
 }
 
 fn patch(d: &Desktop, p: Value) -> anyhow::Result<()> {
@@ -472,6 +496,7 @@ pub fn run(d: Arc<Desktop>) -> anyhow::Result<()> {
             dark: false,
             tray: None,
             ticks: 0,
+            proxies: Vec::new(),
         })
     });
     with(|s| {
@@ -628,7 +653,10 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
                 PAGE_ENGINES => reload_engine_log(s, ui),
                 PAGE_CLIENTS => ui.global::<UiData>().set_clients(model(view::clients(&admin::clients(&s.d.app)))),
                 PAGE_LOGS => reload_logs(s, ui),
-                PAGE_SETTINGS => load_settings(s, ui),
+                PAGE_SETTINGS => {
+                    load_settings(s, ui);
+                    detect_proxies(&s.d);
+                }
                 _ => {}
             }
         });

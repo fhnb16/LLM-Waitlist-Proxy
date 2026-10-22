@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, field, input, select, textarea, cellSwitch, btn, cstate, fmt, modal, toast, errorToast, confirmDialog, state, callout, clone, navBtn, meter } from '../ui.js';
+import { h, clear, hero, group, list, cell, field, input, combo, numberInput, select, textarea, cellSwitch, btn, cstate, fmt, modal, toast, errorToast, confirmDialog, state, callout, clone, navBtn, meter } from '../ui.js';
 import { store, on, saveSettings } from '../store.js';
 import { logView } from './logview.js';
 
@@ -160,6 +160,11 @@ async function renderEngine(ctx, id) {
     return el;
   };
 
+  /** Число с кнопками и готовыми значениями вместо input type=number. */
+  const nm = (obj, key, opts) => numberInput(obj[key], { ...opts, onChange: (v) => { obj[key] = v ?? 0; touch(); } });
+  /** Строка со списком вариантов. */
+  const cb = (obj, key, options, opts = {}) => combo(obj[key], options, { ...opts, onChange: (v) => { obj[key] = v.trim(); touch(); } });
+
   function paintForm() {
     clear(form);
     const kindSel = select(KINDS, e.kind);
@@ -185,14 +190,14 @@ async function renderEngine(ctx, id) {
     const llamaRows = [];
     const k = e.kind;
     if (k !== 'custom' && k !== 'ollama') llamaRows.push(field(t('Модель'), txt(l, 'model', { placeholder: k === 'vllm' ? 'Qwen/Qwen3-8B' : 'C:\\models\\qwen3-27b-q4_k_m.gguf' }), { hint: k === 'llama_cpp' ? '-m' : k === 'vllm' ? 'vllm serve <model>' : '--model' }));
-    llamaRows.push(field(t('Адрес'), txt(l, 'host', { placeholder: '127.0.0.1' }), { hint: '--host' }));
-    llamaRows.push(field(t('Порт'), txt(l, 'port', { type: 'number', min: '1', max: '65535' }), { hint: '--port' }));
-    if (k === 'llama_cpp' || k === 'vllm' || k === 'koboldcpp') llamaRows.push(field(t('Контекст'), txt(l, 'ctx_size', { type: 'number', min: '0' }), { hint: k === 'vllm' ? '--max-model-len' : k === 'koboldcpp' ? '--contextsize' : '--ctx-size' }));
-    if (k === 'llama_cpp' || k === 'ollama') llamaRows.push(field(t('Параллельно'), txt(l, 'parallel', { type: 'number', min: '1', max: '64' }), { hint: k === 'ollama' ? 'OLLAMA_NUM_PARALLEL' : t('--parallel, оно же число слотов апстрима') }));
-    if (k === 'llama_cpp' || k === 'koboldcpp') llamaRows.push(field(t('Слоёв на GPU'), txt(l, 'n_gpu_layers', { type: 'number', min: '-1' }), { hint: t('-ngl; -1 — не передавать') }));
+    llamaRows.push(field(t('Адрес'), cb(l, 'host', [{ value: '127.0.0.1', hint: t('только этот компьютер') }, { value: '0.0.0.0', hint: t('все интерфейсы') }, { value: 'localhost' }], { placeholder: '127.0.0.1', label: t('Адрес') }), { hint: '--host' }));
+    llamaRows.push(field(t('Порт'), nm(l, 'port', { min: 1, max: 65535, presets: [8080, 8081, 8082, 11434, 8000, 5001], label: t('Порт') }), { hint: '--port' }));
+    if (k === 'llama_cpp' || k === 'vllm' || k === 'koboldcpp') llamaRows.push(field(t('Контекст'), nm(l, 'ctx_size', { min: 0, step: 1024, presets: [0, 4096, 8192, 16384, 32768, 65536, 131072], zero: t('из модели'), label: t('Контекст') }), { hint: k === 'vllm' ? '--max-model-len' : k === 'koboldcpp' ? '--contextsize' : '--ctx-size' }));
+    if (k === 'llama_cpp' || k === 'ollama') llamaRows.push(field(t('Параллельно'), nm(l, 'parallel', { min: 1, max: 64, presets: [1, 2, 4, 8], label: t('Параллельно') }), { hint: k === 'ollama' ? 'OLLAMA_NUM_PARALLEL' : t('--parallel, оно же число слотов апстрима') }));
+    if (k === 'llama_cpp' || k === 'koboldcpp') llamaRows.push(field(t('Слоёв на GPU'), nm(l, 'n_gpu_layers', { min: -1, max: 999, presets: [-1, 0, 20, 40, 99, 999], label: t('Слоёв на GPU') }), { hint: t('-ngl; -1 — не передавать') }));
     if (k === 'llama_cpp') {
-      llamaRows.push(field(t('Потоков'), txt(l, 'threads', { type: 'number', min: '0' }), { hint: t('--threads; 0 — по умолчанию') }));
-      llamaRows.push(field(t('Шаблон чата'), txt(l, 'chat_template', { placeholder: 'chatml' }), { hint: '--chat-template' }));
+      llamaRows.push(field(t('Потоков'), nm(l, 'threads', { min: 0, max: 256, presets: [0, 4, 8, 12, 16], zero: t('по умолчанию'), label: t('Потоков') }), { hint: t('--threads; 0 — по умолчанию') }));
+      llamaRows.push(field(t('Шаблон чата'), cb(l, 'chat_template', [{ value: '', label: t('из модели') }, ...['chatml', 'llama3', 'llama2', 'mistral-v7', 'mistral-v3', 'gemma', 'phi4', 'phi3', 'deepseek3', 'deepseek2', 'command-r', 'granite', 'zephyr', 'vicuna'].map((v) => ({ value: v }))], { placeholder: t('из модели'), label: t('Шаблон чата') }), { hint: '--chat-template' }));
       llamaRows.push(cellSwitch('--jinja', l.jinja, (v) => { l.jinja = v; touch(); }));
       llamaRows.push(cellSwitch('--flash-attn on', l.flash_attn, (v) => { l.flash_attn = v; touch(); }));
     }
@@ -222,9 +227,9 @@ async function renderEngine(ctx, id) {
       group(t('Запуск и перезапуск'), list(
         cellSwitch(t('Запускать вместе с LMQ'), e.autostart, (v) => { e.autostart = v; touch(); }),
         cellSwitch(t('Перезапускать при падении'), e.restart_on_crash, (v) => { e.restart_on_crash = v; touch(); }),
-        field(t('Перезапусков в час'), txt(e, 'max_restarts_per_hour', { type: 'number', min: '0', max: '100' }), { hint: t('Больше — движок остаётся выключенным') }),
+        field(t('Перезапусков в час'), nm(e, 'max_restarts_per_hour', { min: 0, max: 100, presets: [0, 3, 5, 10, 20], label: t('Перезапусков в час') }), { hint: t('Больше — движок остаётся выключенным') }),
         field(t('Проверка готовности'), txt(e, 'health_url', { placeholder: t('по типу движка') }), { hint: t('Пока не ответит 200, задания ему не выдаются') }),
-        field(t('Ждать готовности, с'), txt(e, 'ready_timeout', { type: 'number', min: '5' })),
+        field(t('Ждать готовности, с'), nm(e, 'ready_timeout', { min: 5, presets: [60, 120, 300, 600, 1200], unit: 's', label: t('Ждать готовности, с') })),
       )),
       group(null, list(cell({ label: t('Удалить движок'), kind: 'danger', onClick: remove })), usedBy.length ? t('Используется моделями: {m}', { m: usedBy.join(', ') }) : null),
     );

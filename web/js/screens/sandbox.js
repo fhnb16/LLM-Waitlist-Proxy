@@ -1,6 +1,6 @@
 import { streamPost } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, field, input, textarea, pick, btn, fmt, toast, errorToast, state, callout } from '../ui.js';
+import { h, clear, hero, group, list, field, input, numberInput, textarea, pick, btn, fmt, toast, errorToast, state, callout } from '../ui.js';
 import { store } from '../store.js';
 
 export async function render(ctx) {
@@ -21,8 +21,8 @@ export async function render(ctx) {
   if (!chosen.length) chosen = [models[0]];
   const system = textarea(saved.system || '', { rows: 2, placeholder: t('Системный промпт (необязательно)') });
   const user = textarea(saved.user || t('Объясни в двух предложениях, что такое очередь заданий.'), { rows: 4 });
-  const temp = input(saved.temperature ?? '0.7', { type: 'number', step: '0.1', min: '0', max: '2' });
-  const maxTok = input(saved.max_tokens ?? '400', { type: 'number', min: '1', max: '32768' });
+  const temp = numberInput(saved.temperature ?? '0.7', { min: 0, max: 2, step: 0.1, decimals: 2, nullable: true, presets: [0, 0.2, 0.5, 0.7, 1, 1.2], placeholder: t('по умолчанию модели'), label: 'temperature' });
+  const maxTok = numberInput(saved.max_tokens ?? '400', { min: 1, max: 131072, step: 100, nullable: true, presets: [100, 200, 400, 800, 1600, 4096], placeholder: t('по умолчанию модели'), label: 'max_tokens' });
   const extra = textarea(saved.extra || '', { rows: 2, placeholder: '{"top_k": 20}' });
   const out = h('div');
   const picker = pick(models, chosen, (v) => {
@@ -59,13 +59,14 @@ export async function render(ctx) {
         return;
       }
     }
-    if (temp.value !== '') params.temperature = Number(temp.value);
-    if (maxTok.value !== '') params.max_tokens = Number(maxTok.value);
+    const num = (el) => el.input.value.trim().replace(',', '.');
+    if (num(temp) !== '') params.temperature = Number(num(temp));
+    if (num(maxTok) !== '') params.max_tokens = Number(num(maxTok));
     const messages = [];
     if (system.value.trim()) messages.push({ role: 'system', content: system.value });
     messages.push({ role: 'user', content: user.value });
     try {
-      localStorage.setItem('lmq.sandbox', JSON.stringify({ models: chosen, system: system.value, user: user.value, temperature: temp.value, max_tokens: maxTok.value, extra: extra.value }));
+      localStorage.setItem('lmq.sandbox', JSON.stringify({ models: chosen, system: system.value, user: user.value, temperature: temp.input.value, max_tokens: maxTok.input.value, extra: extra.value }));
     } catch (_) { /* без запоминания */ }
     const cols = {};
     clear(out);

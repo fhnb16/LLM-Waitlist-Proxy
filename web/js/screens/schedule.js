@@ -1,5 +1,5 @@
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, field, input, select, cellSwitch, pick, toast, errorToast, clone, navBtn, state, callout } from '../ui.js';
+import { h, clear, hero, group, list, cell, field, input, numberInput, timeInput, select, cellSwitch, pick, toast, errorToast, clone, navBtn, state, callout } from '../ui.js';
 import { store, saveSettings } from '../store.js';
 
 const DAYS = [
@@ -42,13 +42,10 @@ export async function render(ctx) {
     draft.schedule.forEach((r, i) => {
       const name = input(r.name, { placeholder: t('ночь') });
       name.addEventListener('input', () => { r.name = name.value; });
-      const from = input(r.from, { type: 'time' });
-      from.addEventListener('input', () => { r.from = from.value; });
-      const to = input(r.to, { type: 'time' });
-      to.addEventListener('input', () => { r.to = to.value; });
+      const from = timeInput(r.from, { label: t('С'), onChange: (v) => { r.from = v; } });
+      const to = timeInput(r.to, { label: t('До'), onChange: (v) => { r.to = v; } });
       const action = select(ACTIONS.map((a) => ({ value: a.value, label: t(a.label) })), r.action);
-      const slots = input(r.slots, { type: 'number', min: '1', max: '64' });
-      slots.addEventListener('input', () => { r.slots = Number(slots.value) || 1; });
+      const slots = numberInput(r.slots, { min: 1, max: 64, presets: [1, 2, 3, 4], label: t('Не больше'), onChange: (v) => { r.slots = v || 1; } });
       const slotsRow = field(t('Не больше'), slots, { hint: t('заданий одной модели одновременно') });
       slotsRow.hidden = r.action !== 'limit_slots';
       action.addEventListener('change', () => { r.action = action.value; slotsRow.hidden = r.action !== 'limit_slots'; });

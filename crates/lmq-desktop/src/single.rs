@@ -1,14 +1,31 @@
-//! Один экземпляр приложения: именованный мьютекс; второй запуск передаёт первому
-//! «show» через именованный канал и завершается.
+//! Один экземпляр приложения на папку настроек: именованный мьютекс; второй запуск с
+//! той же папкой передаёт первому «show» через именованный канал и завершается.
+//! Установленный LMQ, портативная копия и `--home` другой папки работают параллельно.
 
+use std::sync::OnceLock;
 use std::time::Duration;
 
-const PIPE: &str = r"\\.\pipe\lmq-desktop";
+static KEY: OnceLock<String> = OnceLock::new();
+
+/// Ключ экземпляра — короткий хэш папки настроек. Вызывается до остальных функций.
+pub fn init(config_dir: &std::path::Path) {
+    let path = config_dir.to_string_lossy().to_lowercase();
+    let _ = KEY.set(lmq_core::util::sha256_hex(&path)[..12].to_string());
+}
+
+fn key() -> &'static str {
+    KEY.get().map(String::as_str).unwrap_or("default")
+}
+
+#[cfg(windows)]
+fn pipe_name() -> String {
+    format!(r"\\.\pipe\lmq-desktop-{}", key())
+}
 
 #[cfg(windows)]
 fn mutex_name() -> Vec<u16> {
     let user = std::env::var("USERNAME").unwrap_or_default();
-    format!("Local\\LMQ-desktop-{user}").encode_utf16().chain(std::iter::once(0)).collect()
+    format!("Local\\LMQ-desktop-{user}-{}", key()).encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 /// Захватывает мьютекс. `false` — приложение уже запущено. `wait` — подождать, пока
@@ -48,7 +65,7 @@ pub fn acquire(_wait: Duration) -> bool {
 #[cfg(windows)]
 pub fn signal_show() {
     use std::io::Write;
-    if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(PIPE) {
+    if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(pipe_name()) {
         let _ = f.write_all(b"show\n");
     }
 }
@@ -64,7 +81,7 @@ pub fn listen(rt: &tokio::runtime::Handle, on_show: impl Fn() + Send + Sync + 's
     rt.spawn(async move {
         let mut first = true;
         loop {
-            let server = match ServerOptions::new().first_pipe_instance(first).create(PIPE) {
+            let server = match ServerOptions::new().first_pipe_instance(first).create(pipe_name()) {
                 Ok(s) => s,
                 Err(e) => {
                     tracing::warn!(error = %e, "pipe create failed");

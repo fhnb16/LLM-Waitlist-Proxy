@@ -125,9 +125,9 @@ fn rust_strings_are_translated() {
         }
         for name in ["f(Kind::", "head(", "note("] {
             for args in call_args(&src, name) {
-                // У поля первый литерал — путь в settings.yaml, его не переводим.
-                let skip = usize::from(name.starts_with("f("));
-                needed.extend(args.into_iter().skip(skip).filter(|s| !s.is_empty()));
+                // Путь в settings.yaml (`queue.max_wait`) не переводится.
+                let is_path = |s: &str| s.contains('.') && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_');
+                needed.extend(args.into_iter().filter(|s| !s.is_empty() && !is_path(s)));
             }
         }
     }

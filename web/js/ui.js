@@ -67,6 +67,8 @@ export function icon(name, cls = 'tab-bar__icon') {
 }
 
 export const ICONS = {
+  chevron: ['M6 9l6 6 6-6'],
+  minus: ['M5 12h14'],
   overview: ['M4 13h4v7H4z', 'M10 9h4v11h-4z', 'M16 4h4v16h-4z'],
   queue: ['M4 6h16', 'M4 12h16', 'M4 18h10', 'M18 16l2 2-2 2'],
   models: ['M12 3l8 4.5v9L12 21l-8-4.5v-9z', 'M12 12l8-4.5', 'M12 12v9', 'M12 12L4 7.5'],
@@ -161,8 +163,10 @@ export function cellSwitch(label, checked, onChange, opts = {}) {
 
 /** Строка формы «подпись | поле». */
 export function field(label, control, { hint, stack, lock } = {}) {
-  const id = control.id || 'f' + Math.random().toString(36).slice(2, 9);
-  if (control.tagName === 'INPUT' || control.tagName === 'SELECT' || control.tagName === 'TEXTAREA') control.id = id;
+  // У составных полей (combo, stepper) подпись ведёт на их текстовое поле.
+  const target = control.matches && control.matches('.combo, .stepper') ? control.querySelector('input') : control;
+  const id = target.id || 'f' + Math.random().toString(36).slice(2, 9);
+  if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') target.id = id;
   return h(
     'label.field',
     { class: stack ? 'field--stack' : null, for: id },
@@ -175,6 +179,189 @@ export function field(label, control, { hint, stack, lock } = {}) {
 
 export function input(value, attrs = {}) {
   return h('input.field__input', { type: 'text', value: value ?? '', autocomplete: 'off', spellcheck: 'false', ...attrs });
+}
+
+/**
+ * Поле «ввод + выпадающий список» (WAI-ARIA combobox): выбрать вариант или вписать своё.
+ * `options` — [{ value, label?, hint? }]; `onChange(text)` — на каждый ввод и выбор.
+ * Список открывается кнопкой, стрелкой вниз или вводом (тогда он фильтруется по тексту).
+ */
+export function combo(value, options = [], { placeholder, onChange, disabled, inputmode, label } = {}) {
+  const id = 'c' + Math.random().toString(36).slice(2, 9);
+  const inp = h('input.combo__input', {
+    type: 'text', value: value ?? '', placeholder, autocomplete: 'off', spellcheck: 'false', disabled, inputmode,
+    role: 'combobox', 'aria-expanded': 'false', 'aria-controls': id + '-list', 'aria-autocomplete': 'list', 'aria-label': label,
+  });
+  const btn = h('button.combo__toggle', { type: 'button', tabindex: '-1', disabled, 'aria-label': t('Показать варианты') }, icon('chevron', 'combo__icon'));
+  const list = h('ul.combo__list', { id: id + '-list', role: 'listbox' });
+  const root = h('div.combo', inp, btn);
+  let opts = options;
+  let shown = [];
+  let active = -1;
+  let isOpen = false;
+
+  const norm = (o) => (typeof o === 'object' ? o : { value: String(o) });
+  function paint(filter) {
+    const q = (filter || '').trim().toLowerCase();
+    shown = opts.map(norm).filter((o) => !q || String(o.value).toLowerCase().includes(q) || (o.label || '').toLowerCase().includes(q) || (o.hint || '').toLowerCase().includes(q));
+    clear(list);
+    if (!shown.length) list.append(h('li.combo__empty', t('Нет вариантов — можно вписать своё')));
+    shown.forEach((o, i) => {
+      const li = h('li.combo__option', { role: 'option', id: `${id}-o${i}`, 'aria-selected': String(String(o.value) === inp.value), class: i === active ? 'combo__option--active' : null },
+        h('span.combo__value', o.label || String(o.value) || t('(пусто)')),
+        o.hint ? h('span.combo__hint', o.hint) : null);
+      // pointerdown, а не click: иначе поле теряет фокус и список закрывается раньше выбора.
+      li.addEventListener('pointerdown', (e) => { e.preventDefault(); pick(o); });
+      list.append(li);
+    });
+  }
+  function place() {
+    const r = root.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    list.style.left = r.left + 'px';
+    list.style.width = r.width + 'px';
+    if (below < 220 && r.top > below) {
+      list.style.top = '';
+      list.style.bottom = window.innerHeight - r.top + 4 + 'px';
+    } else {
+      list.style.bottom = '';
+      list.style.top = r.bottom + 4 + 'px';
+    }
+  }
+  function open(filter) {
+    if (disabled || isOpen) return paint(filter);
+    isOpen = true;
+    active = -1;
+    paint(filter);
+    document.body.append(list);
+    place();
+    inp.setAttribute('aria-expanded', 'true');
+    root.classList.add('combo--open');
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+  }
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    list.remove();
+    inp.setAttribute('aria-expanded', 'false');
+    inp.removeAttribute('aria-activedescendant');
+    root.classList.remove('combo--open');
+    window.removeEventListener('scroll', close, true);
+    window.removeEventListener('resize', close);
+  }
+  function pick(o) {
+    inp.value = String(o.value);
+    close();
+    if (onChange) onChange(inp.value);
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function move(d) {
+    if (!isOpen) open();
+    if (!shown.length) return;
+    active = (active + d + shown.length) % shown.length;
+    [...list.children].forEach((li, i) => li.classList.toggle('combo__option--active', i === active));
+    inp.setAttribute('aria-activedescendant', `${id}-o${active}`);
+    list.children[active]?.scrollIntoView({ block: 'nearest' });
+  }
+  inp.addEventListener('input', () => { if (onChange) onChange(inp.value); open(inp.value); });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+    else if (e.key === 'Enter' && isOpen && active >= 0) { e.preventDefault(); pick(shown[active]); }
+    else if (e.key === 'Escape' && isOpen) { e.preventDefault(); close(); }
+  });
+  inp.addEventListener('blur', () => setTimeout(close, 120));
+  btn.addEventListener('pointerdown', (e) => { e.preventDefault(); if (isOpen) close(); else { inp.focus(); open(); } });
+
+  root.input = inp;
+  root.setOptions = (o) => { opts = o; if (isOpen) paint(); };
+  root.setValue = (v) => { inp.value = v ?? ''; };
+  root.close = close;
+  return root;
+}
+
+/** Подпись значения с единицей: секунды → «5 мин», мс → «1,5 с», объёмы → «8 МБ». */
+function unitLabel(v, unit) {
+  if (v === '' || v === null || v === undefined) return '';
+  switch (unit) {
+    case 's': return Number(v) === 0 ? null : fmt.secs(Number(v));
+    case 'ms': return Number(v) === 0 ? null : fmt.ms(Number(v));
+    case 'h': return Number(v) >= 48 && Number(v) % 24 === 0 ? `${Number(v) / 24} ${t('дн')}` : null;
+    default: return null;
+  }
+}
+
+/**
+ * Число: поле с кнопками −/+ и списком готовых значений; ручной ввод проверяется
+ * (целые или с `decimals` знаками, `min`/`max`). Пусто — `null`, если `nullable`.
+ * Вместо `input type=number`: тот теряет ввод при запятой и меняется колесом мыши.
+ */
+export function numberInput(value, { min, max, step = 1, decimals = 0, presets = [], unit, nullable, placeholder, disabled, onChange, label, zero } = {}) {
+  const opts = presets.map((p) => {
+    const sub = unitLabel(p, unit);
+    const lbl = p === 0 && zero ? `0 — ${zero}` : sub ? `${p} — ${sub}` : String(p);
+    return { value: String(p), label: lbl };
+  });
+  if (nullable) opts.unshift({ value: '', label: placeholder || t('не задано') });
+  let current = value === null || value === undefined ? null : Number(value);
+  const c = combo(value ?? '', opts, { placeholder, disabled, inputmode: decimals ? 'decimal' : 'numeric', label, onChange: (s) => apply(s) });
+  const inp = c.input;
+  const minus = h('button.stepper__btn', { type: 'button', disabled, 'aria-label': t('Меньше') }, icon('minus', 'stepper__icon'));
+  const plus = h('button.stepper__btn', { type: 'button', disabled, 'aria-label': t('Больше') }, icon('plus', 'stepper__icon'));
+  const root = h('div.stepper', minus, c, plus);
+  const round = (n) => Number(n.toFixed(decimals));
+
+  function parse(s) {
+    const txt = String(s).trim().replace(',', '.');
+    if (txt === '') return nullable ? { ok: true, v: null } : { ok: false, msg: t('Нужно число') };
+    if (!/^-?\d+(\.\d+)?$/.test(txt)) return { ok: false, msg: t('Нужно число') };
+    const n = Number(txt);
+    if (!decimals && !Number.isInteger(n)) return { ok: false, msg: t('Нужно целое число') };
+    if (min !== undefined && n < min) return { ok: false, msg: t('Не меньше {n}', { n: min }) };
+    if (max !== undefined && n > max) return { ok: false, msg: t('Не больше {n}', { n: max }) };
+    return { ok: true, v: n };
+  }
+  function apply(s) {
+    const r = parse(s);
+    root.classList.toggle('stepper--invalid', !r.ok);
+    inp.setAttribute('aria-invalid', String(!r.ok));
+    inp.title = r.ok ? '' : r.msg;
+    if (r.ok) {
+      current = r.v;
+      if (onChange) onChange(r.v);
+    }
+  }
+  function bump(d) {
+    let n = current ?? (min !== undefined ? min : 0);
+    n = round(n + d * step);
+    if (min !== undefined) n = Math.max(min, n);
+    if (max !== undefined) n = Math.min(max, n);
+    inp.value = String(n);
+    apply(inp.value);
+  }
+  minus.addEventListener('click', () => bump(-1));
+  plus.addEventListener('click', () => bump(1));
+  inp.addEventListener('keydown', (e) => {
+    // PageUp/PageDown — шаг; стрелки заняты списком.
+    if (e.key === 'PageUp') { e.preventDefault(); bump(1); }
+    if (e.key === 'PageDown') { e.preventDefault(); bump(-1); }
+  });
+  root.input = inp;
+  return root;
+}
+
+/** Время `HH:MM`: список с шагом 30 минут и ручной ввод. */
+export function timeInput(value, { onChange, disabled, label } = {}) {
+  const opts = [];
+  for (let m = 0; m < 24 * 60; m += 30) opts.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
+  const c = combo(value, opts, { disabled, label, inputmode: 'numeric', onChange: (s) => {
+    const ok = /^([01]?\d|2[0-3]):[0-5]\d$/.test(s.trim());
+    c.classList.toggle('combo--invalid', !ok);
+    c.input.setAttribute('aria-invalid', String(!ok));
+    if (ok && onChange) onChange(s.trim().padStart(5, '0'));
+  } });
+  return c;
 }
 
 export function select(options, value, attrs = {}) {

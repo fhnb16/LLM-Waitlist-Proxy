@@ -43,6 +43,34 @@ pub fn interfaces() -> Vec<Iface> {
     out
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct ProxyHint {
+    pub url: String,
+    /// Чей это обычно порт — подсказка, а не проверка.
+    pub label: &'static str,
+}
+
+/// Локальные прокси VPN-клиентов, которые сейчас принимают соединения (xray/v2rayN, Clash,
+/// sing-box, Tor): для выпадающего списка «прокси».
+pub async fn detect_local_proxies() -> Vec<ProxyHint> {
+    const KNOWN: &[(u16, &str, &str)] = &[
+        (10808, "socks5h", "xray / v2rayN / Happ, SOCKS"),
+        (10809, "http", "xray / v2rayN / Happ, HTTP"),
+        (1080, "socks5h", "SOCKS"),
+        (2080, "socks5h", "sing-box / NekoBox, mixed"),
+        (7890, "http", "Clash, mixed"),
+        (7891, "socks5h", "Clash, SOCKS"),
+        (9050, "socks5h", "Tor"),
+        (8889, "http", "HTTP"),
+    ];
+    let checks = KNOWN.iter().map(|(port, scheme, label)| async move {
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], *port));
+        let open = matches!(tokio::time::timeout(Duration::from_millis(250), tokio::net::TcpStream::connect(addr)).await, Ok(Ok(_)));
+        open.then(|| ProxyHint { url: format!("{scheme}://127.0.0.1:{port}"), label })
+    });
+    futures::future::join_all(checks).await.into_iter().flatten().collect()
+}
+
 fn is_system(s: &str) -> bool {
     let s = s.trim();
     s.is_empty() || s.eq_ignore_ascii_case("system") || s.eq_ignore_ascii_case("default")

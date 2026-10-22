@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, field, input, select, segmented, btn, fmt, toast, errorToast, state, clone, callout, cstate } from '../ui.js';
+import { h, clear, hero, group, list, cell, field, input, combo, numberInput, select, segmented, btn, fmt, toast, errorToast, state, clone, callout, cstate } from '../ui.js';
 import { store, on, saveSettings } from '../store.js';
 
 export async function render(ctx) {
@@ -10,8 +10,8 @@ export async function render(ctx) {
   const models = Object.keys(store.settings.file.models);
   const model = select(models.map((m) => ({ value: m, label: m })), models[0]);
   const text = input(t('Привет! Ответь одним словом.'));
-  const chat = input('-1001234567890', { type: 'number' });
-  const delay = input(debugCfg.delay_ms, { type: 'number', min: '0', max: '120000', step: '500' });
+  const chat = combo('-1001234567890', [{ value: '-1001234567890', hint: t('группа') }, { value: '123456789', hint: t('личный чат') }], { inputmode: 'numeric', label: 'chat_id' });
+  const delay = numberInput(debugCfg.delay_ms, { min: 0, max: 120000, step: 500, presets: [0, 500, 1000, 3000, 10000, 30000], unit: 'ms', zero: t('сразу'), label: t('Задержка ответа, мс'), onChange: (v) => { debugCfg.delay_ms = v || 0; saveDebug(); } });
   const listBox = h('div');
   const result = h('div');
 
@@ -25,7 +25,6 @@ export async function render(ctx) {
       errorToast(e);
     }
   };
-  delay.addEventListener('change', () => { debugCfg.delay_ms = Number(delay.value) || 0; saveDebug(); });
 
   root.append(
     hero(t('Отладка'), t('Встроенный эмулятор бота: принимает колбэки и показывает, что ушло бы на /webhook/llm.')),
@@ -59,7 +58,7 @@ export async function render(ctx) {
   async function sendJob() {
     clear(result);
     try {
-      const r = await api('/admin/api/debug/job', { method: 'POST', body: { model: model.value, text: text.value, chat_id: Number(chat.value) || -1 } });
+      const r = await api('/admin/api/debug/job', { method: 'POST', body: { model: model.value, text: text.value, chat_id: Number(chat.input.value.trim()) || -1 } });
       result.append(callout(t('Задание {id} в очереди, позиция {p}. Колбэк появится ниже.', { id: r.job_id, p: r.position }), 'ok'));
     } catch (e) {
       result.append(callout(e.message, 'error'));

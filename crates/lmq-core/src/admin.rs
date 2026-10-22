@@ -397,15 +397,40 @@ fn part_summary(p: &Value) -> Value {
     }
 }
 
+/// Модели, которые отдаёт сам апстрим (`GET {base}/models` с его ключом и маршрутом):
+/// варианты для поля «Имя у апстрима».
+pub async fn upstream_models(app: &App, model: &str, index: usize) -> Result<Vec<String>> {
+    let routing = app.routing();
+    let up = routing.models.get(model).and_then(|m| m.upstreams.get(index)).cloned().ok_or_else(|| anyhow!("апстрим не найден — сохраните модель"))?;
+    let http = app.upstream_client(&up).map_err(|e| anyhow!(e))?;
+    let mut req = http.get(format!("{}/models", up.base_url())).timeout(std::time::Duration::from_secs(10));
+    if !up.api_key.is_empty() {
+        req = req.bearer_auth(&up.api_key);
+    }
+    let resp = req.send().await.map_err(|e| anyhow!(crate::netdiag::error_chain(&e)))?;
+    let status = resp.status();
+    let body: Value = resp.json().await.unwrap_or(Value::Null);
+    if !status.is_success() {
+        bail!("HTTP {}: {}", status.as_u16(), body["error"]["message"].as_str().unwrap_or(""));
+    }
+    // OpenAI: {"data": [{"id"}]}; Ollama: {"models": [{"name"}]}.
+    let list = body["data"].as_array().or(body["models"].as_array()).cloned().unwrap_or_default();
+    let mut ids: Vec<String> = list.iter().filter_map(|m| m["id"].as_str().or(m["name"].as_str()).map(String::from)).collect();
+    ids.sort();
+    Ok(ids)
+}
+
 // ---------------------------------------------------------------------- сеть
 
-/// Интерфейсы и действующие маршруты (для полей `network.*` и проверки).
-pub fn network_view(app: &App) -> Value {
+/// Интерфейсы, найденные локальные прокси и действующие маршруты (для полей `network.*`).
+pub async fn network_view(app: &App) -> Value {
+    let proxies = crate::net::detect_local_proxies().await;
     let s = app.settings();
     let routing = app.routing();
     let ups: Vec<Value> = routing.upstreams().map(|u| json!({ "id": u.id, "url": u.url, "route": crate::net::describe(&u.route) })).collect();
     json!({
         "interfaces": crate::net::interfaces(),
+        "proxies": proxies,
         "routes": {
             "upstream": crate::net::describe(&s.network.upstream),
             "callback": crate::net::describe(&s.network.callback),

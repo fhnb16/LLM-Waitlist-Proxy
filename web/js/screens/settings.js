@@ -1,6 +1,6 @@
 import { api, desktop } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, cstate, field, input, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state } from '../ui.js';
+import { h, clear, hero, group, list, cell, cstate, field, input, combo, numberInput, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state } from '../ui.js';
 import { store, saveSettings, isLocked } from '../store.js';
 
 const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v }));
@@ -64,12 +64,12 @@ const SECTIONS = [
     id: 'network', title: 'Сеть и маршруты', icon: 'clients',
     note: 'Через какой интерфейс или прокси ходит каждое направление. Например: модели — через VPN (happ-tun или socks5-прокси VPN-клиента), бот — напрямую (Ethernet). Пусто — системный маршрут.',
     fields: [
-      { path: 'network.upstream.interface', label: 'Модели: интерфейс', type: 'iface', placeholder: 'system', hint: 'Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой.' },
-      { path: 'network.upstream.proxy', label: 'Модели: прокси', placeholder: 'socks5://127.0.0.1:10808', hint: 'socks5://, socks5h://, http://. none — напрямую.' },
-      { path: 'network.callback.interface', label: 'Бот: интерфейс', type: 'iface', placeholder: 'system', hint: 'Колбэки на адрес бота.' },
-      { path: 'network.callback.proxy', label: 'Бот: прокси', placeholder: 'none' },
-      { path: 'network.telegram.interface', label: 'Telegram: интерфейс', type: 'iface', placeholder: 'system', hint: 'Только для протокола 1.' },
-      { path: 'network.telegram.proxy', label: 'Telegram: прокси', placeholder: 'socks5://127.0.0.1:10808' },
+      { path: 'network.upstream.interface', label: 'Модели: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой.' },
+      { path: 'network.upstream.proxy', label: 'Модели: прокси', type: 'proxy', placeholder: 'как в системе', hint: 'socks5://, socks5h://, http://. none — напрямую.' },
+      { path: 'network.callback.interface', label: 'Бот: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Колбэки на адрес бота.' },
+      { path: 'network.callback.proxy', label: 'Бот: прокси', type: 'proxy', placeholder: 'как в системе' },
+      { path: 'network.telegram.interface', label: 'Telegram: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Только для протокола 1.' },
+      { path: 'network.telegram.proxy', label: 'Telegram: прокси', type: 'proxy', placeholder: 'как в системе' },
     ],
   },
   {
@@ -92,6 +92,51 @@ const SECTIONS = [
     ],
   },
 ];
+
+/** Готовые значения числовых полей и их единица (s — секунды, h — часы). */
+const PRESETS = {
+  'server.max_body_mb': { presets: [4, 8, 16, 32, 64] },
+  'server.max_messages': { presets: [100, 200, 500, 1000] },
+  'server.max_string_kb': { presets: [128, 256, 512, 1024, 2048] },
+  'server.body_read_timeout': { presets: [10, 30, 60, 120], unit: 's' },
+  'queue.max_queue': { presets: [50, 100, 200, 500, 1000] },
+  'queue.max_queue_per_chat': { presets: [1, 2, 3, 5, 10] },
+  'queue.max_wait': { presets: [60, 120, 300, 600, 1800], unit: 's' },
+  'queue.upstream_timeout': { presets: [30, 60, 120, 300, 600], unit: 's' },
+  'queue.sync_timeout': { presets: [15, 30, 60, 120], unit: 's' },
+  'queue.upstream_retries': { presets: [0, 1, 2, 3, 5] },
+  'callback.retries': { presets: [0, 3, 6, 10, 20] },
+  'callback.timeout': { presets: [5, 10, 15, 30, 60], unit: 's' },
+  'storage.retention_hours': { presets: [6, 24, 72, 168, 720], unit: 'h' },
+  'storage.stats_retention_days': { presets: [7, 14, 30, 90, 365] },
+  'logging.keep_days': { presets: [3, 7, 14, 30, 90] },
+  'breaker.failure_threshold': { presets: [1, 2, 3, 5, 10] },
+  'breaker.open_seconds': { presets: [10, 30, 60, 120, 300], unit: 's' },
+  'breaker.health_interval': { presets: [0, 5, 15, 30, 60], unit: 's', zero: 'не проверять' },
+};
+
+/** Интерфейсы системы и найденные локальные прокси — один запрос на экран. */
+let netCache = null;
+export function netOptions() {
+  if (!netCache) netCache = api('/admin/api/network').catch(() => ({ interfaces: [], proxies: [] }));
+  return netCache;
+}
+
+export function ifaceOptions(n, inherit) {
+  return [
+    inherit ? { value: '', label: t('как в «Сеть и маршруты»') } : { value: '', label: t('Системный маршрут') },
+    { value: 'system', label: 'system', hint: t('Системный маршрут') },
+    ...(n.interfaces || []).map((i) => ({ value: i.name, hint: [...i.ipv4, ...i.ipv6].join(', ') })),
+  ];
+}
+
+export function proxyOptions(n, inherit) {
+  return [
+    inherit ? { value: '', label: t('как в «Сеть и маршруты»') } : { value: '', label: t('как в системе'), hint: 'HTTP(S)_PROXY' },
+    { value: 'none', label: 'none', hint: t('напрямую') },
+    ...(n.proxies || []).map((p) => ({ value: p.url, hint: t('найден: {what}', { what: p.label }) })),
+  ];
+}
 
 const PAGES = {
   schedule: () => import('./schedule.js'),
@@ -192,10 +237,14 @@ function renderSection(ctx, sec) {
       el = input(value, { type: 'password', placeholder: t('не задан'), autocomplete: 'new-password', disabled: locked });
       el.addEventListener('input', () => { setPath(draft, f.path, el.value); touch(); });
     } else if (f.type === 'number') {
-      el = input(value, { type: 'number', min: f.min, max: f.max, inputmode: 'numeric', disabled: locked });
-      el.addEventListener('input', () => { setPath(draft, f.path, el.value === '' ? 0 : Number(el.value)); touch(); });
+      const p = PRESETS[f.path] || {};
+      el = numberInput(value, { min: f.min, max: f.max, presets: p.presets, unit: p.unit, zero: p.zero ? t(p.zero) : null, disabled: locked, label: t(f.label),
+        onChange: (v) => { setPath(draft, f.path, v ?? 0); touch(); } });
+    } else if (f.type === 'iface' || f.type === 'proxy') {
+      el = combo(value, [], { placeholder: f.placeholder ? t(f.placeholder) : '', disabled: locked, label: t(f.label), onChange: (v) => { setPath(draft, f.path, v.trim()); touch(); } });
+      netOptions().then((n) => el.setOptions(f.type === 'iface' ? ifaceOptions(n, false) : proxyOptions(n, false)));
     } else {
-      el = input(value, { placeholder: f.placeholder || '', disabled: locked, list: f.type === 'iface' ? 'lmq-ifaces' : null });
+      el = input(value, { placeholder: f.placeholder || '', disabled: locked });
       el.addEventListener('input', () => { setPath(draft, f.path, el.value); touch(); });
     }
     const secretHint = f.type === 'secret' && value === mask ? t('Сохранён. Введите новый, чтобы заменить, или сотрите, чтобы удалить') : null;
@@ -210,11 +259,9 @@ function renderSection(ctx, sec) {
 
 /** Список интерфейсов для полей и проверка маршрутов: бот, каждый апстрим, Telegram. */
 function networkTools(save, isDirty) {
-  const datalist = h('datalist', { id: 'lmq-ifaces' });
   const ifaces = h('div');
   const out = h('div');
-  api('/admin/api/network').then((n) => {
-    datalist.append(h('option', { value: 'system' }), ...n.interfaces.map((i) => h('option', { value: i.name }, [...i.ipv4, ...i.ipv6].join(', '))));
+  netOptions().then((n) => {
     ifaces.append(group(t('Интерфейсы'), list(...n.interfaces.map((i) => cell({ label: i.name, value: [...i.ipv4, ...i.ipv6].join(', '), wrap: true })))));
   }).catch(errorToast);
   async function run() {
@@ -238,7 +285,7 @@ function networkTools(save, isDirty) {
       clear(out).append(callout(e.message, 'error'));
     }
   }
-  return h('div', datalist,
+  return h('div',
     group(t('Проверка'), list(cell({ label: t('Проверить маршруты'), kind: 'tint', onClick: run })), t('DNS, соединение, HTTP и внешний IP каждого направления.')),
     out, ifaces);
 }

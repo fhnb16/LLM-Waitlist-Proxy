@@ -392,3 +392,15 @@ msgstr "The bot, every upstream and Telegram: DNS, connection, HTTP and external
 
 msgid "Проверяю…"
 msgstr "Checking…"
+
+msgid "Показать варианты"
+msgstr "Show options"
+
+msgid "(пусто)"
+msgstr "(empty)"
+
+msgid "Меньше"
+msgstr "Less"
+
+msgid "Больше"
+msgstr "More"

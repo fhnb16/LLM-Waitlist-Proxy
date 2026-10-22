@@ -1,7 +1,7 @@
 import { ScrollView, Button, LineEdit, Switch, ComboBox } from "std-widgets.slint";
 import { Theme, Glyph } from "theme.slint";
 import { UiData, UiActions } from "store.slint";
-import { Card, PageHeader, SectionTitle, Segmented, Divider, Icon, Banner } from "widgets.slint";
+import { Card, PageHeader, SectionTitle, Segmented, Divider, Icon, Banner, ComboEdit, NumberEdit } from "widgets.slint";
 import { FieldRow } from "types.slint";
 
 /// Строка настройки: подпись и подсказка слева, элемент управления справа.
@@ -80,23 +80,46 @@ component FieldEditor inherits VerticalLayout {
             }
         }
     }
-    if (f.kind == "text" || f.kind == "number" || f.kind == "secret") && !narrow: SettingRow {
+    // Справа на широком окне, под подписью — на узком.
+    if (f.kind == "text" || f.kind == "secret" || f.kind == "number" || f.kind == "combo") && !narrow: SettingRow {
         label: f.label;
         hint: f.hint;
         locked: f.locked;
         VerticalLayout {
             alignment: center;
-            LineEdit {
-                width: f.kind == "number" ? 120px : 300px;
+            if f.kind == "text" || f.kind == "secret": LineEdit {
+                width: 300px;
                 text: f.value;
                 enabled: !f.locked;
-                input-type: f.kind == "secret" ? InputType.password : f.kind == "number" ? InputType.number : InputType.text;
-                horizontal-alignment: f.kind == "number" ? right : left;
+                placeholder-text: f.placeholder;
+                input-type: f.kind == "secret" ? InputType.password : InputType.text;
+                edited(t) => { UiActions.field-text(index, t); }
+            }
+            if f.kind == "number": NumberEdit {
+                width: 260px;
+                text: f.value;
+                values: f.options;
+                labels: f.labels;
+                hints: f.hints;
+                minimum: f.minimum;
+                maximum: f.maximum;
+                placeholder: f.placeholder;
+                enabled: !f.locked;
+                edited(t) => { UiActions.field-text(index, t); }
+            }
+            if f.kind == "combo": ComboEdit {
+                width: 300px;
+                text: f.value;
+                values: f.options;
+                labels: f.labels;
+                hints: f.hints;
+                placeholder: f.placeholder;
+                enabled: !f.locked;
                 edited(t) => { UiActions.field-text(index, t); }
             }
         }
     }
-    if (f.kind == "text" || f.kind == "number" || f.kind == "secret") && narrow: VerticalLayout {
+    if (f.kind == "text" || f.kind == "secret" || f.kind == "number" || f.kind == "combo") && narrow: VerticalLayout {
         SettingRow {
             label: f.label;
             hint: f.hint;
@@ -107,10 +130,31 @@ component FieldEditor inherits VerticalLayout {
             padding-left: 16px;
             padding-right: 16px;
             padding-bottom: 10px;
-            LineEdit {
+            if f.kind == "text" || f.kind == "secret": LineEdit {
                 text: f.value;
                 enabled: !f.locked;
-                input-type: f.kind == "secret" ? InputType.password : f.kind == "number" ? InputType.number : InputType.text;
+                placeholder-text: f.placeholder;
+                input-type: f.kind == "secret" ? InputType.password : InputType.text;
+                edited(t) => { UiActions.field-text(index, t); }
+            }
+            if f.kind == "number": NumberEdit {
+                text: f.value;
+                values: f.options;
+                labels: f.labels;
+                hints: f.hints;
+                minimum: f.minimum;
+                maximum: f.maximum;
+                placeholder: f.placeholder;
+                enabled: !f.locked;
+                edited(t) => { UiActions.field-text(index, t); }
+            }
+            if f.kind == "combo": ComboEdit {
+                text: f.value;
+                values: f.options;
+                labels: f.labels;
+                hints: f.hints;
+                placeholder: f.placeholder;
+                enabled: !f.locked;
                 edited(t) => { UiActions.field-text(index, t); }
             }
         }
