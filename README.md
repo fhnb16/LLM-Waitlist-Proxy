@@ -180,7 +180,7 @@ engines:
 
 - `network.upstream` — модели (у апстрима можно задать свой маршрут);
 - `network.callback` — колбэки боту;
-- `network.telegram` — Telegram, только протокол 1.
+- `network.telegram` — Telegram: протокол 1 и реле Bot API (у реле можно задать свой маршрут).
 
 Типичный случай: зарубежный провайдер (Groq, OpenAI) доступен только через VPN, а сервер бота
 не принимает соединения из-за рубежа.
@@ -208,10 +208,54 @@ network:
 lmq-server interfaces
 lmq-server check-url https://bot.example.com/webhook/llm --route callback
 lmq-server check-url https://api.groq.com/openai/v1/models --proxy socks5h://127.0.0.1:10808
+lmq-server check-url https://api.telegram.org/ --route tg_relay
 ```
 
 Проверка показывает DNS, соединение с каждым адресом, HTTP-ответ и внешний IP, с которого маршрут
 выходит в интернет. Сразу видно, идёт ли запрос через VPN. Запросы — `GET` без данных.
+
+## Реле Telegram Bot API
+
+Если сервер бота не достаёт до `api.telegram.org`, запросы бота к Telegram можно пустить через LMQ —
+вместо воркера Cloudflare. Адрес API LMQ тогда принимает и пересылает в Telegram:
+
+- `/bot<TOKEN>/<метод>` — методы API (`sendMessage`, `getFile`…), `GET` и `POST`;
+- `/file/bot<TOKEN>/<путь>` — скачивание файлов, `GET` и `HEAD`.
+
+```yaml
+tg_relay:
+  enabled: true                   # TG_RELAY_ENABLED
+  allowed_bots: ['123456789']     # TG_RELAY_ALLOWED_BOTS: id ботов (число до «:» в токене); пусто — любой бот
+  proxy: socks5h://127.0.0.1:10808  # свой маршрут; пусто — как network.telegram
+```
+
+В боте: «Сервер Bot API» — адрес API LMQ (например `http://192.168.1.10:8800`), «Адрес для скачивания
+файлов» — пусто.
+
+Как работает реле:
+
+- запрос и ответ передаются без изменений;
+- файлам, которые Telegram отдаёт как `application/octet-stream`, ставится настоящий тип по расширению;
+- скачанные файлы час хранятся в памяти (`file_cache_mb`, по умолчанию 32 МБ);
+- зависший запрос обрывается через `timeout` (30 с). Ответ — `504` в формате Bot API, бот повторит;
+- у `getUpdates` к этому сроку прибавляется его `timeout` long polling;
+- токен бота в журнал не пишется — только id бота и метод.
+
+Без `allowed_bots` реле обслужит любого бота, который знает адрес. Задайте список, если адрес API виден
+снаружи. За обратным прокси `client_max_body_size` должен вмещать файлы, которые отправляет бот
+(`tg_relay.max_body_mb`, по умолчанию 50 МБ).
+
+**Настройки → Реле Telegram Bot API → Проверить реле** проходит всю цепочку:
+
+- маршрут до Telegram — DNS, соединение, внешний IP;
+- ответ Bot API по этому маршруту;
+- запрос через адрес API LMQ.
+
+Токен бота для проверки можно вписать, он не сохраняется. Без него проверка идёт с пробным токеном:
+ответ «Unauthorized» от Telegram и есть признак, что путь работает.
+
+Счётчики реле есть на обзоре, в разделе реле и в `/metrics`: `tg_relay_requests_total`,
+`tg_relay_bytes_total`, `tg_relay_cache_hits_total`.
 
 ## Отладка запросов
 
@@ -252,6 +296,7 @@ lmq-server check-url https://api.groq.com/openai/v1/models --proxy socks5h://127
 
 - `ADMIN_LISTEN`, `CALLBACK_ALLOW_HTTP_PRIVATE`, `STATS_RETENTION_DAYS`, `METRICS_TOKEN`;
 - `PROTOCOL1_ENABLED`, `TELEGRAM_BOT_TOKEN`, `SECRET_KEY`;
+- `TG_RELAY_ENABLED`, `TG_RELAY_ALLOWED_BOTS`;
 - `LMQ_HOME`, `LMQ_CONFIG_DIR`, `LMQ_DATA_DIR`.
 
 Поле, заданное окружением, панель показывает заблокированным.
@@ -316,6 +361,7 @@ server {
 | `GET /v1/queue` | Очередь по моделям, среднее ожидание и время ответа. |
 | `GET /healthz` | Проверка живости, без авторизации. |
 | `GET /metrics` | Prometheus; за `METRICS_TOKEN` или только с localhost. |
+| `/bot<TOKEN>/<метод>`, `/file/bot<TOKEN>/<путь>` | Реле Telegram Bot API, если включено `tg_relay`. |
 | `/ui/` | Веб-панель на `ADMIN_LISTEN`. |
 | `/admin/api/*` | API панели; вход по админ-токену. |
 

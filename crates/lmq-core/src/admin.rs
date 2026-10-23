@@ -82,6 +82,17 @@ pub struct Overview {
     pub db_ok: bool,
     pub last_5m: Point,
     pub last_1h: Point,
+    /// Реле Telegram, если включено.
+    pub tg_relay: Option<RelayOverview>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RelayOverview {
+    /// Что вписать боту в «Сервер Bot API».
+    pub url: Option<String>,
+    pub route: String,
+    #[serde(flatten)]
+    pub stats: crate::tgrelay::Snapshot,
 }
 
 pub async fn overview(app: &Arc<App>) -> Overview {
@@ -126,6 +137,12 @@ pub async fn overview(app: &Arc<App>) -> Overview {
     let db_ok = app.store.ping().await;
     let bound = app.bound.lock().clone();
     let now = now_ms();
+    let s = app.settings();
+    let tg_relay = s.tg_relay.enabled.then(|| RelayOverview {
+        url: tg_relay_url(app),
+        route: crate::net::describe(&crate::tgrelay::route(&s)),
+        stats: app.tg_relay.snapshot(),
+    });
     Overview {
         version: VERSION,
         started_at: app.started_at,
@@ -146,6 +163,7 @@ pub async fn overview(app: &Arc<App>) -> Overview {
         db_ok,
         last_5m,
         last_1h,
+        tg_relay,
     }
 }
 
@@ -171,6 +189,16 @@ pub async fn prometheus(app: &Arc<App>) -> String {
     for e in app.engines.list() {
         let _ = writeln!(out, "engine_up{{engine=\"{}\"}} {}", esc(&e.id), (e.status == EngineStatus::Ready) as u8);
     }
+    let r = app.tg_relay.snapshot();
+    out.push_str("# HELP tg_relay_requests_total Telegram relay requests by outcome since start.\n# TYPE tg_relay_requests_total counter\n");
+    for (outcome, n) in [("ok", r.ok), ("telegram_error", r.tg_errors), ("relay_error", r.relay_errors), ("rejected", r.rejected)] {
+        let _ = writeln!(out, "tg_relay_requests_total{{outcome=\"{outcome}\"}} {n}");
+    }
+    out.push_str("# HELP tg_relay_bytes_total Telegram relay traffic.\n# TYPE tg_relay_bytes_total counter\n");
+    let _ = writeln!(out, "tg_relay_bytes_total{{direction=\"up\"}} {}", r.bytes_up);
+    let _ = writeln!(out, "tg_relay_bytes_total{{direction=\"down\"}} {}", r.bytes_down);
+    out.push_str("# HELP tg_relay_cache_hits_total Files served from the relay cache.\n# TYPE tg_relay_cache_hits_total counter\n");
+    let _ = writeln!(out, "tg_relay_cache_hits_total {}", r.cache_hits);
     let gpu = app.gpu.snapshot();
     if gpu.available {
         out.push_str("# TYPE gpu_utilization_percent gauge\n# TYPE gpu_memory_used_bytes gauge\n# TYPE gpu_temperature_celsius gauge\n");
@@ -435,6 +463,7 @@ pub async fn network_view(app: &App) -> Value {
             "upstream": crate::net::describe(&s.network.upstream),
             "callback": crate::net::describe(&s.network.callback),
             "telegram": crate::net::describe(&s.network.telegram),
+            "tg_relay": crate::net::describe(&crate::tgrelay::route(&s)),
         },
         "upstreams": ups,
     })
@@ -463,6 +492,9 @@ pub async fn network_check(app: &Arc<App>, custom: Option<(String, crate::config
         if s.protocol1.enabled {
             targets.push(("telegram".into(), s.protocol1.telegram_api.clone(), s.network.telegram.clone()));
         }
+        if s.tg_relay.enabled {
+            targets.push(("telegram relay".into(), format!("{}/", crate::tgrelay::upstream(&s)), crate::tgrelay::route(&s)));
+        }
     }
     let probes = targets.into_iter().map(|(name, url, route)| async move {
         let p = crate::netdiag::probe_route(&url, timeout, &route).await;
@@ -473,6 +505,148 @@ pub async fn network_check(app: &Arc<App>, custom: Option<(String, crate::config
         tracing::info!(target_name = %v["name"].as_str().unwrap_or(""), verdict = %v["probe"]["verdict"].as_str().unwrap_or(""), "network check");
     }
     out
+}
+
+// ------------------------------------------------------------ реле Telegram
+
+/// Адрес реле для бота («Сервер Bot API»): адрес API; вместо `0.0.0.0` — IPv4 этой машины.
+pub fn tg_relay_url(app: &App) -> Option<String> {
+    let a = app.bound.lock().client?;
+    let ip = if a.ip().is_unspecified() {
+        crate::net::interfaces()
+            .into_iter()
+            .flat_map(|i| i.ipv4)
+            .find(|ip| matches!(ip, std::net::IpAddr::V4(v) if !v.is_link_local()))
+            .unwrap_or(std::net::IpAddr::from([127, 0, 0, 1]))
+    } else {
+        a.ip()
+    };
+    Some(format!("http://{}", std::net::SocketAddr::new(ip, a.port())))
+}
+
+/// Состояние реле для его раздела настроек: адрес для бота, маршрут, счётчики с запуска.
+pub fn tg_relay_view(app: &App) -> Value {
+    let s = app.settings();
+    json!({
+        "enabled": s.tg_relay.enabled,
+        "url": tg_relay_url(app),
+        "upstream": crate::tgrelay::upstream(&s),
+        "route": crate::net::describe(&crate::tgrelay::route(&s)),
+        "stats": app.tg_relay.snapshot(),
+    })
+}
+
+/// Пробный токен для проверки без настоящего: Telegram отвечает на него 401 в формате Bot API.
+const PROBE_TOKEN: &str = "0:lmq-relay-check";
+
+/// `getMe` с токеном: HTTP-статус и тело или текст ошибки (без адреса — в нём токен).
+async fn get_me(http: &reqwest::Client, base: &str, token: &str) -> (std::result::Result<(u16, Value), String>, i64) {
+    let started = now_ms();
+    let r = async {
+        let resp = http.get(format!("{base}/bot{token}/getMe")).timeout(std::time::Duration::from_secs(15)).send().await?;
+        let status = resp.status().as_u16();
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
+        Ok::<_, reqwest::Error>((status, body))
+    }
+    .await
+    .map_err(|e| crate::netdiag::error_chain(&e.without_url()));
+    (r, now_ms() - started)
+}
+
+/// Ответ Bot API словами: `(успех, текст, @имя бота)`.
+fn explain_get_me(r: &std::result::Result<(u16, Value), String>, ms: i64, real_token: bool) -> (bool, String, Option<String>) {
+    match r {
+        Err(e) => (false, format!("Запрос не прошёл: {e}"), None),
+        Ok((_, v)) if v["ok"] == json!(true) => {
+            let name = v["result"]["username"].as_str().map(|u| format!("@{u}"));
+            (true, format!("Bot API отвечает за {ms} мс: бот {}", name.clone().unwrap_or_else(|| "?".into())), name)
+        }
+        Ok((status, v)) if v["ok"] == json!(false) => {
+            let desc = v["description"].as_str().unwrap_or("");
+            if desc.starts_with("LMQ relay:") {
+                (false, format!("Реле LMQ отказало: HTTP {status} {desc}"), None)
+            } else if real_token {
+                (false, format!("Telegram отклонил токен: HTTP {status} {desc}"), None)
+            } else {
+                (true, format!("Bot API отвечает за {ms} мс (пробный токен отклонён — так и должно быть)"), None)
+            }
+        }
+        Ok((status, _)) => (false, format!("Ответ не похож на Bot API: HTTP {status}. Проверьте адрес Bot API."), None),
+    }
+}
+
+/// Проверка реле: маршрут до Telegram (DNS, TCP, HTTP, внешний IP), ответ Bot API по этому
+/// маршруту и вся цепочка через адрес API LMQ. `token` — токен бота для `getMe` (не
+/// сохраняется); без него — токен протокола 1 или пробный.
+pub async fn tg_relay_check(app: &Arc<App>, token: Option<String>) -> Value {
+    let s = app.settings();
+    let route = crate::tgrelay::route(&s);
+    let base = crate::tgrelay::upstream(&s);
+    let token =
+        token.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).or_else(|| Some(s.protocol1.telegram_bot_token.clone()).filter(|t| !t.is_empty()));
+    let real = token.is_some();
+    let token = token.unwrap_or_else(|| PROBE_TOKEN.into());
+    let mut steps = Vec::new();
+
+    let probe = crate::netdiag::probe_route(&format!("{base}/"), std::time::Duration::from_secs(8), &route).await;
+    steps.push(json!({ "name": "route", "title": "Маршрут до Telegram", "ok": probe.http_status.is_some(), "text": probe.verdict }));
+
+    let mut bot = None;
+    match app.net.client(&route, crate::net::Kind::NoRedirect) {
+        Ok(http) => {
+            let (r, ms) = get_me(&http, &base, &token).await;
+            let (ok, text, name) = explain_get_me(&r, ms, real);
+            bot = name;
+            steps.push(json!({ "name": "api", "title": "Bot API по этому маршруту", "ok": ok, "text": text }));
+        }
+        Err(e) => steps.push(json!({ "name": "api", "title": "Bot API по этому маршруту", "ok": false, "text": e })),
+    }
+
+    let url = tg_relay_url(app);
+    let bound = app.bound.lock().client;
+    let local = match (s.tg_relay.enabled, bound) {
+        (false, _) => json!({ "ok": false, "text": "Реле выключено: включите его и сохраните настройки." }),
+        (true, None) => json!({ "ok": false, "text": "Адрес API LMQ не слушает — боту некуда обращаться." }),
+        (true, Some(a)) => {
+            let host = if a.ip().is_unspecified() { std::net::SocketAddr::from(([127, 0, 0, 1], a.port())) } else { a };
+            // Без настоящего токена — пробный с id разрешённого бота: реле его пропустит,
+            // а Telegram отклонит, и это проверяет всю цепочку.
+            let token = match s.tg_relay.allowed_bots.first() {
+                Some(id) if !real => format!("{}:lmq-relay-check", id.trim()),
+                _ => token.clone(),
+            };
+            match reqwest::Client::builder().no_proxy().build() {
+                Ok(http) => {
+                    let (r, ms) = get_me(&http, &format!("http://{host}"), &token).await;
+                    let (ok, text, name) = explain_get_me(&r, ms, real);
+                    bot = bot.or(name);
+                    if ok {
+                        json!({ "ok": true, "text": format!("Цепочка бот → LMQ → Telegram работает. {text}") })
+                    } else {
+                        json!({ "ok": false, "text": text })
+                    }
+                }
+                Err(e) => json!({ "ok": false, "text": e.to_string() }),
+            }
+        }
+    };
+    steps.push(json!({ "name": "lmq", "title": "Через адрес API LMQ", "ok": local["ok"], "text": local["text"] }));
+
+    let ok = steps.iter().all(|x| x["ok"] == json!(true));
+    for x in &steps {
+        tracing::info!(step = %x["name"].as_str().unwrap_or(""), ok = x["ok"].as_bool().unwrap_or(false), text = %x["text"].as_str().unwrap_or(""), "telegram relay check");
+    }
+    json!({
+        "ok": ok,
+        "enabled": s.tg_relay.enabled,
+        "url": url,
+        "upstream": base,
+        "route": crate::net::describe(&route),
+        "exit_ip": probe.exit_ip,
+        "bot": bot,
+        "with_token": real,
+        "steps": steps,
+    })
 }
 
 /// Сколько картинок в сообщениях (части `image_url` / `input_image`).

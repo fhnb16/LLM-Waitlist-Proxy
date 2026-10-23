@@ -248,6 +248,7 @@ fn paint_overview(s: &mut State, ui: &AppWindow, engines: &[lmq_core::engines::E
     g.set_models(model(view::models(o, &settings, &s.tests)));
     g.set_running(model(view::running(o)));
     g.set_engines(model(view::engines(engines, o.now)));
+    g.set_relay(model(view::relay(o)));
     g.set_gpus(model(view::gpus(o)));
     let dead = o.counts.get("dead").copied().unwrap_or(0);
     g.set_dead_count(dead as i32);
@@ -1035,6 +1036,33 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
                     let g = ui.global::<UiData>();
                     g.set_netcheck(text.into());
                     g.set_netcheck_running(false);
+                });
+            });
+        });
+    });
+    a.on_tgcheck(|| {
+        on_ui_now(|s, ui| {
+            let g = ui.global::<UiData>();
+            g.set_tgcheck_running(true);
+            g.set_tgcheck(t("Проверяю реле…").into());
+            let app = s.d.app.clone();
+            s.d.rt.spawn(async move {
+                let r = admin::tg_relay_check(&app, None).await;
+                let mut lines: Vec<String> = r["steps"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|x| {
+                        let mark = if x["ok"] == json!(true) { "✓" } else { "✗" };
+                        format!("{mark} {} — {}", t(x["title"].as_str().unwrap_or("")), x["text"].as_str().unwrap_or(""))
+                    })
+                    .collect();
+                let url = r["url"].as_str().map(String::from).unwrap_or_else(|| t("API не слушает"));
+                lines.push(format!("{}: {url} · {}", t("Сервер Bot API"), r["route"].as_str().unwrap_or("")));
+                on_ui(move |_, ui| {
+                    let g = ui.global::<UiData>();
+                    g.set_tgcheck(lines.join("\n").into());
+                    g.set_tgcheck_running(false);
                 });
             });
         });

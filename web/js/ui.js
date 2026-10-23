@@ -702,6 +702,12 @@ export const fmt = {
     if (v === null || v === undefined) return '—';
     return v >= 1024 ? (v / 1024).toLocaleString(locale(), { maximumFractionDigits: 1 }) + ' ' + t('ГБ') : v + ' ' + t('МБ');
   },
+  bytes(v) {
+    if (v === null || v === undefined) return '—';
+    if (v < 1024) return v + ' ' + t('Б');
+    if (v < 1048576) return (v / 1024).toLocaleString(locale(), { maximumFractionDigits: 1 }) + ' ' + t('КБ');
+    return fmt.mb(Math.round((v / 1048576) * 10) / 10);
+  },
 };
 
 /** Подпись и вид состояния задания. */

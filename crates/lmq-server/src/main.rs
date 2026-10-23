@@ -57,7 +57,7 @@ enum Cmd {
     /// Проверить путь до адреса: DNS, TCP, HTTP и внешний IP через выбранный маршрут.
     CheckUrl {
         url: String,
-        /// Маршрут из настроек: upstream, callback или telegram.
+        /// Маршрут из настроек: upstream, callback, telegram или tg_relay.
         #[arg(long)]
         route: Option<String>,
         /// Интерфейс вместо маршрута из настроек (имя или IP).
@@ -225,7 +225,8 @@ async fn check_url(p: &PathArgs, url: &str, route: Option<String>, interface: Op
             "upstream" => eff.settings.network.upstream.clone(),
             "callback" => eff.settings.network.callback.clone(),
             "telegram" => eff.settings.network.telegram.clone(),
-            other => bail!("маршрут '{other}': upstream, callback или telegram"),
+            "tg_relay" => lmq_core::tgrelay::route(&eff.settings),
+            other => bail!("маршрут '{other}': upstream, callback, telegram или tg_relay"),
         };
     }
     if let Some(i) = interface {

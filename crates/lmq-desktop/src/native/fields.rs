@@ -40,10 +40,12 @@ pub enum Kind {
     Secret,
     List,
     Select(&'static [&'static str]),
-    /// Интерфейс: список интерфейсов системы и ручной ввод.
-    Iface,
+    /// Интерфейс: список интерфейсов системы и ручной ввод. `true` — пусто значит
+    /// «как в разделе «Сеть и маршруты»», а не системный маршрут.
+    Iface(bool),
     /// Прокси: «как в системе», «напрямую», найденные локальные прокси и ручной ввод.
-    Proxy,
+    /// `true` — пусто значит «как в разделе «Сеть и маршруты»».
+    Proxy(bool),
 }
 
 pub struct Def {
@@ -122,12 +124,34 @@ pub static DEFS: &[Def] = &[
         "Через какой интерфейс или прокси ходит каждое направление. Например: модели — через VPN (happ-tun или socks5-прокси VPN-клиента), бот — напрямую (Ethernet). Пусто — системный маршрут.",
     ),
     Def { kind: Kind::Note, path: IFACES, label: "Интерфейсы", hint: "" },
-    f(Kind::Iface, "network.upstream.interface", "Модели: интерфейс", "Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой."),
-    f(Kind::Proxy, "network.upstream.proxy", "Модели: прокси", "socks5://, socks5h://, http://. none — напрямую."),
-    f(Kind::Iface, "network.callback.interface", "Бот: интерфейс", "Колбэки на адрес бота."),
-    f(Kind::Proxy, "network.callback.proxy", "Бот: прокси", ""),
-    f(Kind::Iface, "network.telegram.interface", "Telegram: интерфейс", "Только для протокола 1."),
-    f(Kind::Proxy, "network.telegram.proxy", "Telegram: прокси", ""),
+    f(Kind::Iface(false), "network.upstream.interface", "Модели: интерфейс", "Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой."),
+    f(Kind::Proxy(false), "network.upstream.proxy", "Модели: прокси", "socks5://, socks5h://, http://. none — напрямую."),
+    f(Kind::Iface(false), "network.callback.interface", "Бот: интерфейс", "Колбэки на адрес бота."),
+    f(Kind::Proxy(false), "network.callback.proxy", "Бот: прокси", ""),
+    f(Kind::Iface(false), "network.telegram.interface", "Telegram: интерфейс", "Протокол 1 и реле Bot API."),
+    f(Kind::Proxy(false), "network.telegram.proxy", "Telegram: прокси", ""),
+    head("Реле Telegram Bot API"),
+    note(
+        "Замена воркера Cloudflare: бот ходит в Telegram через LMQ. В боте: «Сервер Bot API» — адрес ниже, «Адрес для скачивания файлов» — пусто. Токен бота в журнал не пишется.",
+    ),
+    f(Kind::Bool, "tg_relay.enabled", "Включено", "Адрес API принимает /bot<токен>/… и /file/bot<токен>/… и пересылает их в Telegram."),
+    f(Kind::List, "tg_relay.allowed_bots", "Разрешённые боты", "id бота — число до двоеточия в токене. Пусто — реле обслужит любого бота, кто знает адрес."),
+    f(Kind::Iface(true), "tg_relay.interface", "Интерфейс", "Через какую сеть идти к Telegram: VPN-интерфейс, Ethernet или IP."),
+    f(Kind::Proxy(true), "tg_relay.proxy", "Прокси", "socks5://, socks5h://, http://. none — напрямую."),
+    f(Kind::Text, "tg_relay.upstream", "Адрес Bot API", "Можно указать свой сервер Bot API или другое реле."),
+    f(
+        num(1, 600, &[10, 15, 30, 60, 120], Unit::Secs),
+        "tg_relay.timeout",
+        "Ждать Telegram, с",
+        "Зависший запрос лучше оборвать — бот повторит. getUpdates ждёт ещё и свой timeout.",
+    ),
+    f(num(1, 2000, &[10, 20, 50, 100], Unit::Plain), "tg_relay.max_body_mb", "Предел загрузки, МБ", "Файлы, которые бот отправляет в Telegram."),
+    f(
+        Kind::Number(Num { min: 0, max: 4096, presets: &[0, 16, 32, 64, 128], unit: Unit::Plain, zero: "без кэша" }),
+        "tg_relay.file_cache_mb",
+        "Кэш файлов, МБ",
+        "Скачанные ботом файлы хранятся в памяти час и повторно не идут через сеть.",
+    ),
     head("Выключатель апстримов"),
     note("Упавший апстрим временно исключается; фоновая проверка возвращает его, когда он ожил."),
     f(Kind::Bool, "breaker.enabled", "Включён", ""),
@@ -234,14 +258,23 @@ pub fn rows(draft: &Value, locked: &[String], proxies: &[lmq_core::net::ProxyHin
                     options.2 = spec.presets.iter().map(|_| SharedString::new()).collect();
                     "number"
                 }
-                Kind::Iface => {
+                Kind::Iface(inherit) => {
                     options = ifaces.clone();
                     placeholder = t("системный маршрут");
+                    if inherit {
+                        options.1[0] = t("как в «Сеть и маршруты»").into();
+                        placeholder = t("как «Telegram» в «Сеть и маршруты»");
+                    }
                     "combo"
                 }
-                Kind::Proxy => {
+                Kind::Proxy(inherit) => {
                     options = proxy.clone();
                     placeholder = t("как в системе");
+                    if inherit {
+                        options.1[0] = t("как в «Сеть и маршруты»").into();
+                        options.2[0] = "".into();
+                        placeholder = t("как «Telegram» в «Сеть и маршруты»");
+                    }
                     "combo"
                 }
                 Kind::Select(opts) => {
@@ -296,7 +329,7 @@ pub fn edit_text(draft: &mut Value, i: usize, text: &str) -> Result<(), String> 
         }
         Kind::List => Value::Array(text.split(',').map(str::trim).filter(|s| !s.is_empty()).map(|s| json!(s)).collect()),
         Kind::Text | Kind::Secret => json!(text),
-        Kind::Iface | Kind::Proxy => json!(text.trim()),
+        Kind::Iface(_) | Kind::Proxy(_) => json!(text.trim()),
         _ => return Ok(()),
     };
     set(draft, d.path, val);

@@ -28,6 +28,7 @@ pub mod stats;
 pub mod store;
 pub mod submit;
 pub mod telegram;
+pub mod tgrelay;
 pub mod themes;
 pub mod updates;
 pub mod upstream;

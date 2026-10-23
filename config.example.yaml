@@ -72,9 +72,21 @@ network:
   callback:
     interface: ''                 # например Ethernet, если VPN в режиме TUN забирает весь трафик
     proxy: ''                     # none — напрямую
-  telegram:                       # только для протокола 1
+  telegram:                       # протокол 1 и реле Bot API
     interface: ''
     proxy: ''
+
+# Реле Telegram Bot API — замена воркера Cloudflare. Адрес API принимает /bot<TOKEN>/<метод>
+# и /file/bot<TOKEN>/<путь> и пересылает их в Telegram. В боте: «Сервер Bot API» = адрес API LMQ.
+tg_relay:
+  enabled: false                  # TG_RELAY_ENABLED
+  upstream: https://api.telegram.org  # куда пересылать: можно свой сервер Bot API или другое реле
+  allowed_bots: []                # TG_RELAY_ALLOWED_BOTS: id ботов (число до «:» в токене); пусто — любой бот
+  interface: ''                   # свой маршрут; пусто — как network.telegram
+  proxy: ''
+  timeout: 30                     # ждать Telegram, с; у getUpdates плюс его timeout
+  max_body_mb: 50                 # предел тела запроса от бота (загрузка файлов)
+  file_cache_mb: 32               # кэш скачанных файлов в памяти на час; 0 — без кэша
 
 protocol1:                        # старый режим: сервер сам пишет в Telegram
   enabled: false                  # PROTOCOL1_ENABLED

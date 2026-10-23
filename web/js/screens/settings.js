@@ -1,6 +1,6 @@
 import { api, desktop } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, cstate, field, input, combo, numberInput, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state } from '../ui.js';
+import { h, clear, hero, group, list, cell, cstate, field, input, combo, numberInput, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state, btn, copy, fmt } from '../ui.js';
 import { store, saveSettings, isLocked } from '../store.js';
 
 const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v }));
@@ -68,8 +68,22 @@ const SECTIONS = [
       { path: 'network.upstream.proxy', label: 'Модели: прокси', type: 'proxy', placeholder: 'как в системе', hint: 'socks5://, socks5h://, http://. none — напрямую.' },
       { path: 'network.callback.interface', label: 'Бот: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Колбэки на адрес бота.' },
       { path: 'network.callback.proxy', label: 'Бот: прокси', type: 'proxy', placeholder: 'как в системе' },
-      { path: 'network.telegram.interface', label: 'Telegram: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Только для протокола 1.' },
+      { path: 'network.telegram.interface', label: 'Telegram: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Протокол 1 и реле Bot API.' },
       { path: 'network.telegram.proxy', label: 'Telegram: прокси', type: 'proxy', placeholder: 'как в системе' },
+    ],
+  },
+  {
+    id: 'tg_relay', title: 'Реле Telegram Bot API', icon: 'update',
+    note: 'Замена воркера Cloudflare: бот ходит в Telegram через LMQ. В боте: «Сервер Bot API» — адрес ниже, «Адрес для скачивания файлов» — пусто. Токен бота в журнал не пишется.',
+    fields: [
+      { path: 'tg_relay.enabled', label: 'Включено', env: 'TG_RELAY_ENABLED', type: 'bool', hint: 'Адрес API принимает /bot<токен>/… и /file/bot<токен>/… и пересылает их в Telegram.' },
+      { path: 'tg_relay.allowed_bots', label: 'Разрешённые боты', env: 'TG_RELAY_ALLOWED_BOTS', type: 'list', placeholder: '123456789', hint: 'id бота — число до двоеточия в токене. Пусто — реле обслужит любого бота, кто знает адрес.' },
+      { path: 'tg_relay.interface', label: 'Интерфейс', type: 'iface', inherit: true, placeholder: 'как «Telegram» в «Сеть и маршруты»', hint: 'Через какую сеть идти к Telegram: VPN-интерфейс, Ethernet или IP.' },
+      { path: 'tg_relay.proxy', label: 'Прокси', type: 'proxy', inherit: true, placeholder: 'как «Telegram» в «Сеть и маршруты»', hint: 'socks5://, socks5h://, http://. none — напрямую.' },
+      { path: 'tg_relay.upstream', label: 'Адрес Bot API', placeholder: 'https://api.telegram.org', hint: 'Можно указать свой сервер Bot API или другое реле.' },
+      { path: 'tg_relay.timeout', label: 'Ждать Telegram, с', type: 'number', min: 1, max: 600, hint: 'Зависший запрос лучше оборвать — бот повторит. getUpdates ждёт ещё и свой timeout.' },
+      { path: 'tg_relay.max_body_mb', label: 'Предел загрузки, МБ', type: 'number', min: 1, max: 2000, hint: 'Файлы, которые бот отправляет в Telegram.' },
+      { path: 'tg_relay.file_cache_mb', label: 'Кэш файлов, МБ', type: 'number', min: 0, max: 4096, hint: 'Скачанные ботом файлы хранятся в памяти час и повторно не идут через сеть.' },
     ],
   },
   {
@@ -113,6 +127,9 @@ const PRESETS = {
   'breaker.failure_threshold': { presets: [1, 2, 3, 5, 10] },
   'breaker.open_seconds': { presets: [10, 30, 60, 120, 300], unit: 's' },
   'breaker.health_interval': { presets: [0, 5, 15, 30, 60], unit: 's', zero: 'не проверять' },
+  'tg_relay.timeout': { presets: [10, 15, 30, 60, 120], unit: 's' },
+  'tg_relay.max_body_mb': { presets: [10, 20, 50, 100] },
+  'tg_relay.file_cache_mb': { presets: [0, 16, 32, 64, 128], zero: 'без кэша' },
 };
 
 /** Интерфейсы системы и найденные локальные прокси — один запрос на экран. */
@@ -242,7 +259,7 @@ function renderSection(ctx, sec) {
         onChange: (v) => { setPath(draft, f.path, v ?? 0); touch(); } });
     } else if (f.type === 'iface' || f.type === 'proxy') {
       el = combo(value, [], { placeholder: f.placeholder ? t(f.placeholder) : '', disabled: locked, label: t(f.label), onChange: (v) => { setPath(draft, f.path, v.trim()); touch(); } });
-      netOptions().then((n) => el.setOptions(f.type === 'iface' ? ifaceOptions(n, false) : proxyOptions(n, false)));
+      netOptions().then((n) => el.setOptions(f.type === 'iface' ? ifaceOptions(n, !!f.inherit) : proxyOptions(n, !!f.inherit)));
     } else {
       el = input(value, { placeholder: f.placeholder || '', disabled: locked });
       el.addEventListener('input', () => { setPath(draft, f.path, el.value); touch(); });
@@ -252,6 +269,7 @@ function renderSection(ctx, sec) {
   });
   root.append(hero(t(sec.title)), err, group(null, h('div.list', ...rows), sec.note ? t(sec.note) : null));
   if (sec.id === 'network') root.append(networkTools(save, () => dirty));
+  if (sec.id === 'tg_relay') root.append(relayTools(ctx, save, () => dirty));
   ctx.onDestroy(() => {
     if (dirty) toast(t('Изменения не сохранены'), 'warn');
   });
@@ -288,6 +306,73 @@ function networkTools(save, isDirty) {
   return h('div',
     group(t('Проверка'), list(cell({ label: t('Проверить маршруты'), kind: 'tint', onClick: run })), t('DNS, соединение, HTTP и внешний IP каждого направления.')),
     out, ifaces);
+}
+
+/** Счётчики реле с запуска — строки списка (общие для раздела настроек и обзора). */
+export function relayStatRows(s) {
+  const failed = s.relay_errors + s.rejected;
+  return [
+    cell({ label: t('Запросов'), value: fmt.num(s.requests), extra: s.requests ? cstate(t('ошибок Telegram: {n}', { n: s.tg_errors }), s.tg_errors ? 'busy' : 'run') : null }),
+    cell({ label: t('Сбоев реле и отказов'), value: `${fmt.num(s.relay_errors)} · ${fmt.num(s.rejected)}`, extra: failed ? cstate(t('есть'), 'bad') : null }),
+    cell({ label: t('Средний ответ Telegram'), value: fmt.ms(s.avg_ms) }),
+    cell({ label: t('Трафик'), value: `↑ ${fmt.bytes(s.bytes_up)} · ↓ ${fmt.bytes(s.bytes_down)}` }),
+    cell({ label: t('Файлов'), value: t('{n}, из кэша {c}', { n: fmt.num(s.files), c: fmt.num(s.cache_hits) }) }),
+    s.last_at ? cell({ label: t('Последний запрос'), value: fmt.ago(s.last_at) }) : null,
+    Object.keys(s.methods || {}).length
+      ? cell({ label: t('Методы'), value: Object.entries(s.methods).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([m, n]) => `${m} ${n}`).join(' · '), wrap: true })
+      : null,
+    s.last_error ? cell({ label: t('Последняя ошибка'), value: `${s.last_error} · ${fmt.ago(s.last_error_at)}`, wrap: true }) : null,
+  ].filter(Boolean);
+}
+
+/** Адрес для бота, счётчики и проверка всей цепочки: маршрут → Bot API → адрес API LMQ. */
+function relayTools(ctx, save, isDirty) {
+  const info = h('div');
+  const out = h('div');
+  async function load() {
+    try {
+      const r = await api('/admin/api/tg-relay');
+      if (!ctx.alive()) return;
+      const url = r.url || t('API не слушает');
+      clear(info).append(
+        group(t('Для бота'), list(
+          cell({ label: t('Сервер Bot API'), value: url, extra: r.url ? btn(t('Копировать'), { inline: true, onClick: () => copy(r.url) }) : null, wrap: true }),
+          cell({ label: t('Маршрут'), value: r.route, wrap: true }),
+          cell({ label: t('Пересылает в'), value: r.upstream, wrap: true }),
+        ), r.enabled ? t('Если бот на другой машине, укажите адрес, по которому она видит LMQ.') : t('Реле выключено: включите его и сохраните.'), { noteWarn: !r.enabled }),
+        group(t('С запуска'), list(...relayStatRows(r.stats))),
+      );
+    } catch (e) {
+      clear(info).append(callout(e.message, 'error'));
+    }
+  }
+  const token = input('', { type: 'password', placeholder: t('необязательно'), autocomplete: 'off' });
+  async function run() {
+    if (isDirty()) await save();
+    clear(out).append(h('div.summary__wait', h('span.ring'), t('Проверяю реле…')));
+    try {
+      const r = await api('/admin/api/tg-relay/check', { method: 'POST', body: { token: token.value.trim() || null } });
+      const rows = r.steps.map((s) => cell({
+        label: h('span.jobline',
+          h('span.jobline__top', h('span.jobline__id', t(s.title)), cstate(s.ok ? t('работает') : t('не работает'), s.ok ? 'run' : 'bad')),
+          h('span.jobline__meta', h('span', s.text))),
+        wrap: true,
+      }));
+      const meta = [r.route, r.exit_ip ? t('выход {ip}', { ip: r.exit_ip }) : null, r.bot].filter(Boolean).join(' · ');
+      clear(out).append(group(r.ok ? t('Реле работает') : t('Реле не работает'), list(...rows), meta));
+      load();
+    } catch (e) {
+      clear(out).append(callout(e.message, 'error'));
+    }
+  }
+  load();
+  return h('div',
+    info,
+    group(t('Проверка'), h('div.list',
+      field(t('Токен бота'), token, { hint: t('Для getMe через всю цепочку. Не сохраняется. Без него проверка идёт с пробным токеном.') }),
+      cell({ label: t('Проверить реле'), kind: 'tint', onClick: run })),
+    t('Маршрут до Telegram (DNS, соединение, внешний IP), ответ Bot API по нему и путь через адрес API LMQ.')),
+    out);
 }
 
 export { SECTIONS, state };

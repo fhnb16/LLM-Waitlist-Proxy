@@ -3,6 +3,7 @@ import { t, tn } from '../i18n.js';
 import { lineChart, barChart, sparkline, bucketLabels } from '../charts.js';
 import { h, clear, hero, group, list, cell, segmented, cstate, meter, fmt, navBtn, toast, errorToast, btn } from '../ui.js';
 import { store, on } from '../store.js';
+import { relayStatRows } from './settings.js';
 
 const RANGES = ['5m', '1h', '24h', '7d', '30d'];
 let range = (() => {
@@ -67,6 +68,7 @@ export async function render(ctx) {
   const models = h('div');
   const running = h('div');
   const engines = h('div');
+  const relay = h('div');
   const gpu = h('div');
   root.append(
     head,
@@ -78,6 +80,7 @@ export async function render(ctx) {
     models,
     running,
     engines,
+    relay,
     gpu,
   );
 
@@ -158,6 +161,16 @@ export async function render(ctx) {
       const kind = { ready: 'run', starting: 'busy', stopping: 'busy', crashed: 'bad', failed: 'bad', stopped: 'off' };
       const label = { ready: t('готов'), starting: t('запускается'), stopping: t('останавливается'), crashed: t('упал, перезапуск'), failed: t('остановлен после сбоев'), stopped: t('остановлен') };
       engines.append(group(t('Движки'), list(...o.engines.map((e) => cell({ label: e.name, extra: cstate(label[e.status] || e.status, kind[e.status]), onClick: () => ctx.go('#/engines/' + encodeURIComponent(e.id)) })))));
+    }
+
+    // Реле Telegram
+    clear(relay);
+    if (o.tg_relay) {
+      const r = o.tg_relay;
+      relay.append(group(t('Реле Telegram'), list(
+        cell({ label: r.url || t('API не слушает'), value: r.route, wrap: true, onClick: () => ctx.go('#/settings/tg_relay') }),
+        ...relayStatRows(r),
+      )));
     }
 
     // GPU

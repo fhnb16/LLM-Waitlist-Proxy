@@ -398,6 +398,29 @@ export component SettingsPage inherits Rectangle {
                             wrap: word-wrap;
                         }
                     }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Проверить реле Telegram");
+                        hint: @tr("Маршрут до Telegram, ответ Bot API по нему и путь через адрес API LMQ. Проверка с токеном бота — в веб-панели.");
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: UiData.tgcheck-running ? @tr("Проверяю…") : @tr("Проверить");
+                                enabled: !UiData.tgcheck-running;
+                                clicked => { UiActions.tgcheck(); }
+                            }
+                        }
+                    }
+                    if UiData.tgcheck != "": HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 0;
+                        Text {
+                            text: UiData.tgcheck;
+                            font-size: 12px;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                    }
                 }
             }
 

@@ -74,6 +74,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/api/models/{name}/upstreams/{index}/models", get(upstream_models))
         .route("/admin/api/network", get(network_get))
         .route("/admin/api/network/check", post(network_check))
+        .route("/admin/api/tg-relay", get(tg_relay_get))
+        .route("/admin/api/tg-relay/check", post(tg_relay_check))
         .route("/admin/api/engines", get(engines))
         .route("/admin/api/engines/detect", post(engine_detect))
         .route("/admin/api/engines/{id}/start", post(engine_start))
@@ -468,6 +470,21 @@ async fn network_check(State(app): State<AppState>, body: Option<Json<NetCheckRe
         .filter(|u| !u.trim().is_empty())
         .map(|u| (u, crate::config::RouteCfg { interface: req.interface.unwrap_or_default(), proxy: req.proxy.unwrap_or_default() }));
     Json(json!({ "items": svc::network_check(&app, custom).await }))
+}
+
+async fn tg_relay_get(State(app): State<AppState>) -> Json<Value> {
+    Json(svc::tg_relay_view(&app))
+}
+
+#[derive(Deserialize, Default)]
+struct RelayCheckReq {
+    /// Токен бота для `getMe`; не сохраняется и не пишется в журнал.
+    token: Option<String>,
+}
+
+async fn tg_relay_check(State(app): State<AppState>, body: Option<Json<RelayCheckReq>>) -> Json<Value> {
+    let req = body.map(|Json(b)| b).unwrap_or_default();
+    Json(svc::tg_relay_check(&app, req.token).await)
 }
 
 // ---------------------------------------------------------------- движки

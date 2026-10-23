@@ -36,12 +36,18 @@ pub fn router(app: Arc<App>) -> Router {
         .method_not_allowed_fallback(wrong_method)
         .layer(DefaultBodyLimit::max(limit))
         .layer(RequestBodyTimeoutLayer::new(Duration::from_secs(cfg.server.body_read_timeout.max(1))))
-        .with_state(app);
+        .with_state(app.clone());
     // Путь приводится к каноническому до маршрутизации: клиенты и прокси присылают
     // `/chat/completions/`, `/v1/chat/completions` с префиксом прокси и т. п.
+    // Запросы к Bot API (`/bot<TOKEN>/…`) идут в реле со своими лимитами — и мимо журнала
+    // неизвестных путей: в пути токен.
     Router::new().fallback(move |mut req: Request| {
         let inner = inner.clone();
+        let app = app.clone();
         async move {
+            if crate::tgrelay::is_relay_path(req.uri().path()) {
+                return crate::tgrelay::handle(app, req).await;
+            }
             if let Some(uri) = canonical_uri(req.uri()) {
                 tracing::debug!(from = %req.uri().path(), to = %uri.path(), "api path normalized");
                 *req.uri_mut() = uri;

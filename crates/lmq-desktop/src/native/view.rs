@@ -91,6 +91,15 @@ pub mod fmt {
         if v >= 1024 { format!("{} {}", dec(v as f64 / 1024.0, 1), t("ГБ")) } else { format!("{v} {}", t("МБ")) }
     }
 
+    pub fn bytes(v: u64) -> String {
+        match v {
+            0..1024 => format!("{v} {}", t("Б")),
+            1024..1_048_576 => format!("{} {}", dec(v as f64 / 1024.0, 1), t("КБ")),
+            _ if v < 1_073_741_824 => format!("{} {}", dec(v as f64 / 1_048_576.0, 1), t("МБ")),
+            _ => format!("{} {}", dec(v as f64 / 1_073_741_824.0, 1), t("ГБ")),
+        }
+    }
+
     pub fn uptime(s: i64) -> String {
         let d = s / 86_400;
         let h = (s % 86_400) / 3600;
@@ -641,6 +650,28 @@ pub fn running(o: &Overview) -> Vec<RunRow> {
             }
         })
         .collect()
+}
+
+/// Реле Telegram на обзоре: адрес для бота и счётчики с запуска. Пусто — реле выключено.
+pub fn relay(o: &Overview) -> Vec<RunRow> {
+    let Some(r) = &o.tg_relay else { return Vec::new() };
+    let s = &r.stats;
+    let row = |id: String, meta: String, value: String| RunRow { id: ss(id), meta: ss(meta), elapsed: ss(value) };
+    let mut rows = vec![
+        row(r.url.clone().unwrap_or_else(|| t("API не слушает")), r.route.clone(), String::new()),
+        row(t("Запросов"), tf("ошибок Telegram: {n}", &[("n", &s.tg_errors)]), fmt::int(s.requests as f64)),
+        row(t("Сбоев реле и отказов"), String::new(), format!("{} · {}", s.relay_errors, s.rejected)),
+        row(t("Средний ответ Telegram"), String::new(), fmt::ms(s.avg_ms)),
+        row(
+            t("Трафик"),
+            tf("{n}, из кэша {c}", &[("n", &s.files), ("c", &s.cache_hits)]),
+            format!("↑ {} · ↓ {}", fmt::bytes(s.bytes_up), fmt::bytes(s.bytes_down)),
+        ),
+    ];
+    if let (Some(e), Some(at)) = (&s.last_error, s.last_error_at) {
+        rows.push(row(t("Последняя ошибка"), e.clone(), ago(at, o.now)));
+    }
+    rows
 }
 
 pub fn engine_state(s: EngineStatus) -> (&'static str, String) {

@@ -50,6 +50,7 @@ LMQ — сервер очереди между Telegram-ботом UniversalBot 
 - **Прочее:** `engines.rs` (запуск llama-server и др.), `stats.rs`, `metrics.rs` (Prometheus), `events.rs`
   (шина для SSE и окна), `net.rs` / `netdiag.rs` (маршруты через интерфейс или прокси), `schedule.rs`,
   `gpu.rs` (NVML, фича `gpu`), `updates.rs` (minisign), `telegram.rs` (протокол 1, выключен по умолчанию),
+  `tgrelay.rs` (реле Telegram Bot API на адресе API, выключено по умолчанию),
   `themes.rs`, `assets.rs` (вшитая панель), `crypto.rs`, `logging.rs`, `debug.rs` (приёмник колбэков).
 
 ## Сборка и запуск

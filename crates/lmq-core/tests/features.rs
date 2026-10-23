@@ -291,6 +291,92 @@ async fn protocol1_sends_to_telegram() {
     assert_eq!(body["reply_parameters"]["message_id"], 4711);
 }
 
+/// Запрос без разбора тела: для файлов реле.
+async fn raw(router: &axum::Router, method_: &str, uri: &str) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
+    use tower::ServiceExt;
+    let req = axum::http::Request::builder().method(method_).uri(uri).body(axum::body::Body::empty()).unwrap();
+    let resp = router.clone().oneshot(req).await.unwrap();
+    let (status, headers) = (resp.status(), resp.headers().clone());
+    (status, headers, axum::body::to_bytes(resp.into_body(), 1 << 20).await.unwrap().to_vec())
+}
+
+#[tokio::test]
+async fn telegram_relay_forwards_methods_and_files() {
+    let tg = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r"^/bot123:abc/sendMessage$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"ok": true, "result": {"message_id": 7}})))
+        .mount(&tg)
+        .await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/bot123:abc/getChat$"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({"ok": false, "error_code": 400, "description": "Bad Request: chat not found"})))
+        .mount(&tg)
+        .await;
+    let photo = vec![0xFFu8, 0xD8, 0xFF, 0xE0, 1, 2, 3];
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/file/bot123:abc/photos/a\.jpg$"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(photo.clone(), "application/octet-stream"))
+        .mount(&tg)
+        .await;
+
+    // Выключено по умолчанию: путь не уходит в Telegram и не считается неизвестным.
+    let off = start("  {}\n", &[], bot_ok().await).await;
+    let (st, _, v) = call(&off.router, "GET", "/bot123:abc/getMe", None, None).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+    assert_eq!(v["ok"], false);
+
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = dir.path().join("cfg");
+    std::fs::create_dir_all(&cfg).unwrap();
+    let relay = format!("tg_relay:\n  enabled: true\n  upstream: {}\n  allowed_bots: ['123']\n", tg.uri());
+    std::fs::write(cfg.join("settings.yaml"), format!("{}{relay}", settings_yaml("  {}\n"))).unwrap();
+    let env = start_in(dir, "", &[], bot_ok().await).await;
+
+    // Метод: тело и ответ — как есть.
+    let (st, _, v) = call(&env.router, "POST", "/bot123:abc/sendMessage", None, Some(json!({"chat_id": 1, "text": "hi"}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(v["result"]["message_id"], 7);
+    let sent = tg.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&sent[0].body).unwrap();
+    assert_eq!(body["text"], "hi");
+    // Ошибка Telegram доходит до бота без изменений.
+    let (st, _, v) = call(&env.router, "GET", "/bot123:abc/getChat?chat_id=5", None, None).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+    assert_eq!(v["description"], "Bad Request: chat not found");
+    // Чужой бот и запись в файлы — отказ без обращения к Telegram.
+    assert_eq!(call(&env.router, "GET", "/bot999:abc/getMe", None, None).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(raw(&env.router, "POST", "/file/bot123:abc/photos/a.jpg").await.0, StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(tg.received_requests().await.unwrap().len(), 2);
+
+    // Файл: настоящий тип по расширению, второй раз — из кэша.
+    for _ in 0..2 {
+        let (st, h, bytes) = raw(&env.router, "GET", "/file/bot123:abc/photos/a.jpg").await;
+        assert_eq!(st, StatusCode::OK);
+        assert_eq!(h["content-type"], "image/jpeg");
+        assert_eq!(bytes, photo);
+    }
+    assert_eq!(tg.received_requests().await.unwrap().len(), 3);
+
+    // Telegram недоступен — 502 в формате Bot API.
+    lmq_core::admin::patch_settings(&env.core.app, json!({"tg_relay": {"upstream": "http://127.0.0.1:1"}})).unwrap();
+    let (st, _, v) = call(&env.router, "GET", "/bot123:abc/getMe", None, None).await;
+    assert_eq!(st, StatusCode::BAD_GATEWAY);
+    assert!(v["description"].as_str().unwrap().starts_with("LMQ relay:"));
+    assert!(!v["description"].as_str().unwrap().contains("abc"), "token must not leak into errors");
+
+    // Счётчики — в панели и в /metrics.
+    let (st, _, v) = call(&env.admin, "GET", "/admin/api/tg-relay", Some(ADMIN), None).await;
+    assert_eq!(st, StatusCode::OK);
+    let s = &v["stats"];
+    assert_eq!((s["ok"].as_u64(), s["tg_errors"].as_u64(), s["relay_errors"].as_u64(), s["rejected"].as_u64()), (Some(3), Some(1), Some(1), Some(2)));
+    assert_eq!(s["cache_hits"], 1);
+    assert_eq!(s["methods"]["file"], 2);
+    let text = lmq_core::admin::prometheus(&env.core.app).await;
+    assert!(text.contains("tg_relay_requests_total{outcome=\"ok\"} 3"));
+    assert!(lmq_core::admin::overview(&env.core.app).await.tg_relay.is_some());
+}
+
 #[tokio::test]
 async fn debug_sink_receives_callbacks() {
     let up = upstream("debug answer", 0).await;

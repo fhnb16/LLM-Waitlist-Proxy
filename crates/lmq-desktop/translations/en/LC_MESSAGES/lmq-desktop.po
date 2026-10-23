@@ -404,3 +404,12 @@ msgstr "Less"
 
 msgid "Больше"
 msgstr "More"
+
+msgid "Проверить реле Telegram"
+msgstr "Check the Telegram relay"
+
+msgid "Маршрут до Telegram, ответ Bot API по нему и путь через адрес API LMQ. Проверка с токеном бота — в веб-панели."
+msgstr "Route to Telegram, the Bot API answer over it and the path through the LMQ API address. A check with the bot token is in the web panel."
+
+msgid "Реле Telegram"
+msgstr "Telegram relay"

@@ -69,6 +69,8 @@ pub struct App {
     pub http: reqwest::Client,
     /// Клиенты исходящих запросов по маршрутам (интерфейс, прокси).
     pub net: crate::net::NetPool,
+    /// Реле Telegram Bot API: счётчики и кэш файлов.
+    pub tg_relay: crate::tgrelay::Relay,
     pub engines: Arc<EngineManager>,
     pub gpu: GpuMonitor,
     pub debug: DebugSink,
@@ -193,6 +195,9 @@ impl App {
     pub fn install(&self, eff: Effective, first: bool) {
         let old = self.settings();
         let new = eff.settings.clone();
+        if old.tg_relay.upstream != new.tg_relay.upstream || old.tg_relay.file_cache_mb != new.tg_relay.file_cache_mb {
+            self.tg_relay.clear_cache();
+        }
         let routing = Routing::build(&new, Some(&self.routing()));
         self.routing.store(Arc::new(routing));
         self.settings.store(Arc::new(new.clone()));
@@ -388,6 +393,7 @@ impl Core {
             delivery_wake: Notify::new(),
             http,
             net: crate::net::NetPool::default(),
+            tg_relay: crate::tgrelay::Relay::default(),
             engines,
             gpu: GpuMonitor::default(),
             debug: DebugSink::default(),

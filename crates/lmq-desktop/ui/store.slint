@@ -17,6 +17,7 @@ export global UiData {
     in property <[ModelRow]> models;
     in property <[RunRow]> running;
     in property <[EngineRow]> engines;
+    in property <[RunRow]> relay;
     in property <[GpuRow]> gpus;
 
     // Очередь
@@ -62,6 +63,8 @@ export global UiData {
     in property <bool> mica-available;
     in property <string> netcheck;
     in property <bool> netcheck-running;
+    in property <string> tgcheck;
+    in property <bool> tgcheck-running;
 
     // Модальные окна
     in property <string> confirm-title;
@@ -116,6 +119,7 @@ export global UiActions {
     callback open-folder(string);
     callback check-updates();
     callback netcheck();
+    callback tgcheck();
 
     callback confirm-accept();
     callback confirm-dismiss();

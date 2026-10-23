@@ -207,6 +207,11 @@ pub fn apply_env(s: &mut Settings, env: EnvFn) -> Result<BTreeSet<String>> {
     string!("METRICS_TOKEN", s.metrics.token, "metrics.token");
     boolean!("PROTOCOL1_ENABLED", s.protocol1.enabled, "protocol1.enabled");
     string!("TELEGRAM_BOT_TOKEN", s.protocol1.telegram_bot_token, "protocol1.telegram_bot_token");
+    boolean!("TG_RELAY_ENABLED", s.tg_relay.enabled, "tg_relay.enabled");
+    if let Some(v) = env("TG_RELAY_ALLOWED_BOTS") {
+        s.tg_relay.allowed_bots = split_list(&v);
+        locked.insert("tg_relay.allowed_bots".into());
+    }
 
     // API_KEYS=name:key,name2:key2 — клиенты из окружения (ключи только в памяти, хэшами).
     if let Some(v) = env("API_KEYS") {
@@ -380,6 +385,21 @@ pub fn validate(s: &Settings) -> Vec<String> {
                 e.push(format!("schedule[{i}]: неизвестный день '{d}' (mon…sun)"));
             }
         }
+    }
+    let relay = &s.tg_relay;
+    if !relay.upstream.trim().is_empty() && !url::Url::parse(relay.upstream.trim()).is_ok_and(|u| matches!(u.scheme(), "http" | "https")) {
+        e.push(format!("tg_relay.upstream: '{}' не адрес http(s)://", relay.upstream));
+    }
+    for b in &relay.allowed_bots {
+        // Значение не повторяем: вместо id сюда могли вставить токен целиком.
+        if b.contains(':') {
+            e.push("tg_relay.allowed_bots: похоже на токен целиком — оставьте только число до двоеточия".into());
+        } else if b.trim().is_empty() || !b.trim().bytes().all(|c| c.is_ascii_digit()) {
+            e.push(format!("tg_relay.allowed_bots: '{b}' — нужен id бота (число до двоеточия в токене)"));
+        }
+    }
+    if relay.max_body_mb == 0 || relay.timeout == 0 {
+        e.push("tg_relay: max_body_mb и timeout должны быть больше 0".into());
     }
     if !(0.0..=1.0).contains(&s.ui.backdrop_opacity) {
         e.push("ui.backdrop_opacity: от 0 до 1".into());

@@ -24,6 +24,8 @@ pub struct Settings {
     pub breaker: BreakerCfg,
     /// Через какой интерфейс или прокси ходит каждое направление.
     pub network: NetworkCfg,
+    /// Реле Telegram Bot API на адресе API.
+    pub tg_relay: TgRelayCfg,
     pub clients: Vec<ClientCfg>,
     pub models: BTreeMap<String, ModelCfg>,
     /// Алиасы моделей: `fast: qwen3-27b`.
@@ -49,6 +51,7 @@ impl Default for Settings {
             protocol1: Default::default(),
             breaker: Default::default(),
             network: Default::default(),
+            tg_relay: Default::default(),
             clients: Vec::new(),
             models: BTreeMap::new(),
             aliases: BTreeMap::new(),
@@ -262,8 +265,45 @@ pub struct NetworkCfg {
     pub upstream: RouteCfg,
     /// Колбэки боту.
     pub callback: RouteCfg,
-    /// Telegram Bot API (протокол 1).
+    /// Telegram Bot API (протокол 1 и реле).
     pub telegram: RouteCfg,
+}
+
+/// Реле Telegram Bot API: адрес API принимает `/bot<TOKEN>/<метод>` и
+/// `/file/bot<TOKEN>/<путь>` и пересылает их в Telegram — как воркер Cloudflare.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct TgRelayCfg {
+    pub enabled: bool,
+    /// Куда пересылать. Пусто — `https://api.telegram.org`.
+    pub upstream: String,
+    /// id ботов (число до `:` в токене), которым можно пользоваться реле. Пусто — любой бот.
+    pub allowed_bots: Vec<String>,
+    /// Интерфейс или `system`. Пусто — как в `network.telegram`.
+    pub interface: String,
+    /// Прокси или `none`. Пусто — как в `network.telegram`.
+    pub proxy: String,
+    /// Ждать ответа Telegram, с. У `getUpdates` к нему прибавляется его `timeout`.
+    pub timeout: u64,
+    /// Предел тела запроса от бота, МБ (загрузка файлов — до 50 МБ).
+    pub max_body_mb: u32,
+    /// Кэш скачанных файлов в памяти, МБ. 0 — без кэша.
+    pub file_cache_mb: u32,
+}
+
+impl Default for TgRelayCfg {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            upstream: "https://api.telegram.org".into(),
+            allowed_bots: Vec::new(),
+            interface: String::new(),
+            proxy: String::new(),
+            timeout: 30,
+            max_body_mb: 50,
+            file_cache_mb: 32,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
