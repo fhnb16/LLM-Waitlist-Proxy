@@ -1,58 +1,89 @@
 import { ScrollView, Button, LineEdit, Switch, ComboBox } from "std-widgets.slint";
 import { Theme, Glyph } from "theme.slint";
 import { UiData, UiActions } from "store.slint";
-import { Card, PageHeader, SectionTitle, Segmented, Divider, Icon, Banner, ComboEdit, NumberEdit } from "widgets.slint";
-import { FieldRow } from "types.slint";
+import { Card, PageHeader, SectionTitle, Segmented, Divider, Icon, Banner, ComboEdit, NumberEdit, Paragraph } from "widgets.slint";
+import { FieldRow, LinkRow } from "types.slint";
+
+// Внутри `if`/`for` текст с переносом стоит только в компонентах без дочерних элементов
+// (поля, вкладки, строки ссылок ниже): иначе Slint 1.18 отводит ему одну строку, строки
+// наползают друг на друга и низ страницы обрезается. Правило проверяет tests/slint_layout.rs.
 
 /// Строка настройки: подпись и подсказка слева, элемент управления справа.
-component SettingRow inherits Rectangle {
+component SettingRow inherits HorizontalLayout {
     in property <string> label;
     in property <string> hint;
     in property <bool> locked;
     in property <bool> stack;
     min-height: stack ? 0 : 56px;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: stack ? 10px : 8px;
+    padding-bottom: stack ? 6px : 8px;
+    spacing: 16px;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        alignment: center;
+        spacing: 2px;
+        Text { text: label; font-size: 14px; color: Theme.text; wrap: word-wrap; }
+        if hint != "" || locked: Text {
+            text: locked ? @tr("Задано в окружении — меняется там") : hint;
+            font-size: 12px;
+            color: locked ? Theme.warn : Theme.text-3;
+            wrap: word-wrap;
+        }
+    }
     HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-top: stack ? 10px : 8px;
-        padding-bottom: stack ? 6px : 8px;
-        spacing: 16px;
-        VerticalLayout {
-            horizontal-stretch: 1;
-            alignment: center;
-            spacing: 2px;
-            Text { text: label; font-size: 14px; color: Theme.text; wrap: word-wrap; }
-            if hint != "" || locked: Text {
-                text: locked ? @tr("Задано в окружении — меняется там") : hint;
-                font-size: 12px;
-                color: locked ? Theme.warn : Theme.text-3;
-                wrap: word-wrap;
-            }
-        }
-        HorizontalLayout {
-            alignment: end;
-            @children
-        }
+        alignment: end;
+        @children
     }
 }
 
-component FieldEditor inherits VerticalLayout {
+/// Поле ввода по виду: текст, пароль, число, вариант из списка или свой.
+component FieldControl inherits VerticalLayout {
     in property <FieldRow> f;
     in property <int> index;
-    in property <bool> narrow;
-    if f.kind == "header": HorizontalLayout {
-        padding-left: 16px;
-        padding-top: 18px;
-        padding-bottom: 6px;
-        SectionTitle { text: f.label; }
+    alignment: center;
+    if f.kind == "text" || f.kind == "secret": LineEdit {
+        text: f.value;
+        enabled: !f.locked;
+        placeholder-text: f.placeholder;
+        input-type: f.kind == "secret" ? InputType.password : InputType.text;
+        edited(t) => { UiActions.field-text(index, t); }
     }
-    if f.kind == "note": HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-bottom: 6px;
-        Text { text: f.label; font-size: 12px; color: Theme.text-2; wrap: word-wrap; }
+    if f.kind == "number": NumberEdit {
+        text: f.value;
+        values: f.options;
+        labels: f.labels;
+        hints: f.hints;
+        minimum: f.minimum;
+        maximum: f.maximum;
+        placeholder: f.placeholder;
+        enabled: !f.locked;
+        edited(t) => { UiActions.field-text(index, t); }
     }
-    if f.kind == "bool": SettingRow {
+    if f.kind == "combo": ComboEdit {
+        text: f.value;
+        values: f.options;
+        labels: f.labels;
+        hints: f.hints;
+        placeholder: f.placeholder;
+        enabled: !f.locked;
+        edited(t) => { UiActions.field-text(index, t); }
+    }
+}
+
+component FieldHeader inherits HorizontalLayout {
+    in property <string> text;
+    padding-left: 16px;
+    padding-top: 18px;
+    padding-bottom: 6px;
+    SectionTitle { text: root.text; }
+}
+
+component FieldBool inherits VerticalLayout {
+    in property <FieldRow> f;
+    in property <int> index;
+    SettingRow {
         label: f.label;
         hint: f.hint;
         locked: f.locked;
@@ -65,7 +96,12 @@ component FieldEditor inherits VerticalLayout {
             }
         }
     }
-    if f.kind == "select": SettingRow {
+}
+
+component FieldSelect inherits VerticalLayout {
+    in property <FieldRow> f;
+    in property <int> index;
+    SettingRow {
         label: f.label;
         hint: f.hint;
         locked: f.locked;
@@ -80,82 +116,426 @@ component FieldEditor inherits VerticalLayout {
             }
         }
     }
-    // Справа на широком окне, под подписью — на узком.
-    if (f.kind == "text" || f.kind == "secret" || f.kind == "number" || f.kind == "combo") && !narrow: SettingRow {
+}
+
+/// Поле ввода справа от подписи — на широком окне.
+component FieldWide inherits VerticalLayout {
+    in property <FieldRow> f;
+    in property <int> index;
+    SettingRow {
         label: f.label;
         hint: f.hint;
         locked: f.locked;
+        FieldControl {
+            f: f;
+            index: index;
+            width: f.kind == "number" ? 260px : 300px;
+        }
+    }
+}
+
+/// Поле ввода под подписью — на узком окне.
+component FieldStacked inherits VerticalLayout {
+    in property <FieldRow> f;
+    in property <int> index;
+    SettingRow {
+        label: f.label;
+        hint: f.hint;
+        locked: f.locked;
+        stack: true;
+    }
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: 10px;
+        FieldControl { f: f; index: index; }
+    }
+}
+
+component FieldEditor inherits VerticalLayout {
+    in property <FieldRow> f;
+    in property <int> index;
+    in property <bool> narrow;
+    property <bool> input: f.kind == "text" || f.kind == "secret" || f.kind == "number" || f.kind == "combo";
+    if f.kind == "header": FieldHeader { text: f.label; }
+    if f.kind == "note": Paragraph { pad-x: 16px; pad-bottom: 6px; text: f.label; }
+    if f.kind == "bool": FieldBool { f: f; index: index; }
+    if f.kind == "select": FieldSelect { f: f; index: index; }
+    if input && !narrow: FieldWide { f: f; index: index; }
+    if input && narrow: FieldStacked { f: f; index: index; }
+}
+
+/// Панель сохранения, закреплённая под страницей: кнопки видны, где бы ни была прокрутка.
+component SaveBar inherits Rectangle {
+    background: Theme.card;
+    Rectangle {
+        y: 0;
+        height: 1px;
+        background: Theme.stroke;
+    }
+    HorizontalLayout {
+        padding-left: 28px;
+        padding-right: 28px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 8px;
+        Text {
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+            overflow: elide;
+            font-size: 13px;
+            text: UiData.settings-error != "" ? @tr("Настройки не сохранены: {}", UiData.settings-error)
+                : UiData.settings-dirty ? @tr("Есть несохранённые изменения") : @tr("Все изменения сохранены");
+            color: UiData.settings-error != "" ? Theme.danger : UiData.settings-dirty ? Theme.text : Theme.text-3;
+        }
+        if UiData.settings-dirty: Button {
+            text: @tr("Отменить");
+            clicked => { UiActions.settings-revert(); }
+        }
+        Button {
+            text: @tr("Сохранить");
+            primary: true;
+            enabled: UiData.settings-dirty;
+            clicked => { UiActions.settings-save(); }
+        }
+    }
+}
+
+/// Вкладки «Сервер», «Сеть», «Telegram», «Журнал»: поля сервера очереди. Сохранение — в
+/// закреплённой панели `SaveBar` под страницей.
+component FieldsTab inherits VerticalLayout {
+    in property <bool> narrow;
+    spacing: 16px;
+    SectionTitle { text: @tr("Сервер очереди"); }
+    if UiData.settings-error != "": Banner {
+        kind: "bad";
+        title: @tr("Настройки не сохранены");
+        text: UiData.settings-error;
+    }
+    Card {
         VerticalLayout {
-            alignment: center;
-            if f.kind == "text" || f.kind == "secret": LineEdit {
-                width: 300px;
-                text: f.value;
-                enabled: !f.locked;
-                placeholder-text: f.placeholder;
-                input-type: f.kind == "secret" ? InputType.password : InputType.text;
-                edited(t) => { UiActions.field-text(index, t); }
-            }
-            if f.kind == "number": NumberEdit {
-                width: 260px;
-                text: f.value;
-                values: f.options;
-                labels: f.labels;
-                hints: f.hints;
-                minimum: f.minimum;
-                maximum: f.maximum;
-                placeholder: f.placeholder;
-                enabled: !f.locked;
-                edited(t) => { UiActions.field-text(index, t); }
-            }
-            if f.kind == "combo": ComboEdit {
-                width: 300px;
-                text: f.value;
-                values: f.options;
-                labels: f.labels;
-                hints: f.hints;
-                placeholder: f.placeholder;
-                enabled: !f.locked;
-                edited(t) => { UiActions.field-text(index, t); }
+            padding-bottom: 8px;
+            // Только поля текущей вкладки; правки идут в черновик по `f.def`.
+            for f in UiData.fields: FieldEditor {
+                f: f;
+                index: f.def;
+                narrow: root.narrow;
             }
         }
     }
-    if (f.kind == "text" || f.kind == "secret" || f.kind == "number" || f.kind == "combo") && narrow: VerticalLayout {
-        SettingRow {
-            label: f.label;
-            hint: f.hint;
-            locked: f.locked;
-            stack: true;
+}
+
+/// Строка ссылки SOCKS5-прокси: адрес и кнопки копирования.
+component SocksLinkRow inherits VerticalLayout {
+    in property <LinkRow> link;
+    in property <bool> first;
+    Divider { opacity: first ? 0 : 1; }
+    SettingRow {
+        label: link.title;
+        hint: link.host;
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "socks5h";
+                    clicked => { UiActions.copy(link.url); }
+                }
+                Button {
+                    text: "Telegram";
+                    clicked => { UiActions.copy(link.telegram); }
+                }
+            }
         }
-        HorizontalLayout {
-            padding-left: 16px;
-            padding-right: 16px;
-            padding-bottom: 10px;
-            if f.kind == "text" || f.kind == "secret": LineEdit {
-                text: f.value;
-                enabled: !f.locked;
-                placeholder-text: f.placeholder;
-                input-type: f.kind == "secret" ? InputType.password : InputType.text;
-                edited(t) => { UiActions.field-text(index, t); }
+    }
+}
+
+/// Вкладка «Сеть»: проверка маршрутов и ссылки на SOCKS5-прокси.
+component NetworkExtras inherits VerticalLayout {
+    spacing: 16px;
+    Card {
+        VerticalLayout {
+            SettingRow {
+                label: @tr("Проверить маршруты");
+                hint: @tr("Бот, каждый апстрим и Telegram: DNS, соединение, HTTP и внешний IP. Запросы — GET без данных.");
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: UiData.netcheck-running ? @tr("Проверяю…") : @tr("Проверить");
+                        enabled: !UiData.netcheck-running;
+                        clicked => { UiActions.netcheck(); }
+                    }
+                }
             }
-            if f.kind == "number": NumberEdit {
-                text: f.value;
-                values: f.options;
-                labels: f.labels;
-                hints: f.hints;
-                minimum: f.minimum;
-                maximum: f.maximum;
-                placeholder: f.placeholder;
-                enabled: !f.locked;
-                edited(t) => { UiActions.field-text(index, t); }
+            if UiData.netcheck != "": Paragraph { pad-x: 16px; pad-bottom: 16px; text: UiData.netcheck; color: Theme.text; }
+        }
+    }
+
+    SectionTitle { text: @tr("SOCKS5-прокси: ссылки"); }
+    Card {
+        VerticalLayout {
+            for l[i] in UiData.socks-links: SocksLinkRow { link: l; first: i == 0; }
+            if UiData.socks-note != "": Paragraph {
+                pad-x: 16px;
+                pad-top: 4px;
+                pad-bottom: 16px;
+                text: UiData.socks-note + " " + @tr("Ссылки содержат логин и пароль. Снаружи прокси доступен, если на роутере проброшен порт.");
             }
-            if f.kind == "combo": ComboEdit {
-                text: f.value;
-                values: f.options;
-                labels: f.labels;
-                hints: f.hints;
-                placeholder: f.placeholder;
-                enabled: !f.locked;
-                edited(t) => { UiActions.field-text(index, t); }
+            Divider { }
+            SettingRow {
+                label: @tr("Проверить прокси");
+                hint: @tr("Соединение через прокси и внешний IP — в сравнении с выбранным интерфейсом напрямую и с системным маршрутом.");
+                VerticalLayout {
+                    alignment: center;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button {
+                            text: @tr("Обновить IP");
+                            clicked => { UiActions.socks-refresh(); }
+                        }
+                        Button {
+                            text: UiData.sockscheck-running ? @tr("Проверяю…") : @tr("Проверить");
+                            enabled: !UiData.sockscheck-running;
+                            clicked => { UiActions.sockscheck(); }
+                        }
+                    }
+                }
+            }
+            if UiData.sockscheck != "": Paragraph { pad-x: 16px; pad-bottom: 16px; text: UiData.sockscheck; color: Theme.text; }
+        }
+    }
+}
+
+/// Вкладка «Telegram»: проверка реле.
+component TelegramExtras inherits VerticalLayout {
+    Card {
+        VerticalLayout {
+            SettingRow {
+                label: @tr("Проверить реле Telegram");
+                hint: @tr("Маршрут до Telegram, ответ Bot API по нему и путь через адрес API LMQ. Проверка с токеном бота — в веб-панели.");
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: UiData.tgcheck-running ? @tr("Проверяю…") : @tr("Проверить");
+                        enabled: !UiData.tgcheck-running;
+                        clicked => { UiActions.tgcheck(); }
+                    }
+                }
+            }
+            if UiData.tgcheck != "": Paragraph { pad-x: 16px; pad-bottom: 16px; text: UiData.tgcheck; color: Theme.text; }
+        }
+    }
+}
+
+/// Вкладка «Приложение»: оформление, запуск, обновления.
+component AppTab inherits VerticalLayout {
+    in property <bool> narrow;
+    spacing: 16px;
+    SectionTitle { text: @tr("Оформление"); }
+    Card {
+        VerticalLayout {
+            SettingRow {
+                label: @tr("Тема");
+                hint: @tr("Светлая, тёмная или как в Windows");
+                stack: narrow;
+                if !narrow: Segmented {
+                    width: 300px;
+                    items: [@tr("Системная"), @tr("Светлая"), @tr("Тёмная")];
+                    current <=> UiData.scheme;
+                    selected(i) => { UiActions.set-scheme(i); }
+                }
+            }
+            if narrow: HorizontalLayout {
+                padding: 16px;
+                padding-top: 0;
+                Segmented {
+                    items: [@tr("Системная"), @tr("Светлая"), @tr("Тёмная")];
+                    current <=> UiData.scheme;
+                    selected(i) => { UiActions.set-scheme(i); }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Фон окна");
+                hint: UiData.mica-available ? @tr("Mica — Windows 11, Acrylic — Windows 10 и 11") : @tr("Mica доступна в Windows 11; здесь будет Acrylic");
+                stack: narrow;
+                if !narrow: Segmented {
+                    width: 300px;
+                    items: ["Mica", "Acrylic", @tr("Без размытия")];
+                    current <=> UiData.backdrop;
+                    selected(i) => { UiActions.set-backdrop(i); }
+                }
+            }
+            if narrow: HorizontalLayout {
+                padding: 16px;
+                padding-top: 0;
+                Segmented {
+                    items: ["Mica", "Acrylic", @tr("Без размытия")];
+                    current <=> UiData.backdrop;
+                    selected(i) => { UiActions.set-backdrop(i); }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Язык");
+                hint: @tr("Интерфейс окна и веб-панели");
+                VerticalLayout {
+                    alignment: center;
+                    ComboBox {
+                        min-width: 160px;
+                        model: [@tr("Как в системе"), "Русский", "English"];
+                        current-index <=> UiData.language;
+                        selected => { UiActions.set-language(self.current-index); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Веб-режим окна");
+                hint: @tr("WebView2: 26 тем оформления, полная панель. Приложение перезапустится.");
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Перейти");
+                        clicked => { UiActions.switch-to-web(); }
+                    }
+                }
+            }
+        }
+    }
+
+    SectionTitle { text: @tr("Приложение"); }
+    Card {
+        VerticalLayout {
+            SettingRow {
+                label: @tr("Запускать при входе в Windows");
+                hint: @tr("Сразу в трей, без окна");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.autostart;
+                        toggled => { UiActions.set-app-flag("autostart", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Запускать свёрнутым");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.start-minimized;
+                        toggled => { UiActions.set-app-flag("start_minimized", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Закрывать в трей");
+                hint: @tr("Сервер продолжает работать; выход — из меню значка");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.close-to-tray;
+                        toggled => { UiActions.set-app-flag("close_to_tray", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Уведомления Windows");
+                hint: @tr("Апстрим исключён или вернулся, задание не доставлено, движок упал");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.notifications;
+                        toggled => { UiActions.set-app-flag("notifications", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Сразу выдавать задания моделям");
+                hint: @tr("Иначе приложение стартует с выдачей на паузе");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.server-autostart;
+                        toggled => { UiActions.set-app-flag("server_autostart", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Папки");
+                hint: UiData.config-dir;
+                stack: narrow;
+                if !narrow: HorizontalLayout {
+                    spacing: 8px;
+                    Button { text: @tr("Настройки"); clicked => { UiActions.open-folder("config"); } }
+                    Button { text: @tr("Данные"); clicked => { UiActions.open-folder("data"); } }
+                    Button { text: @tr("Журналы"); clicked => { UiActions.open-folder("logs"); } }
+                }
+            }
+            if narrow: HorizontalLayout {
+                padding: 16px;
+                padding-top: 0;
+                spacing: 8px;
+                Button { text: @tr("Настройки"); clicked => { UiActions.open-folder("config"); } }
+                Button { text: @tr("Данные"); clicked => { UiActions.open-folder("data"); } }
+                Button { text: @tr("Журналы"); clicked => { UiActions.open-folder("logs"); } }
+            }
+        }
+    }
+
+    SectionTitle { text: @tr("Обновления и о программе"); }
+    Card {
+        VerticalLayout {
+            SettingRow {
+                label: "LMQ " + UiData.version;
+                hint: UiData.update-status;
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Проверить обновления");
+                        clicked => { UiActions.check-updates(); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Проверять при запуске");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.update-auto;
+                        toggled => { UiActions.set-app-flag("updates_auto", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Расписание, профили, песочница, отладка колбэков");
+                hint: @tr("Открываются в полной панели в браузере");
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Открыть");
+                        clicked => { UiActions.open-panel("#/settings"); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Выйти из LMQ");
+                hint: @tr("Останавливает сервер очереди и движки");
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("Выход");
+                        clicked => { UiActions.quit(); }
+                    }
+                }
             }
         }
     }
@@ -163,402 +543,44 @@ component FieldEditor inherits VerticalLayout {
 
 export component SettingsPage inherits Rectangle {
     property <bool> narrow: self.width < 720px;
-    sv := ScrollView {
-        content-width: self.visible-width;
-        content-height: content.preferred-height;
-        content := VerticalLayout {
-            width: sv.visible-width;
-            padding: 28px;
-            padding-top: 20px;
-            spacing: 16px;
-            PageHeader {
-                title: @tr("Настройки");
-                subtitle: UiData.settings-file;
-                VerticalLayout {
-                    alignment: center;
-                    Button {
-                        text: @tr("Полная панель");
-                        clicked => { UiActions.open-panel("#/settings"); }
+    VerticalLayout {
+        sv := ScrollView {
+            vertical-stretch: 1;
+            content-width: self.visible-width;
+            content-height: content.preferred-height;
+            content := VerticalLayout {
+                width: sv.visible-width;
+                padding: 28px;
+                padding-top: 20px;
+                spacing: 16px;
+                PageHeader {
+                    title: @tr("Настройки");
+                    subtitle: UiData.settings-file;
+                    VerticalLayout {
+                        alignment: center;
+                        Button {
+                            text: @tr("Полная панель");
+                            clicked => { UiActions.open-panel("#/settings"); }
+                        }
                     }
                 }
-            }
 
-            // Вкладки: 0 — сервер, 1 — сеть, 2 — Telegram, 3 — журнал, 4 — приложение.
-            // Поля вкладки (`UiData.fields`) подставляет Rust по `settings-tab-selected`.
-            Segmented {
-                max-width: 640px;
-                items: [@tr("Сервер"), @tr("Сеть"), "Telegram", @tr("Журнал"), @tr("Приложение")];
-                current <=> UiData.settings-tab;
-                selected(i) => { UiActions.settings-tab-selected(i); }
-            }
+                // Вкладки: 0 — сервер, 1 — сеть, 2 — Telegram, 3 — журнал, 4 — приложение.
+                // Поля вкладки (`UiData.fields`) подставляет Rust по `settings-tab-selected`.
+                Segmented {
+                    max-width: 640px;
+                    items: [@tr("Сервер"), @tr("Сеть"), "Telegram", @tr("Журнал"), @tr("Приложение")];
+                    current <=> UiData.settings-tab;
+                    selected(i) => { UiActions.settings-tab-selected(i); }
+                }
 
-            if UiData.settings-tab == 4: SectionTitle { text: @tr("Оформление"); }
-            if UiData.settings-tab == 4: Card {
-                VerticalLayout {
-                    SettingRow {
-                        label: @tr("Тема");
-                        hint: @tr("Светлая, тёмная или как в Windows");
-                        stack: narrow;
-                        if !narrow: Segmented {
-                            width: 300px;
-                            items: [@tr("Системная"), @tr("Светлая"), @tr("Тёмная")];
-                            current <=> UiData.scheme;
-                            selected(i) => { UiActions.set-scheme(i); }
-                        }
-                    }
-                    if narrow: HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 0;
-                        Segmented {
-                            items: [@tr("Системная"), @tr("Светлая"), @tr("Тёмная")];
-                            current <=> UiData.scheme;
-                            selected(i) => { UiActions.set-scheme(i); }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Фон окна");
-                        hint: UiData.mica-available ? @tr("Mica — Windows 11, Acrylic — Windows 10 и 11") : @tr("Mica доступна в Windows 11; здесь будет Acrylic");
-                        stack: narrow;
-                        if !narrow: Segmented {
-                            width: 300px;
-                            items: ["Mica", "Acrylic", @tr("Без размытия")];
-                            current <=> UiData.backdrop;
-                            selected(i) => { UiActions.set-backdrop(i); }
-                        }
-                    }
-                    if narrow: HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 0;
-                        Segmented {
-                            items: ["Mica", "Acrylic", @tr("Без размытия")];
-                            current <=> UiData.backdrop;
-                            selected(i) => { UiActions.set-backdrop(i); }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Язык");
-                        hint: @tr("Интерфейс окна и веб-панели");
-                        VerticalLayout {
-                            alignment: center;
-                            ComboBox {
-                                min-width: 160px;
-                                model: [@tr("Как в системе"), "Русский", "English"];
-                                current-index <=> UiData.language;
-                                selected => { UiActions.set-language(self.current-index); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Веб-режим окна");
-                        hint: @tr("WebView2: 26 тем оформления, полная панель. Приложение перезапустится.");
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: @tr("Перейти");
-                                clicked => { UiActions.switch-to-web(); }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if UiData.settings-tab == 4: SectionTitle { text: @tr("Приложение"); }
-            if UiData.settings-tab == 4: Card {
-                VerticalLayout {
-                    SettingRow {
-                        label: @tr("Запускать при входе в Windows");
-                        hint: @tr("Сразу в трей, без окна");
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                checked <=> UiData.autostart;
-                                toggled => { UiActions.set-app-flag("autostart", self.checked); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Запускать свёрнутым");
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                checked <=> UiData.start-minimized;
-                                toggled => { UiActions.set-app-flag("start_minimized", self.checked); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Закрывать в трей");
-                        hint: @tr("Сервер продолжает работать; выход — из меню значка");
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                checked <=> UiData.close-to-tray;
-                                toggled => { UiActions.set-app-flag("close_to_tray", self.checked); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Уведомления Windows");
-                        hint: @tr("Апстрим исключён или вернулся, задание не доставлено, движок упал");
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                checked <=> UiData.notifications;
-                                toggled => { UiActions.set-app-flag("notifications", self.checked); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Сразу выдавать задания моделям");
-                        hint: @tr("Иначе приложение стартует с выдачей на паузе");
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                checked <=> UiData.server-autostart;
-                                toggled => { UiActions.set-app-flag("server_autostart", self.checked); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Папки");
-                        hint: UiData.config-dir;
-                        stack: narrow;
-                        if !narrow: HorizontalLayout {
-                            spacing: 8px;
-                            Button { text: @tr("Настройки"); clicked => { UiActions.open-folder("config"); } }
-                            Button { text: @tr("Данные"); clicked => { UiActions.open-folder("data"); } }
-                            Button { text: @tr("Журналы"); clicked => { UiActions.open-folder("logs"); } }
-                        }
-                    }
-                    if narrow: HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 0;
-                        spacing: 8px;
-                        Button { text: @tr("Настройки"); clicked => { UiActions.open-folder("config"); } }
-                        Button { text: @tr("Данные"); clicked => { UiActions.open-folder("data"); } }
-                        Button { text: @tr("Журналы"); clicked => { UiActions.open-folder("logs"); } }
-                    }
-                }
-            }
-
-            if UiData.settings-tab < 4: HorizontalLayout {
-                spacing: 12px;
-                SectionTitle {
-                    text: @tr("Сервер очереди");
-                    horizontal-stretch: 1;
-                    vertical-alignment: center;
-                }
-                if UiData.settings-dirty: Button {
-                    text: @tr("Отменить");
-                    clicked => { UiActions.settings-revert(); }
-                }
-                Button {
-                    text: @tr("Сохранить");
-                    primary: true;
-                    enabled: UiData.settings-dirty;
-                    clicked => { UiActions.settings-save(); }
-                }
-            }
-            if UiData.settings-tab < 4 && UiData.settings-error != "": Banner {
-                kind: "bad";
-                title: @tr("Настройки не сохранены");
-                text: UiData.settings-error;
-            }
-            if UiData.settings-tab < 4: Card {
-                VerticalLayout {
-                    padding-bottom: 8px;
-                    // Только поля текущей вкладки; правки идут в черновик по `f.def`.
-                    for f in UiData.fields: FieldEditor {
-                        f: f;
-                        index: f.def;
-                        narrow: narrow;
-                    }
-                }
-            }
-
-            if UiData.settings-tab == 1: Card {
-                VerticalLayout {
-                    SettingRow {
-                        label: @tr("Проверить маршруты");
-                        hint: @tr("Бот, каждый апстрим и Telegram: DNS, соединение, HTTP и внешний IP. Запросы — GET без данных.");
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: UiData.netcheck-running ? @tr("Проверяю…") : @tr("Проверить");
-                                enabled: !UiData.netcheck-running;
-                                clicked => { UiActions.netcheck(); }
-                            }
-                        }
-                    }
-                    if UiData.netcheck != "": HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 0;
-                        Text {
-                            text: UiData.netcheck;
-                            font-size: 12px;
-                            color: Theme.text;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
-            }
-
-            if UiData.settings-tab == 2: Card {
-                VerticalLayout {
-                    SettingRow {
-                        label: @tr("Проверить реле Telegram");
-                        hint: @tr("Маршрут до Telegram, ответ Bot API по нему и путь через адрес API LMQ. Проверка с токеном бота — в веб-панели.");
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: UiData.tgcheck-running ? @tr("Проверяю…") : @tr("Проверить");
-                                enabled: !UiData.tgcheck-running;
-                                clicked => { UiActions.tgcheck(); }
-                            }
-                        }
-                    }
-                    if UiData.tgcheck != "": HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 0;
-                        Text {
-                            text: UiData.tgcheck;
-                            font-size: 12px;
-                            color: Theme.text;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
-            }
-
-            if UiData.settings-tab == 1: SectionTitle { text: @tr("SOCKS5-прокси: ссылки"); }
-            if UiData.settings-tab == 1: Card {
-                VerticalLayout {
-                    // Без `if` внутри `for` (см. поля): у первой строки разделитель просто прозрачный.
-                    for l[i] in UiData.socks-links: VerticalLayout {
-                        Divider { opacity: i > 0 ? 1 : 0; }
-                        SettingRow {
-                            label: l.title;
-                            hint: l.host;
-                            // Кнопки — по центру строки, как в остальных строках: иначе
-                            // они растягиваются по высоте и наползают на рамку карточки.
-                            VerticalLayout {
-                                alignment: center;
-                                HorizontalLayout {
-                                    spacing: 8px;
-                                    Button {
-                                        text: "socks5h";
-                                        clicked => { UiActions.copy(l.url); }
-                                    }
-                                    Button {
-                                        text: "Telegram";
-                                        clicked => { UiActions.copy(l.telegram); }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if UiData.socks-note != "": HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 4px;
-                        Text {
-                            text: UiData.socks-note + " " + @tr("Ссылки содержат логин и пароль. Снаружи прокси доступен, если на роутере проброшен порт.");
-                            font-size: 12px;
-                            color: Theme.text-2;
-                            wrap: word-wrap;
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Проверить прокси");
-                        hint: @tr("Соединение через прокси и внешний IP — в сравнении с выбранным интерфейсом напрямую и с системным маршрутом.");
-                        VerticalLayout {
-                            alignment: center;
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Button {
-                                    text: @tr("Обновить IP");
-                                    clicked => { UiActions.socks-refresh(); }
-                                }
-                                Button {
-                                    text: UiData.sockscheck-running ? @tr("Проверяю…") : @tr("Проверить");
-                                    enabled: !UiData.sockscheck-running;
-                                    clicked => { UiActions.sockscheck(); }
-                                }
-                            }
-                        }
-                    }
-                    if UiData.sockscheck != "": HorizontalLayout {
-                        padding: 16px;
-                        padding-top: 0;
-                        Text {
-                            text: UiData.sockscheck;
-                            font-size: 12px;
-                            color: Theme.text;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
-            }
-
-            if UiData.settings-tab == 4: SectionTitle { text: @tr("Обновления и о программе"); }
-            if UiData.settings-tab == 4: Card {
-                VerticalLayout {
-                    SettingRow {
-                        label: "LMQ " + UiData.version;
-                        hint: UiData.update-status;
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: @tr("Проверить обновления");
-                                clicked => { UiActions.check-updates(); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Проверять при запуске");
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                checked <=> UiData.update-auto;
-                                toggled => { UiActions.set-app-flag("updates_auto", self.checked); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Расписание, профили, песочница, отладка колбэков");
-                        hint: @tr("Открываются в полной панели в браузере");
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: @tr("Открыть");
-                                clicked => { UiActions.open-panel("#/settings"); }
-                            }
-                        }
-                    }
-                    Divider { }
-                    SettingRow {
-                        label: @tr("Выйти из LMQ");
-                        hint: @tr("Останавливает сервер очереди и движки");
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: @tr("Выход");
-                                clicked => { UiActions.quit(); }
-                            }
-                        }
-                    }
-                }
+                if UiData.settings-tab < 4: FieldsTab { narrow: root.narrow; }
+                if UiData.settings-tab == 1: NetworkExtras { }
+                if UiData.settings-tab == 2: TelegramExtras { }
+                if UiData.settings-tab == 4: AppTab { narrow: root.narrow; }
             }
         }
+        // Вкладки с полями сервера сохраняются кнопкой; «Приложение» применяется сразу.
+        if UiData.settings-tab < 4: SaveBar { }
     }
 }

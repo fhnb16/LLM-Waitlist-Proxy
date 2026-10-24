@@ -73,6 +73,104 @@ component NavItem inherits Rectangle {
     }
 }
 
+/// Подтверждение действия поверх окна.
+component ConfirmDialog inherits Rectangle {
+    background: #00000066;
+    TouchArea { }
+    Card {
+        width: min(440px, root.width - 32px);
+        height: cbox.preferred-height;
+        background: Theme.dark ? #2b2b2b : #ffffff;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #00000055;
+        cbox := VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Text { text: UiData.confirm-title; font-size: 20px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
+            Text { text: UiData.confirm-text; font-size: 14px; color: Theme.text-2; wrap: word-wrap; }
+            HorizontalLayout {
+                padding-top: 12px;
+                spacing: 8px;
+                Button {
+                    horizontal-stretch: 1;
+                    text: UiData.confirm-ok;
+                    primary: true;
+                    clicked => { UiActions.confirm-accept(); }
+                }
+                Button {
+                    horizontal-stretch: 1;
+                    text: @tr("Отмена");
+                    clicked => { UiActions.confirm-dismiss(); }
+                }
+            }
+        }
+    }
+}
+
+/// Секрет, показанный один раз (ключ клиента).
+component SecretDialog inherits Rectangle {
+    background: #00000066;
+    TouchArea { }
+    Card {
+        width: min(520px, root.width - 32px);
+        height: sbox.preferred-height;
+        background: Theme.dark ? #2b2b2b : #ffffff;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #00000055;
+        sbox := VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Text { text: UiData.secret-title; font-size: 20px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
+            Text { text: UiData.secret-text; font-size: 14px; color: Theme.text-2; wrap: word-wrap; }
+            LineEdit {
+                text: UiData.secret-value;
+                read-only: true;
+                font-size: 13px;
+            }
+            HorizontalLayout {
+                padding-top: 12px;
+                spacing: 8px;
+                Button {
+                    horizontal-stretch: 1;
+                    text: @tr("Копировать");
+                    primary: true;
+                    clicked => { UiActions.copy(UiData.secret-value); }
+                }
+                Button {
+                    horizontal-stretch: 1;
+                    text: @tr("Готово");
+                    clicked => { UiActions.secret-dismiss(); }
+                }
+            }
+        }
+    }
+}
+
+/// Короткое сообщение внизу окна. Сам компонент прозрачен и растянут на всё окно.
+component Toast inherits Rectangle {
+    Rectangle {
+        x: (root.width - self.width) / 2;
+        y: root.height - self.height - 24px;
+        width: min(root.width - 32px, ttext.preferred-width + 40px);
+        height: ttext.preferred-height + 22px;
+        border-radius: 8px;
+        background: Theme.dark ? #2c2c2c : #ffffff;
+        border-width: 1px;
+        border-color: UiData.toast-kind == "bad" ? Theme.danger : UiData.toast-kind == "ok" ? Theme.ok : Theme.stroke;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #00000040;
+        ttext := Text {
+            x: 20px;
+            width: parent.width - 40px;
+            text: UiData.toast;
+            font-size: 13px;
+            color: Theme.text;
+            wrap: word-wrap;
+            vertical-alignment: center;
+        }
+    }
+}
+
 export component AppWindow inherits Window {
     in property <bool> dark;
     in property <bool> solid;
@@ -170,99 +268,9 @@ export component AppWindow inherits Window {
         }
     }
 
-    // Подтверждение.
-    if UiData.confirm-title != "": Rectangle {
-        background: #00000066;
-        TouchArea { }
-        Card {
-            width: min(440px, root.width - 32px);
-            height: cbox.preferred-height;
-            background: Theme.dark ? #2b2b2b : #ffffff;
-            drop-shadow-blur: 24px;
-            drop-shadow-color: #00000055;
-            cbox := VerticalLayout {
-                padding: 24px;
-                spacing: 12px;
-                Text { text: UiData.confirm-title; font-size: 20px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
-                Text { text: UiData.confirm-text; font-size: 14px; color: Theme.text-2; wrap: word-wrap; }
-                HorizontalLayout {
-                    padding-top: 12px;
-                    spacing: 8px;
-                    Button {
-                        horizontal-stretch: 1;
-                        text: UiData.confirm-ok;
-                        primary: true;
-                        clicked => { UiActions.confirm-accept(); }
-                    }
-                    Button {
-                        horizontal-stretch: 1;
-                        text: @tr("Отмена");
-                        clicked => { UiActions.confirm-dismiss(); }
-                    }
-                }
-            }
-        }
-    }
-
-    // Секрет, показанный один раз (ключ клиента).
-    if UiData.secret-title != "": Rectangle {
-        background: #00000066;
-        TouchArea { }
-        Card {
-            width: min(520px, root.width - 32px);
-            height: sbox.preferred-height;
-            background: Theme.dark ? #2b2b2b : #ffffff;
-            drop-shadow-blur: 24px;
-            drop-shadow-color: #00000055;
-            sbox := VerticalLayout {
-                padding: 24px;
-                spacing: 12px;
-                Text { text: UiData.secret-title; font-size: 20px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
-                Text { text: UiData.secret-text; font-size: 14px; color: Theme.text-2; wrap: word-wrap; }
-                LineEdit {
-                    text: UiData.secret-value;
-                    read-only: true;
-                    font-size: 13px;
-                }
-                HorizontalLayout {
-                    padding-top: 12px;
-                    spacing: 8px;
-                    Button {
-                        horizontal-stretch: 1;
-                        text: @tr("Копировать");
-                        primary: true;
-                        clicked => { UiActions.copy(UiData.secret-value); }
-                    }
-                    Button {
-                        horizontal-stretch: 1;
-                        text: @tr("Готово");
-                        clicked => { UiActions.secret-dismiss(); }
-                    }
-                }
-            }
-        }
-    }
-
-    // Короткое сообщение внизу.
-    if UiData.toast != "": Rectangle {
-        x: (root.width - self.width) / 2;
-        y: root.height - self.height - 24px;
-        width: min(root.width - 32px, ttext.preferred-width + 40px);
-        height: ttext.preferred-height + 22px;
-        border-radius: 8px;
-        background: Theme.dark ? #2c2c2c : #ffffff;
-        border-width: 1px;
-        border-color: UiData.toast-kind == "bad" ? Theme.danger : UiData.toast-kind == "ok" ? Theme.ok : Theme.stroke;
-        drop-shadow-blur: 16px;
-        drop-shadow-color: #00000040;
-        ttext := Text {
-            x: 20px;
-            width: parent.width - 40px;
-            text: UiData.toast;
-            font-size: 13px;
-            color: Theme.text;
-            wrap: word-wrap;
-            vertical-alignment: center;
-        }
-    }
+    // Окна и сообщение — компонентами без дочерних элементов: текст с переносом внутри
+    // `if` иначе получает высоту одной строки (tests/slint_layout.rs).
+    if UiData.confirm-title != "": ConfirmDialog { }
+    if UiData.secret-title != "": SecretDialog { }
+    if UiData.toast != "": Toast { }
 }

@@ -1,12 +1,15 @@
 import { Button, Switch, ScrollView } from "std-widgets.slint";
 import { Theme, Glyph } from "theme.slint";
 import { UiData, UiActions } from "store.slint";
-import { Card, PageHeader, SectionTitle, ListRow, StatusChip, LogView, Divider } from "widgets.slint";
+import { Card, PageHeader, SectionTitle, ListRow, StatusChip, LogView, Divider, TextBox } from "widgets.slint";
 import { EngineRow } from "types.slint";
 
+/// Подробности движка. Растяжение задано здесь, а не на месте использования: внутри `if`
+/// чужие свойства у компонента с переносом текста ломают его высоту (tests/slint_layout.rs).
 component EngineDetail inherits VerticalLayout {
     in property <EngineRow> e;
     spacing: 12px;
+    vertical-stretch: 1;
     Card {
         VerticalLayout {
             padding: 16px;
@@ -44,20 +47,7 @@ component EngineDetail inherits VerticalLayout {
             }
             Text { text: e.meta; font-size: 12px; color: Theme.text-2; wrap: word-wrap; }
             if e.endpoint != "": Text { text: @tr("Адрес: {}", e.endpoint); font-size: 12px; color: Theme.text-2; wrap: word-wrap; }
-            if e.command != "": Rectangle {
-                border-radius: 6px;
-                background: Theme.subtle-2;
-                HorizontalLayout {
-                    padding: 10px;
-                    Text {
-                        text: e.command;
-                        font-family: "Cascadia Mono";
-                        font-size: 12px;
-                        color: Theme.text;
-                        wrap: char-wrap;
-                    }
-                }
-            }
+            if e.command != "": TextBox { text: e.command; mono: true; }
             if e.last-exit != "": Text { text: @tr("Последний выход: {}", e.last-exit); font-size: 12px; color: Theme.text-3; wrap: word-wrap; }
         }
     }
@@ -88,6 +78,35 @@ component EngineDetail inherits VerticalLayout {
     }
 }
 
+/// Пустой экран: движков нет. Отдельным компонентом — текст с переносом внутри `if`
+/// (tests/slint_layout.rs). Свободное место страницы забирает пустота под карточкой,
+/// а не заголовок.
+component EnginesEmpty inherits VerticalLayout {
+    vertical-stretch: 1;
+    Card {
+        height: 140px;
+        VerticalLayout {
+            alignment: center;
+            padding: 16px;
+            spacing: 8px;
+            Text {
+                text: @tr("Движков нет");
+                font-size: 14px;
+                color: Theme.text;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: @tr("Укажите путь к llama-server или другому бинарнику — LMQ будет запускать его, следить за ним и показывать журнал.");
+                font-size: 13px;
+                color: Theme.text-2;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+    }
+    Rectangle { vertical-stretch: 1; }
+}
+
 export component EnginesPage inherits Rectangle {
     property <bool> wide: self.width >= 820px;
     VerticalLayout {
@@ -95,6 +114,7 @@ export component EnginesPage inherits Rectangle {
         padding-top: 20px;
         spacing: 16px;
         PageHeader {
+            vertical-stretch: 0;
             title: @tr("Движки");
             subtitle: @tr("llama.cpp, vLLM, Ollama, KoboldCpp и любые свои бинарники");
             VerticalLayout {
@@ -105,27 +125,7 @@ export component EnginesPage inherits Rectangle {
                 }
             }
         }
-        if UiData.engines.length == 0: Card {
-            height: 140px;
-            VerticalLayout {
-                alignment: center;
-                padding: 16px;
-                spacing: 8px;
-                Text {
-                    text: @tr("Движков нет");
-                    font-size: 14px;
-                    color: Theme.text;
-                    horizontal-alignment: center;
-                }
-                Text {
-                    text: @tr("Укажите путь к llama-server или другому бинарнику — LMQ будет запускать его, следить за ним и показывать журнал.");
-                    font-size: 13px;
-                    color: Theme.text-2;
-                    horizontal-alignment: center;
-                    wrap: word-wrap;
-                }
-            }
-        }
+        if UiData.engines.length == 0: EnginesEmpty { }
         if UiData.engines.length > 0: HorizontalLayout {
             spacing: 16px;
             vertical-stretch: 1;
@@ -156,10 +156,7 @@ export component EnginesPage inherits Rectangle {
                         clicked => { UiActions.engine-select(i); }
                     }
                 }
-                EngineDetail {
-                    vertical-stretch: 1;
-                    e: UiData.engines[UiData.engine-selected];
-                }
+                EngineDetail { e: UiData.engines[UiData.engine-selected]; }
             }
         }
     }

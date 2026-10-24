@@ -1,7 +1,85 @@
 import { ScrollView, Button, Switch } from "std-widgets.slint";
 import { Theme, Glyph } from "theme.slint";
 import { UiData, UiActions } from "store.slint";
-import { Card, PageHeader, SectionTitle, ListRow, Slots, StatusChip, Divider, Dot } from "widgets.slint";
+import { Card, PageHeader, SectionTitle, ListRow, Slots, StatusChip, Divider, Dot, TextBox } from "widgets.slint";
+import { ModelRow } from "types.slint";
+
+/// Карточка модели. Отдельным компонентом: внутри `for` текст с переносом иначе получает
+/// высоту одной строки (tests/slint_layout.rs).
+component ModelCard inherits Card {
+    in property <ModelRow> m;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 10px;
+            VerticalLayout {
+                alignment: center;
+                Dot { kind: m.kind; }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                SectionTitle { text: m.name; }
+                Text {
+                    text: m.state + (m.description != "" ? " · " + m.description : "");
+                    font-size: 12px;
+                    color: Theme.text-2;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                Switch {
+                    text: @tr("Включена");
+                    checked: m.enabled;
+                    toggled => { UiActions.model-toggle(m.name, self.checked); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                Button {
+                    text: m.testing ? @tr("Проверка…") : @tr("Проверить");
+                    enabled: !m.testing && m.enabled;
+                    clicked => { UiActions.model-test(m.name); }
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 16px;
+            Text {
+                text: @tr("очередь {}", m.queued) + " · " + @tr("выполняется {}", m.running) + " · " + @tr("слотов {}", m.slots);
+                font-size: 13px;
+                color: Theme.text-2;
+                horizontal-stretch: 1;
+                overflow: elide;
+            }
+            Slots { total: m.slots; busy: m.busy; }
+        }
+        if m.aliases != "" || m.fallback != "": Text {
+            text: (m.aliases != "" ? @tr("алиасы: {}", m.aliases) : "") + (m.aliases != "" && m.fallback != "" ? " · " : "") + (m.fallback != "" ? @tr("резерв: {}", m.fallback) : "");
+            font-size: 12px;
+            color: Theme.text-3;
+            wrap: word-wrap;
+        }
+        if m.test != "": TextBox { text: m.test; }
+        Divider { }
+        for u[i] in m.upstreams: ListRow {
+            title: u.id;
+            sub: u.url + (u.error != "" ? " · " + u.error : "");
+            dot: u.kind;
+            min-height: 44px;
+            VerticalLayout {
+                alignment: center;
+                StatusChip { kind: u.kind; label: u.state; }
+            }
+            VerticalLayout {
+                alignment: center;
+                Slots { total: u.slots; busy: u.busy; }
+            }
+        }
+    }
+}
 
 export component ModelsPage inherits Rectangle {
     sv := ScrollView {
@@ -23,91 +101,7 @@ export component ModelsPage inherits Rectangle {
                     }
                 }
             }
-            for m in UiData.models: Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        spacing: 10px;
-                        VerticalLayout {
-                            alignment: center;
-                            Dot { kind: m.kind; }
-                        }
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            spacing: 2px;
-                            SectionTitle { text: m.name; }
-                            Text {
-                                text: m.state + (m.description != "" ? " · " + m.description : "");
-                                font-size: 12px;
-                                color: Theme.text-2;
-                                overflow: elide;
-                            }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            Switch {
-                                text: @tr("Включена");
-                                checked: m.enabled;
-                                toggled => { UiActions.model-toggle(m.name, self.checked); }
-                            }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            Button {
-                                text: m.testing ? @tr("Проверка…") : @tr("Проверить");
-                                enabled: !m.testing && m.enabled;
-                                clicked => { UiActions.model-test(m.name); }
-                            }
-                        }
-                    }
-                    HorizontalLayout {
-                        spacing: 16px;
-                        Text {
-                            text: @tr("очередь {}", m.queued) + " · " + @tr("выполняется {}", m.running) + " · " + @tr("слотов {}", m.slots);
-                            font-size: 13px;
-                            color: Theme.text-2;
-                            horizontal-stretch: 1;
-                            overflow: elide;
-                        }
-                        Slots { total: m.slots; busy: m.busy; }
-                    }
-                    if m.aliases != "" || m.fallback != "": Text {
-                        text: (m.aliases != "" ? @tr("алиасы: {}", m.aliases) : "") + (m.aliases != "" && m.fallback != "" ? " · " : "") + (m.fallback != "" ? @tr("резерв: {}", m.fallback) : "");
-                        font-size: 12px;
-                        color: Theme.text-3;
-                        wrap: word-wrap;
-                    }
-                    if m.test != "": Rectangle {
-                        border-radius: 6px;
-                        background: Theme.subtle-2;
-                        HorizontalLayout {
-                            padding: 10px;
-                            Text {
-                                text: m.test;
-                                font-size: 12px;
-                                color: Theme.text;
-                                wrap: word-wrap;
-                            }
-                        }
-                    }
-                    Divider { }
-                    for u[i] in m.upstreams: ListRow {
-                        title: u.id;
-                        sub: u.url + (u.error != "" ? " · " + u.error : "");
-                        dot: u.kind;
-                        min-height: 44px;
-                        VerticalLayout {
-                            alignment: center;
-                            StatusChip { kind: u.kind; label: u.state; }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            Slots { total: u.slots; busy: u.busy; }
-                        }
-                    }
-                }
-            }
+            for m in UiData.models: ModelCard { m: m; }
             if UiData.models.length == 0: Card {
                 height: 120px;
                 VerticalLayout {

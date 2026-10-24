@@ -563,6 +563,49 @@ export component ListRow inherits Rectangle {
 }
 
 /// Тонкий разделитель между строками.
+/// Абзац с переносом строк. Внутри `if`/`for` текст с переносом ставьте только так — компонентом
+/// без дочерних элементов, отступы — его свойствами `pad-*`, а не `padding` снаружи: иначе
+/// Slint 1.18 считает высоту по одной строке (см. tests/slint_layout.rs).
+export component Paragraph inherits HorizontalLayout {
+    in property <string> text;
+    in property <length> font-size: 12px;
+    in property <int> font-weight: 400;
+    in property <brush> color: Theme.text-2;
+    in property <length> pad-x: 0;
+    in property <length> pad-top: 0;
+    in property <length> pad-bottom: 0;
+    padding-left: pad-x;
+    padding-right: pad-x;
+    padding-top: pad-top;
+    padding-bottom: pad-bottom;
+    Text {
+        text: root.text;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        color: root.color;
+        wrap: word-wrap;
+    }
+}
+
+/// Плашка с текстом на подложке: команда запуска, ответ проверки. `mono` — моноширинный
+/// шрифт и перенос по символам (длинные пути и аргументы без пробелов).
+export component TextBox inherits Rectangle {
+    in property <string> text;
+    in property <bool> mono;
+    border-radius: 6px;
+    background: Theme.subtle-2;
+    HorizontalLayout {
+        padding: 10px;
+        Text {
+            text: root.text;
+            font-family: mono ? "Cascadia Mono" : "";
+            font-size: 12px;
+            color: Theme.text;
+            wrap: mono ? char-wrap : word-wrap;
+        }
+    }
+}
+
 export component Divider inherits Rectangle {
     height: 1px;
     background: Theme.divider;

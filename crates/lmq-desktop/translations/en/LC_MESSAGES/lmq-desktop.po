@@ -437,3 +437,12 @@ msgstr "Server"
 
 msgid "Сеть"
 msgstr "Network"
+
+msgid "Настройки не сохранены: {}"
+msgstr "Settings not saved: {}"
+
+msgid "Есть несохранённые изменения"
+msgstr "There are unsaved changes"
+
+msgid "Все изменения сохранены"
+msgstr "All changes saved"
