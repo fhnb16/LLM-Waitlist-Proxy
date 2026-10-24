@@ -11,7 +11,7 @@ use crate::config::RouteCfg;
 use crate::net::{Bind, Kind, NetPool, describe, resolve_bind};
 
 /// Сервис, который возвращает внешний IP обычным текстом.
-const IP_ECHO: &str = "https://api.ipify.org";
+pub const IP_ECHO: &str = "https://api.ipify.org";
 
 #[derive(Debug, Serialize)]
 pub struct AddrProbe {

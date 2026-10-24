@@ -32,7 +32,8 @@ const fn num(min: i64, max: i64, presets: &'static [i64], unit: Unit) -> Kind {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    Header,
+    /// Заголовок раздела; число — вкладка страницы настроек, к которой относятся поля до следующего заголовка.
+    Header(i32),
     Note,
     Text,
     Number(Num),
@@ -59,13 +60,19 @@ const fn f(kind: Kind, path: &'static str, label: &'static str, hint: &'static s
     Def { kind, path, label, hint }
 }
 
-const fn head(label: &'static str) -> Def {
-    Def { kind: Kind::Header, path: "", label, hint: "" }
+const fn head(label: &'static str, tab: i32) -> Def {
+    Def { kind: Kind::Header(tab), path: "", label, hint: "" }
 }
 
 const fn note(label: &'static str) -> Def {
     Def { kind: Kind::Note, path: "", label, hint: "" }
 }
+
+// Вкладки страницы настроек (`settings-tab` в окне); 4 — «Приложение», без полей сервера.
+const TAB_SERVER: i32 = 0;
+const TAB_NET: i32 = 1;
+const TAB_TELEGRAM: i32 = 2;
+const TAB_LOG: i32 = 3;
 
 const LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];
 
@@ -73,7 +80,7 @@ const LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];
 const IFACES: &str = "@interfaces";
 
 pub static DEFS: &[Def] = &[
-    head("Сервер"),
+    head("Сервер", TAB_SERVER),
     note("Смена адреса или лимитов перезапускает слушатель внутри процесса."),
     f(Kind::Text, "server.listen", "Адрес API", "Наружу — только через обратный прокси с HTTPS."),
     f(Kind::Text, "server.admin_listen", "Адрес панели", "Пусто — панель выключена."),
@@ -81,7 +88,7 @@ pub static DEFS: &[Def] = &[
     f(num(1, 100_000, &[100, 200, 500, 1000], Unit::Plain), "server.max_messages", "Сообщений в задании", ""),
     f(num(1, 1_048_576, &[128, 256, 512, 1024, 2048], Unit::Plain), "server.max_string_kb", "Длина текста, КБ", "Картинки base64 не считаются."),
     f(num(1, 3600, &[10, 30, 60, 120], Unit::Secs), "server.body_read_timeout", "Чтение тела, с", "Защита от медленных клиентов."),
-    head("Очередь и лимиты"),
+    head("Очередь и лимиты", TAB_SERVER),
     f(num(1, 1_000_000, &[50, 100, 200, 500, 1000], Unit::Plain), "queue.max_queue", "Всего в очереди", ""),
     f(num(1, 10_000, &[1, 2, 3, 5, 10], Unit::Plain), "queue.max_queue_per_chat", "На один чат", "Сверх — 429 с Retry-After."),
     f(
@@ -95,7 +102,7 @@ pub static DEFS: &[Def] = &[
     f(num(0, 10, &[0, 1, 2, 3, 5], Unit::Plain), "queue.upstream_retries", "Повторов при ошибке", ""),
     f(Kind::Bool, "queue.supersede_same_chat", "Вытеснять старое задание чата", "Не начатое задание чата завершается superseded, если пришло новое."),
     f(Kind::Bool, "queue.private_first", "Личные чаты раньше групп", ""),
-    head("Доставка боту"),
+    head("Доставка боту", TAB_SERVER),
     note("callback.url каждого задания проверяется по белому списку хостов (защита от SSRF)."),
     f(Kind::Text, "callback.url", "Адрес колбэка", "Если задание пришло без callback."),
     f(Kind::Secret, "callback.token", "Токен колбэка", "Заголовок X-Callback-Token."),
@@ -103,7 +110,7 @@ pub static DEFS: &[Def] = &[
     f(Kind::Bool, "callback.allow_http_private", "http:// для localhost и частных сетей", ""),
     f(num(0, 50, &[0, 3, 6, 10, 20], Unit::Plain), "callback.retries", "Повторов доставки", "Паузы 2, 5, 15, 30, 60 с."),
     f(num(1, 120, &[5, 10, 15, 30, 60], Unit::Secs), "callback.timeout", "Таймаут, с", ""),
-    head("Хранение и журнал"),
+    head("Хранение и журнал", TAB_LOG),
     f(Kind::Text, "storage.db_path", "База данных", "Меняется после перезапуска."),
     f(Kind::Text, "storage.models_config", "Внешний файл моделей", "Формат §5.4. Пусто — модели из настроек."),
     f(num(1, 87_600, &[6, 24, 72, 168, 720], Unit::Hours), "storage.retention_hours", "Хранить задания, ч", ""),
@@ -119,7 +126,7 @@ pub static DEFS: &[Def] = &[
     ),
     f(Kind::Bool, "metrics.enabled", "Метрики Prometheus", "GET /metrics на адресе API."),
     f(Kind::Secret, "metrics.token", "Токен метрик", "Пусто — /metrics только с localhost."),
-    head("Сеть и маршруты"),
+    head("Сеть и маршруты", TAB_NET),
     note(
         "Через какой интерфейс или прокси ходит каждое направление. Например: модели — через VPN (happ-tun или socks5-прокси VPN-клиента), бот — напрямую (Ethernet). Пусто — системный маршрут.",
     ),
@@ -130,7 +137,7 @@ pub static DEFS: &[Def] = &[
     f(Kind::Proxy(false), "network.callback.proxy", "Бот: прокси", ""),
     f(Kind::Iface(false), "network.telegram.interface", "Telegram: интерфейс", "Протокол 1 и реле Bot API."),
     f(Kind::Proxy(false), "network.telegram.proxy", "Telegram: прокси", ""),
-    head("Реле Telegram Bot API"),
+    head("Реле Telegram Bot API", TAB_TELEGRAM),
     note(
         "Замена воркера Cloudflare: бот ходит в Telegram через LMQ. В боте: «Сервер Bot API» — адрес ниже, «Адрес для скачивания файлов» — пусто. Токен бота в журнал не пишется.",
     ),
@@ -152,7 +159,23 @@ pub static DEFS: &[Def] = &[
         "Кэш файлов, МБ",
         "Скачанные ботом файлы хранятся в памяти час и повторно не идут через сеть.",
     ),
-    head("Выключатель апстримов"),
+    head("SOCKS5-прокси", TAB_NET),
+    note(
+        "LMQ сам становится прокси: программы, телефоны и Telegram подключаются к нему, а трафик уходит через выбранный интерфейс. Имена разрешает прокси (socks5h). Только TCP: UDP и звонки Telegram через него не идут.",
+    ),
+    f(Kind::Bool, "socks.enabled", "Включён", "Слушать порт и пропускать соединения через выбранный интерфейс."),
+    f(Kind::Text, "socks.listen", "Адрес и порт", "127.0.0.1 — только эта машина; 0.0.0.0 — локальная сеть и интернет (нужен проброс порта на роутере)."),
+    f(Kind::Iface(false), "socks.interface", "Выход через интерфейс", "Куда отправлять трафик: VPN-интерфейс, Ethernet или IP."),
+    f(Kind::Text, "socks.username", "Логин", "Пусто — вход без пароля. Если прокси виден снаружи, задайте логин и пароль."),
+    f(Kind::Secret, "socks.password", "Пароль", ""),
+    f(
+        Kind::Iface(false),
+        "socks.public_interface",
+        "Интерфейс без туннеля",
+        "Через него определяется внешний IP для ссылок — адрес, по которому прокси виден снаружи. Пусто — физический интерфейс с основным шлюзом, а не туннель VPN.",
+    ),
+    f(Kind::Text, "socks.public_host", "Адрес для ссылок", "IP или домен вместо найденного внешнего IP (DDNS, другой адрес проброса)."),
+    head("Выключатель апстримов", TAB_SERVER),
     note("Упавший апстрим временно исключается; фоновая проверка возвращает его, когда он ожил."),
     f(Kind::Bool, "breaker.enabled", "Включён", ""),
     f(num(1, 100, &[1, 2, 3, 5, 10], Unit::Plain), "breaker.failure_threshold", "Неудач подряд", ""),
@@ -163,7 +186,7 @@ pub static DEFS: &[Def] = &[
         "Проверка раз в, с",
         "GET {base}/models. 0 — не проверять.",
     ),
-    head("Протокол 1 (Telegram)"),
+    head("Протокол 1 (Telegram)", TAB_TELEGRAM),
     note("Старый режим: сервер сам отправляет ответ в Telegram. Теряются форматирование, темы форума и память — включайте, только если без него не обойтись."),
     f(Kind::Bool, "protocol1.enabled", "Разрешить", ""),
     f(Kind::Secret, "protocol1.telegram_bot_token", "Токен бота", ""),
@@ -218,7 +241,8 @@ fn iface_options() -> Options {
     for i in lmq_core::net::interfaces() {
         o.0.push(i.name.clone().into());
         o.1.push("".into());
-        o.2.push(i.ipv4.iter().chain(i.ipv6.iter().take(1)).map(|a| a.to_string()).collect::<Vec<_>>().join(", ").into());
+        let addrs = i.ipv4.iter().chain(i.ipv6.iter().take(1)).map(|a| a.to_string()).collect::<Vec<_>>().join(", ");
+        o.2.push(if i.uplink { format!("{} · {addrs}", t("выход без туннеля")) } else { addrs }.into());
     }
     o
 }
@@ -233,19 +257,30 @@ fn proxy_options(found: &[lmq_core::net::ProxyHint]) -> Options {
     o
 }
 
-/// Строки для окна из черновика, путей, заданных окружением, и найденных локальных прокси.
-pub fn rows(draft: &Value, locked: &[String], proxies: &[lmq_core::net::ProxyHint]) -> Vec<FieldRow> {
+/// Строки вкладки `want` из черновика, путей, заданных окружением, и найденных локальных прокси.
+/// В окно идут только поля этой вкладки: условные элементы внутри `for` в Slint ломают расчёт
+/// высоты строк с переносом текста. `def` строки — индекс в `DEFS` для правок.
+pub fn rows(draft: &Value, locked: &[String], proxies: &[lmq_core::net::ProxyHint], want: i32) -> Vec<FieldRow> {
     let ifaces = iface_options();
     let proxy = proxy_options(proxies);
+    // Поле — на вкладке последнего заголовка перед ним.
+    let mut tab = TAB_SERVER;
     DEFS.iter()
-        .map(|d| {
+        .enumerate()
+        .filter_map(|(def, d)| {
+            if let Kind::Header(n) = d.kind {
+                tab = n;
+            }
+            if tab != want {
+                return None;
+            }
             let v = get(draft, d.path);
             let mut options: Options = Default::default();
             let mut index = 0;
             let (mut minimum, mut maximum) = (-1e15_f32, 1e15_f32);
             let mut placeholder = String::new();
             let kind = match d.kind {
-                Kind::Header => "header",
+                Kind::Header(_) => "header",
                 Kind::Note => "note",
                 Kind::Text | Kind::List => "text",
                 Kind::Secret => "secret",
@@ -264,6 +299,11 @@ pub fn rows(draft: &Value, locked: &[String], proxies: &[lmq_core::net::ProxyHin
                     if inherit {
                         options.1[0] = t("как в «Сеть и маршруты»").into();
                         placeholder = t("как «Telegram» в «Сеть и маршруты»");
+                    }
+                    // Пусто здесь — интерфейс без туннеля находится сам.
+                    if d.path == "socks.public_interface" {
+                        options.1[0] = t("авто: выход без туннеля").into();
+                        placeholder = t("авто: выход без туннеля");
                     }
                     "combo"
                 }
@@ -293,7 +333,8 @@ pub fn rows(draft: &Value, locked: &[String], proxies: &[lmq_core::net::ProxyHin
             } else {
                 t(d.label)
             };
-            FieldRow {
+            Some(FieldRow {
+                def: def as i32,
                 kind: kind.into(),
                 path: if d.path == IFACES { "".into() } else { d.path.into() },
                 label: label.into(),
@@ -308,7 +349,7 @@ pub fn rows(draft: &Value, locked: &[String], proxies: &[lmq_core::net::ProxyHin
                 minimum,
                 maximum,
                 placeholder: placeholder.into(),
-            }
+            })
         })
         .collect()
 }

@@ -77,6 +77,11 @@ pub fn save_file(path: &Path, s: &Settings, cipher: &Cipher) -> Result<()> {
 
 fn migrate(s: &mut Settings) {
     // schema_version 0 → 1: поля появились с значениями по умолчанию (serde(default)).
+    // 1 → 2: у репозитория обновлений появилось значение по умолчанию — репозиторий проекта;
+    // в старых файлах там записана пустая строка.
+    if s.schema_version < 2 && s.updates.repo.trim().is_empty() {
+        s.updates.repo = DEFAULT_UPDATES_REPO.into();
+    }
     if s.schema_version < SCHEMA_VERSION {
         s.schema_version = SCHEMA_VERSION;
     }
@@ -86,6 +91,7 @@ fn for_each_secret(s: &mut Settings, mut f: impl FnMut(&mut String)) {
     f(&mut s.callback.token);
     f(&mut s.protocol1.telegram_bot_token);
     f(&mut s.metrics.token);
+    f(&mut s.socks.password);
     for m in s.models.values_mut() {
         for u in &mut m.upstreams {
             f(&mut u.api_key);
@@ -128,6 +134,7 @@ pub fn restore_masked(new: &mut Settings, old: &Settings, mask: &str) {
     keep(&mut new.callback.token, &old.callback.token);
     keep(&mut new.protocol1.telegram_bot_token, &old.protocol1.telegram_bot_token);
     keep(&mut new.metrics.token, &old.metrics.token);
+    keep(&mut new.socks.password, &old.socks.password);
     // Ключи апстримов сопоставляем по модели и номеру апстрима.
     for (name, m) in new.models.iter_mut() {
         for (i, u) in m.upstreams.iter_mut().enumerate() {
@@ -212,6 +219,8 @@ pub fn apply_env(s: &mut Settings, env: EnvFn) -> Result<BTreeSet<String>> {
         s.tg_relay.allowed_bots = split_list(&v);
         locked.insert("tg_relay.allowed_bots".into());
     }
+    boolean!("SOCKS_ENABLED", s.socks.enabled, "socks.enabled");
+    string!("SOCKS_LISTEN", s.socks.listen, "socks.listen");
 
     // API_KEYS=name:key,name2:key2 — клиенты из окружения (ключи только в памяти, хэшами).
     if let Some(v) = env("API_KEYS") {
@@ -401,6 +410,16 @@ pub fn validate(s: &Settings) -> Vec<String> {
     if relay.max_body_mb == 0 || relay.timeout == 0 {
         e.push("tg_relay: max_body_mb и timeout должны быть больше 0".into());
     }
+    let socks = &s.socks;
+    if socks.enabled && socks.listen.parse::<SocketAddr>().is_err() {
+        e.push(format!("socks.listen: '{}' не адрес вида host:port", socks.listen));
+    }
+    if socks.username.is_empty() && !socks.password.is_empty() {
+        e.push("socks: пароль без логина".into());
+    }
+    if socks.username.len() > 255 || socks.password.len() > 255 {
+        e.push("socks: логин и пароль — не длиннее 255 байт".into());
+    }
     if !(0.0..=1.0).contains(&s.ui.backdrop_opacity) {
         e.push("ui.backdrop_opacity: от 0 до 1".into());
     }
@@ -477,6 +496,20 @@ mod tests {
         let back = load_file(&path, &cipher).unwrap();
         assert_eq!(back.callback.token, "cb-secret");
         assert_eq!(back.models["m"].upstreams[0].api_key, "k");
+    }
+
+    #[test]
+    fn old_files_get_the_updates_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.yaml");
+        let cipher = Cipher::new(&[1u8; 32]);
+        std::fs::write(&path, "schema_version: 1\nupdates:\n  repo: ''\n").unwrap();
+        assert_eq!(load_file(&path, &cipher).unwrap().updates.repo, DEFAULT_UPDATES_REPO);
+        // В новом файле пустой репозиторий — осознанный выбор: проверка выключена.
+        std::fs::write(&path, "schema_version: 2\nupdates:\n  repo: ''\n").unwrap();
+        assert_eq!(load_file(&path, &cipher).unwrap().updates.repo, "");
+        assert_eq!(crate::updates::repo_slug("https://github.com/fhnb16/LLM-Waitlist-Proxy.git/"), DEFAULT_UPDATES_REPO);
+        assert_eq!(crate::updates::repo_slug(" fhnb16/LLM-Waitlist-Proxy "), DEFAULT_UPDATES_REPO);
     }
 
     #[test]

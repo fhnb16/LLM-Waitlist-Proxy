@@ -101,6 +101,27 @@ component SideCards inherits VerticalLayout {
             }
         }
     }
+    if UiData.socks.length > 0: Card {
+        VerticalLayout {
+            padding: 8px;
+            spacing: 2px;
+            HorizontalLayout {
+                padding: 8px;
+                padding-bottom: 4px;
+                SectionTitle { text: @tr("SOCKS5-прокси"); }
+            }
+            for r in UiData.socks: ListRow {
+                title: r.id;
+                sub: r.meta;
+                Text {
+                    text: r.elapsed;
+                    font-size: 13px;
+                    color: Theme.text-2;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
     if UiData.gpus.length > 0: Card {
         VerticalLayout {
             padding: 16px;

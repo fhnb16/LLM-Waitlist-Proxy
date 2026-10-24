@@ -84,6 +84,18 @@ pub struct Overview {
     pub last_1h: Point,
     /// Реле Telegram, если включено.
     pub tg_relay: Option<RelayOverview>,
+    /// SOCKS5-прокси, если включён.
+    pub socks: Option<SocksOverview>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct SocksOverview {
+    /// Что вписать программам: `socks5h://адрес:порт`.
+    pub url: Option<String>,
+    pub route: String,
+    pub auth: bool,
+    #[serde(flatten)]
+    pub stats: crate::socks::Snapshot,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -143,6 +155,7 @@ pub async fn overview(app: &Arc<App>) -> Overview {
         route: crate::net::describe(&crate::tgrelay::route(&s)),
         stats: app.tg_relay.snapshot(),
     });
+    let socks = s.socks.enabled.then(|| socks_overview(app));
     Overview {
         version: VERSION,
         started_at: app.started_at,
@@ -164,6 +177,7 @@ pub async fn overview(app: &Arc<App>) -> Overview {
         last_5m,
         last_1h,
         tg_relay,
+        socks,
     }
 }
 
@@ -199,6 +213,18 @@ pub async fn prometheus(app: &Arc<App>) -> String {
     let _ = writeln!(out, "tg_relay_bytes_total{{direction=\"down\"}} {}", r.bytes_down);
     out.push_str("# HELP tg_relay_cache_hits_total Files served from the relay cache.\n# TYPE tg_relay_cache_hits_total counter\n");
     let _ = writeln!(out, "tg_relay_cache_hits_total {}", r.cache_hits);
+    let sx = app.socks.snapshot();
+    out.push_str("# HELP socks_up SOCKS5 proxy is listening.\n# TYPE socks_up gauge\n");
+    let _ = writeln!(out, "socks_up {}", sx.listening.is_some() as u8);
+    out.push_str("# HELP socks_active_connections Open SOCKS5 connections.\n# TYPE socks_active_connections gauge\n");
+    let _ = writeln!(out, "socks_active_connections {}", sx.active);
+    out.push_str("# HELP socks_connections_total SOCKS5 connections by outcome since start.\n# TYPE socks_connections_total counter\n");
+    for (outcome, n) in [("ok", sx.connections), ("failed", sx.failed), ("rejected", sx.rejected)] {
+        let _ = writeln!(out, "socks_connections_total{{outcome=\"{outcome}\"}} {n}");
+    }
+    out.push_str("# HELP socks_bytes_total SOCKS5 traffic of closed connections.\n# TYPE socks_bytes_total counter\n");
+    let _ = writeln!(out, "socks_bytes_total{{direction=\"up\"}} {}", sx.bytes_up);
+    let _ = writeln!(out, "socks_bytes_total{{direction=\"down\"}} {}", sx.bytes_down);
     let gpu = app.gpu.snapshot();
     if gpu.available {
         out.push_str("# TYPE gpu_utilization_percent gauge\n# TYPE gpu_memory_used_bytes gauge\n# TYPE gpu_temperature_celsius gauge\n");
@@ -509,12 +535,14 @@ pub async fn network_check(app: &Arc<App>, custom: Option<(String, crate::config
 
 // ------------------------------------------------------------ реле Telegram
 
-/// Адрес реле для бота («Сервер Bot API»): адрес API; вместо `0.0.0.0` — IPv4 этой машины.
+/// Адрес реле для бота («Сервер Bot API»): адрес API; вместо `0.0.0.0` — IPv4 этой машины
+/// в локальной сети (интерфейса без туннеля, если он найден).
 pub fn tg_relay_url(app: &App) -> Option<String> {
     let a = app.bound.lock().client?;
     let ip = if a.ip().is_unspecified() {
-        crate::net::interfaces()
-            .into_iter()
+        let mut list = crate::net::interfaces();
+        list.sort_by_key(|i| !i.uplink);
+        list.into_iter()
             .flat_map(|i| i.ipv4)
             .find(|ip| matches!(ip, std::net::IpAddr::V4(v) if !v.is_link_local()))
             .unwrap_or(std::net::IpAddr::from([127, 0, 0, 1]))
@@ -647,6 +675,165 @@ pub async fn tg_relay_check(app: &Arc<App>, token: Option<String>) -> Value {
         "with_token": real,
         "steps": steps,
     })
+}
+
+// ---------------------------------------------------------- SOCKS5-прокси
+
+/// Адрес прокси для этой машины: вместо `0.0.0.0` — `127.0.0.1`.
+fn socks_local(a: std::net::SocketAddr) -> std::net::SocketAddr {
+    if a.ip().is_unspecified() { std::net::SocketAddr::from(([127, 0, 0, 1], a.port())) } else { a }
+}
+
+fn socks_overview(app: &App) -> SocksOverview {
+    let s = app.settings();
+    SocksOverview {
+        url: app.socks.bound().map(|a| crate::socks::link(&s.socks, &socks_local(a).ip().to_string(), a.port(), false)),
+        route: crate::net::describe(&crate::socks::route_of(&s.socks.interface)),
+        auth: !s.socks.username.is_empty(),
+        stats: app.socks.snapshot(),
+    }
+}
+
+/// Прокси для его раздела: состояние, счётчики и готовые ссылки — снаружи (внешний IP
+/// интерфейса без туннеля или `public_host`), в локальной сети и на этой машине. Ссылки
+/// содержат пароль: их видит только администратор. `refresh` — заново узнать внешний IP.
+pub async fn socks_view(app: &Arc<App>, refresh: bool) -> Value {
+    let s = app.settings();
+    let c = &s.socks;
+    let bound = app.socks.bound();
+    let port = bound.map(|a| a.port()).or_else(|| c.listen.parse::<std::net::SocketAddr>().ok().map(|a| a.port())).unwrap_or(1080);
+    let listen_ip = bound.map(|a| a.ip()).or_else(|| c.listen.parse::<std::net::SocketAddr>().ok().map(|a| a.ip()));
+    let local_only = listen_ip.is_some_and(|ip| ip.is_loopback());
+    // Интерфейс без туннеля: заданный или найденный сам (физический, с основным шлюзом).
+    // Системный маршрут не годится: VPN в режиме TUN уводит его в туннель.
+    let public_iface = Some(c.public_interface.trim().to_string()).filter(|s| !s.is_empty()).or_else(crate::net::primary_uplink).unwrap_or_default();
+    let public_route = match (c.public_interface.trim().is_empty(), public_iface.is_empty()) {
+        (_, true) => crate::net::describe(&crate::socks::route_of("")),
+        (true, false) => format!("авто: интерфейс {public_iface}"),
+        (false, false) => format!("интерфейс {public_iface}"),
+    };
+    let (public, public_error) = if !c.public_host.trim().is_empty() {
+        (Some(c.public_host.trim().to_string()), None)
+    } else {
+        match app.socks.public_ip(&app.net, &public_iface, refresh).await {
+            Ok(ip) => (Some(ip), None),
+            Err(e) => (None, Some(e)),
+        }
+    };
+    // Адрес в локальной сети: IPv4 интерфейса без туннеля.
+    let lan = crate::net::interfaces()
+        .into_iter()
+        .filter(|i| if public_iface.is_empty() { i.uplink } else { i.name.eq_ignore_ascii_case(&public_iface) })
+        .flat_map(|i| i.ipv4)
+        .find(|ip| matches!(ip, std::net::IpAddr::V4(v) if v.is_private()))
+        .map(|ip| ip.to_string());
+    let mut links = Vec::new();
+    let mut push = |kind: &str, title: &str, host: String| {
+        links.push(json!({
+            "kind": kind,
+            "title": title,
+            "host": host,
+            "port": port,
+            "url": crate::socks::link(c, &host, port, true),
+            "telegram": crate::socks::telegram_link(c, &host, port),
+        }));
+    };
+    if let Some(h) = public.clone() {
+        push("public", "Снаружи", h);
+    }
+    if let Some(h) = lan {
+        push("lan", "В локальной сети", h);
+    }
+    push("local", "На этой машине", listen_ip.filter(|ip| !ip.is_unspecified()).map(|ip| ip.to_string()).unwrap_or_else(|| "127.0.0.1".into()));
+    json!({
+        "enabled": c.enabled,
+        "listen": c.listen,
+        "local_only": local_only,
+        "auth": !c.username.is_empty(),
+        "route": crate::net::describe(&crate::socks::route_of(&c.interface)),
+        "public_route": public_route,
+        "public_ip": public,
+        "public_error": public_error,
+        "links": links,
+        "stats": app.socks.snapshot(),
+    })
+}
+
+/// Внешний IP через HTTP-клиент: `(IP или ошибка, мс)`.
+async fn exit_ip(http: Result<reqwest::Client, String>) -> (std::result::Result<String, String>, i64) {
+    let started = now_ms();
+    let r = match http {
+        Ok(h) => async {
+            let r = h.get(crate::netdiag::IP_ECHO).timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?;
+            r.text().await
+        }
+        .await
+        .map(|t| t.trim().chars().take(64).collect())
+        .map_err(|e| crate::netdiag::error_chain(&e)),
+        Err(e) => Err(e),
+    };
+    (r, now_ms() - started)
+}
+
+/// Проверка прокси: слушает ли он, работает ли соединение через него и с какого внешнего IP
+/// выходит трафик — в сравнении с выбранным интерфейсом напрямую и с системным маршрутом.
+pub async fn socks_check(app: &Arc<App>) -> Value {
+    let s = app.settings();
+    let c = &s.socks;
+    let mut steps = Vec::new();
+    let bound = app.socks.bound();
+    let snap = app.socks.snapshot();
+    let listen_text = match (c.enabled, bound, &snap.listen_error) {
+        (false, _, _) => "Прокси выключен: включите его и сохраните настройки.".to_string(),
+        (true, Some(a), _) => format!("Слушает {a}{}", if c.username.is_empty() { ", вход без пароля" } else { ", вход по логину и паролю" }),
+        (true, None, Some(e)) => format!("Не слушает: {e}"),
+        (true, None, None) => "Ещё не запустился.".to_string(),
+    };
+    steps.push(json!({ "name": "listen", "title": "Прокси", "ok": bound.is_some(), "text": listen_text }));
+
+    let via_proxy = async {
+        let a = bound.ok_or_else(|| "прокси не слушает".to_string())?;
+        let mut u = url::Url::parse(&format!("socks5h://{}", socks_local(a))).map_err(|e| e.to_string())?;
+        if !c.username.is_empty() {
+            let _ = u.set_username(&c.username);
+            let _ = u.set_password(Some(&c.password));
+        }
+        let proxy = reqwest::Proxy::all(u.as_str()).map_err(|e| e.to_string())?;
+        reqwest::Client::builder().proxy(proxy).build().map_err(|e| e.to_string())
+    };
+    let direct = app.net.client(&crate::socks::route_of(&c.interface), crate::net::Kind::General);
+    let system = app.net.client(&crate::socks::route_of(""), crate::net::Kind::General);
+    let (proxy_r, direct_r, system_r) = futures::join!(async { exit_ip(via_proxy.await).await }, exit_ip(direct), exit_ip(system));
+
+    let route = crate::net::describe(&crate::socks::route_of(&c.interface));
+    let ip_of = |r: &(std::result::Result<String, String>, i64)| r.0.as_ref().ok().cloned();
+    match &proxy_r.0 {
+        Ok(ip) => steps.push(
+            json!({ "name": "proxy", "title": "Соединение через прокси", "ok": true, "text": format!("Работает за {} мс, выход в интернет: {ip}", proxy_r.1) }),
+        ),
+        Err(e) => steps.push(json!({ "name": "proxy", "title": "Соединение через прокси", "ok": false, "text": format!("Не прошло: {e}") })),
+    }
+    let direct_text = match (&direct_r.0, ip_of(&proxy_r)) {
+        (Ok(ip), Some(p)) if *ip == p => format!("{route}: выход {ip} — совпадает, трафик прокси идёт через него"),
+        (Ok(ip), Some(p)) => format!("{route}: выход {ip}, а у прокси {p} — проверьте интерфейс"),
+        (Ok(ip), None) => format!("{route}: выход {ip}"),
+        (Err(e), _) => format!("{route}: {e}"),
+    };
+    let direct_ok = direct_r.0.is_ok() && ip_of(&direct_r) == ip_of(&proxy_r);
+    steps.push(json!({ "name": "interface", "title": "Выбранный интерфейс напрямую", "ok": direct_ok, "text": direct_text }));
+    let system_text = match (&system_r.0, ip_of(&proxy_r)) {
+        (Ok(ip), Some(p)) if *ip == p => format!("Выход {ip} — тот же, что у прокси"),
+        (Ok(ip), Some(_)) => format!("Выход {ip} — прокси выходит в интернет другим путём"),
+        (Ok(ip), None) => format!("Выход {ip}"),
+        (Err(e), _) => e.clone(),
+    };
+    steps.push(json!({ "name": "system", "title": "Системный маршрут", "ok": system_r.0.is_ok(), "text": system_text }));
+
+    let ok = steps.iter().take(3).all(|x| x["ok"] == json!(true));
+    for x in &steps {
+        tracing::info!(step = %x["name"].as_str().unwrap_or(""), ok = x["ok"].as_bool().unwrap_or(false), text = %x["text"].as_str().unwrap_or(""), "socks proxy check");
+    }
+    json!({ "ok": ok, "route": route, "exit_ip": ip_of(&proxy_r), "steps": steps })
 }
 
 /// Сколько картинок в сообщениях (части `image_url` / `input_image`).
@@ -803,6 +990,7 @@ fn walk_secrets(s: &mut Settings, f: &mut dyn FnMut(&mut String) -> Result<()>) 
     f(&mut s.callback.token)?;
     f(&mut s.protocol1.telegram_bot_token)?;
     f(&mut s.metrics.token)?;
+    f(&mut s.socks.password)?;
     for m in s.models.values_mut() {
         for u in &mut m.upstreams {
             f(&mut u.api_key)?;
@@ -880,6 +1068,9 @@ pub fn import_settings(app: &App, text: &str, password: Option<&str>, into_profi
                 }
                 if s.metrics.token.is_empty() {
                     s.metrics.token = old.metrics.token.clone();
+                }
+                if s.socks.password.is_empty() {
+                    s.socks.password = old.socks.password.clone();
                 }
                 for (name, m) in s.models.iter_mut() {
                     for (i, u) in m.upstreams.iter_mut().enumerate() {

@@ -98,8 +98,17 @@ pub async fn check(app: &App) -> UpdateInfo {
     info
 }
 
+/// `owner/name` из записи репозитория: принимается и ссылка `https://github.com/owner/name(.git)`.
+pub fn repo_slug(repo: &str) -> String {
+    let r = repo.trim();
+    let r = r.strip_prefix("https://").or_else(|| r.strip_prefix("http://")).unwrap_or(r);
+    let r = r.strip_prefix("www.").unwrap_or(r);
+    let r = r.strip_prefix("github.com/").unwrap_or(r);
+    r.trim_end_matches('/').trim_end_matches(".git").to_string()
+}
+
 async fn fetch(app: &App, repo: &str, beta: bool) -> Result<Option<Value>> {
-    let url = format!("https://api.github.com/repos/{}/releases?per_page=15", repo.trim());
+    let url = format!("https://api.github.com/repos/{}/releases?per_page=15", repo_slug(repo));
     let resp = app
         .http
         .get(&url)

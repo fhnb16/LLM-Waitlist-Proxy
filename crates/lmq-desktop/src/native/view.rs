@@ -674,6 +674,25 @@ pub fn relay(o: &Overview) -> Vec<RunRow> {
     rows
 }
 
+/// SOCKS5-прокси на обзоре: адрес, интерфейс выхода и счётчики с запуска. Пусто — выключен.
+pub fn socks(o: &Overview) -> Vec<RunRow> {
+    let Some(p) = &o.socks else { return Vec::new() };
+    let s = &p.stats;
+    let row = |id: String, meta: String, value: String| RunRow { id: ss(id), meta: ss(meta), elapsed: ss(value) };
+    let mut rows = vec![row(p.url.clone().unwrap_or_else(|| t("не слушает")), p.route.clone(), String::new())];
+    if let Some(e) = &s.listen_error {
+        rows.push(row(t("Не слушает"), e.clone(), String::new()));
+    }
+    rows.push(row(t("Соединений"), tf("открыто: {n}", &[("n", &s.active)]), fmt::int(s.connections as f64)));
+    rows.push(row(t("Не удалось подключиться"), String::new(), fmt::int(s.failed as f64)));
+    rows.push(row(t("Отказано"), String::new(), fmt::int(s.rejected as f64)));
+    rows.push(row(t("Трафик"), String::new(), format!("↑ {} · ↓ {}", fmt::bytes(s.bytes_up), fmt::bytes(s.bytes_down))));
+    if let (Some(e), Some(at)) = (&s.last_error, s.last_error_at) {
+        rows.push(row(t("Последняя ошибка"), e.clone(), ago(at, o.now)));
+    }
+    rows
+}
+
 pub fn engine_state(s: EngineStatus) -> (&'static str, String) {
     match s {
         EngineStatus::Ready => ("run", t("готов")),

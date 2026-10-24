@@ -249,6 +249,7 @@ fn paint_overview(s: &mut State, ui: &AppWindow, engines: &[lmq_core::engines::E
     g.set_running(model(view::running(o)));
     g.set_engines(model(view::engines(engines, o.now)));
     g.set_relay(model(view::relay(o)));
+    g.set_socks(model(view::socks(o)));
     g.set_gpus(model(view::gpus(o)));
     let dead = o.counts.get("dead").copied().unwrap_or(0);
     g.set_dead_count(dead as i32);
@@ -358,7 +359,7 @@ fn load_settings(s: &mut State, ui: &AppWindow) {
     s.draft = v["file"].clone();
     s.locked = v["locked"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()).unwrap_or_default();
     let g = ui.global::<UiData>();
-    g.set_fields(model(fields::rows(&s.draft, &s.locked, &s.proxies)));
+    g.set_fields(model(fields::rows(&s.draft, &s.locked, &s.proxies, g.get_settings_tab())));
     g.set_settings_dirty(false);
     g.set_settings_error("".into());
     g.set_settings_file(v["paths"]["settings_file"].as_str().unwrap_or("").into());
@@ -372,6 +373,44 @@ fn load_settings(s: &mut State, ui: &AppWindow) {
     g.set_notifications(st.app.notifications);
     g.set_server_autostart(st.app.server_autostart);
     g.set_update_auto(st.updates.auto_check);
+    load_socks_links(&s.d, false);
+}
+
+/// Ссылки на SOCKS5-прокси для копирования (внешний IP узнаётся в фоне).
+fn load_socks_links(d: &Arc<Desktop>, refresh: bool) {
+    let app = d.app.clone();
+    d.rt.spawn(async move {
+        let v = admin::socks_view(&app, refresh).await;
+        on_ui(move |_, ui| {
+            let g = ui.global::<UiData>();
+            let links: Vec<LinkRow> = v["links"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|l| LinkRow {
+                    title: t(l["title"].as_str().unwrap_or("")).into(),
+                    host: format!("{}:{}", l["host"].as_str().unwrap_or(""), l["port"]).into(),
+                    url: l["url"].as_str().unwrap_or("").into(),
+                    telegram: l["telegram"].as_str().unwrap_or("").into(),
+                })
+                .collect();
+            let mut note = Vec::new();
+            if let Some(ip) = v["public_ip"].as_str() {
+                note.push(tf("Внешний IP {ip} ({route}).", &[("ip", &ip), ("route", &v["public_route"].as_str().unwrap_or(""))]));
+            }
+            if let Some(e) = v["public_error"].as_str() {
+                note.push(e.to_string());
+            }
+            if v["local_only"] == json!(true) {
+                note.push(t("Прокси слушает только эту машину: для ссылок «Снаружи» и «В локальной сети» укажите адрес 0.0.0.0:порт."));
+            }
+            if v["enabled"] != json!(true) {
+                note.push(t("Прокси выключен: включите его и сохраните настройки."));
+            }
+            g.set_socks_links(model(links));
+            g.set_socks_note(note.join(" ").into());
+        });
+    });
 }
 
 /// Ищет локальные прокси и подставляет их в варианты полей «прокси», не трогая введённое.
@@ -380,7 +419,7 @@ fn detect_proxies(d: &Arc<Desktop>) {
         let found = lmq_core::net::detect_local_proxies().await;
         on_ui(move |s, ui| {
             s.proxies = found;
-            let fresh = fields::rows(&s.draft, &s.locked, &s.proxies);
+            let fresh = fields::rows(&s.draft, &s.locked, &s.proxies, ui.global::<UiData>().get_settings_tab());
             let rows = ui.global::<UiData>().get_fields();
             for (i, f) in fresh.into_iter().enumerate() {
                 if f.path.ends_with(".proxy")
@@ -900,6 +939,14 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
             }
         });
     });
+    // Вкладка настроек: поля берутся из черновика, несохранённые правки других вкладок остаются.
+    a.on_settings_tab_selected(|tab| {
+        on_ui_now(|s, ui| {
+            let g = ui.global::<UiData>();
+            g.set_settings_tab(tab);
+            g.set_fields(model(fields::rows(&s.draft, &s.locked, &s.proxies, tab)));
+        });
+    });
     a.on_field_bool(|i, on| {
         on_ui_now(|s, ui| {
             fields::edit_bool(&mut s.draft, i as usize, on);
@@ -1036,6 +1083,33 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
                     let g = ui.global::<UiData>();
                     g.set_netcheck(text.into());
                     g.set_netcheck_running(false);
+                });
+            });
+        });
+    });
+    a.on_socks_refresh(|| on_ui_now(|s, _| load_socks_links(&s.d, true)));
+    a.on_sockscheck(|| {
+        on_ui_now(|s, ui| {
+            let g = ui.global::<UiData>();
+            g.set_sockscheck_running(true);
+            g.set_sockscheck(t("Проверяю прокси…").into());
+            let app = s.d.app.clone();
+            s.d.rt.spawn(async move {
+                let r = admin::socks_check(&app).await;
+                let text = r["steps"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|x| {
+                        let mark = if x["ok"] == json!(true) { "✓" } else { "✗" };
+                        format!("{mark} {} — {}", t(x["title"].as_str().unwrap_or("")), x["text"].as_str().unwrap_or(""))
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                on_ui(move |_, ui| {
+                    let g = ui.global::<UiData>();
+                    g.set_sockscheck(text.into());
+                    g.set_sockscheck_running(false);
                 });
             });
         });

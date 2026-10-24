@@ -1,6 +1,6 @@
 import { api, desktop } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, cstate, field, input, combo, numberInput, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state, btn, copy, fmt } from '../ui.js';
+import { h, clear, hero, group, list, cell, cstate, field, input, combo, numberInput, select, switchEl, icon, toast, errorToast, callout, clone, navBtn, getPath, setPath, state, btn, copy, fmt, segmented } from '../ui.js';
 import { store, saveSettings, isLocked } from '../store.js';
 
 const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v }));
@@ -8,7 +8,7 @@ const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: 
 /** Разделы, собранные из полей: путь в settings.yaml, тип, подпись, подсказка, переменная окружения. */
 const SECTIONS = [
   {
-    id: 'server', title: 'Сервер', icon: 'app',
+    id: 'server', tab: 'server', title: 'Сервер', icon: 'app',
     note: 'Смена адреса или лимитов перезапускает слушатель внутри процесса.',
     fields: [
       { path: 'server.listen', label: 'Адрес API', env: 'LISTEN', placeholder: '0.0.0.0:8800', hint: 'Наружу — только через обратный прокси с HTTPS.' },
@@ -21,7 +21,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'queue', title: 'Очередь и лимиты', icon: 'queue',
+    id: 'queue', tab: 'server', title: 'Очередь и лимиты', icon: 'queue',
     fields: [
       { path: 'queue.max_queue', label: 'Всего в очереди', env: 'MAX_QUEUE', type: 'number', min: 1 },
       { path: 'queue.max_queue_per_chat', label: 'На один чат', env: 'MAX_QUEUE_PER_CHAT', type: 'number', min: 1, hint: 'Сверх — 429 с Retry-After.' },
@@ -34,7 +34,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'callback', title: 'Доставка боту', icon: 'clients',
+    id: 'callback', tab: 'server', title: 'Доставка боту', icon: 'clients',
     note: 'callback.url каждого задания проверяется по белому списку хостов (защита от SSRF).',
     fields: [
       { path: 'callback.url', label: 'Адрес колбэка', env: 'BOT_CALLBACK_URL', placeholder: 'https://bot.example.com/webhook/llm', hint: 'Если задание пришло без callback.' },
@@ -46,7 +46,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'storage', title: 'Хранение и журнал', icon: 'logs',
+    id: 'storage', tab: 'log', title: 'Хранение и журнал', icon: 'logs',
     fields: [
       { path: 'storage.db_path', label: 'База данных', env: 'DB_PATH', placeholder: 'queue.sqlite в папке данных', hint: 'Меняется после перезапуска.' },
       { path: 'storage.models_config', label: 'Внешний файл моделей', env: 'MODELS_CONFIG', placeholder: 'config.yaml', hint: 'Формат §5.4. Пусто — модели из настроек.' },
@@ -61,7 +61,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'network', title: 'Сеть и маршруты', icon: 'clients',
+    id: 'network', tab: 'net', title: 'Сеть и маршруты', icon: 'clients',
     note: 'Через какой интерфейс или прокси ходит каждое направление. Например: модели — через VPN (happ-tun или socks5-прокси VPN-клиента), бот — напрямую (Ethernet). Пусто — системный маршрут.',
     fields: [
       { path: 'network.upstream.interface', label: 'Модели: интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Имя (Ethernet, happ-tun, eth0) или IP. У апстрима можно задать свой.' },
@@ -73,7 +73,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'tg_relay', title: 'Реле Telegram Bot API', icon: 'update',
+    id: 'tg_relay', tab: 'telegram', title: 'Реле Telegram Bot API', icon: 'update',
     note: 'Замена воркера Cloudflare: бот ходит в Telegram через LMQ. В боте: «Сервер Bot API» — адрес ниже, «Адрес для скачивания файлов» — пусто. Токен бота в журнал не пишется.',
     fields: [
       { path: 'tg_relay.enabled', label: 'Включено', env: 'TG_RELAY_ENABLED', type: 'bool', hint: 'Адрес API принимает /bot<токен>/… и /file/bot<токен>/… и пересылает их в Telegram.' },
@@ -87,7 +87,20 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'breaker', title: 'Выключатель апстримов', icon: 'engines',
+    id: 'socks', tab: 'net', title: 'SOCKS5-прокси', icon: 'clients',
+    note: 'LMQ сам становится прокси: программы, телефоны и Telegram подключаются к нему, а трафик уходит через выбранный интерфейс. Имена разрешает прокси (socks5h). Только TCP: UDP и звонки Telegram через него не идут.',
+    fields: [
+      { path: 'socks.enabled', label: 'Включён', env: 'SOCKS_ENABLED', type: 'bool', hint: 'Слушать порт и пропускать соединения через выбранный интерфейс.' },
+      { path: 'socks.listen', label: 'Адрес и порт', env: 'SOCKS_LISTEN', placeholder: '127.0.0.1:1080', hint: '127.0.0.1 — только эта машина; 0.0.0.0 — локальная сеть и интернет (нужен проброс порта на роутере).' },
+      { path: 'socks.interface', label: 'Выход через интерфейс', type: 'iface', placeholder: 'системный маршрут', hint: 'Куда отправлять трафик: VPN-интерфейс, Ethernet или IP.' },
+      { path: 'socks.username', label: 'Логин', placeholder: 'без пароля', hint: 'Пусто — вход без пароля. Если прокси виден снаружи, задайте логин и пароль.' },
+      { path: 'socks.password', label: 'Пароль', type: 'secret' },
+      { path: 'socks.public_interface', label: 'Интерфейс без туннеля', type: 'iface', empty: 'авто: выход без туннеля', placeholder: 'авто: выход без туннеля', hint: 'Через него определяется внешний IP для ссылок — адрес, по которому прокси виден снаружи. Пусто — физический интерфейс с основным шлюзом, а не туннель VPN.' },
+      { path: 'socks.public_host', label: 'Адрес для ссылок', placeholder: 'внешний IP определяется сам', hint: 'IP или домен вместо найденного внешнего IP (DDNS, другой адрес проброса).' },
+    ],
+  },
+  {
+    id: 'breaker', tab: 'server', title: 'Выключатель апстримов', icon: 'engines',
     note: 'Упавший апстрим временно исключается; фоновая проверка возвращает его, когда он ожил.',
     fields: [
       { path: 'breaker.enabled', label: 'Включён', type: 'bool' },
@@ -97,7 +110,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'protocol1', title: 'Протокол 1 (Telegram)', icon: 'update',
+    id: 'protocol1', tab: 'telegram', title: 'Протокол 1 (Telegram)', icon: 'update',
     note: 'Старый режим: сервер сам отправляет ответ в Telegram. Теряются форматирование, темы форума и память — включайте, только если без него не обойтись.',
     fields: [
       { path: 'protocol1.enabled', label: 'Разрешить', env: 'PROTOCOL1_ENABLED', type: 'bool' },
@@ -143,7 +156,7 @@ export function ifaceOptions(n, inherit) {
   return [
     inherit ? { value: '', label: t('как в «Сеть и маршруты»') } : { value: '', label: t('Системный маршрут') },
     { value: 'system', label: 'system', hint: t('Системный маршрут') },
-    ...(n.interfaces || []).map((i) => ({ value: i.name, hint: [...i.ipv4, ...i.ipv6].join(', ') })),
+    ...(n.interfaces || []).map((i) => ({ value: i.name, hint: [i.uplink ? t('выход без туннеля') : null, [...i.ipv4, ...i.ipv6].join(', ')].filter(Boolean).join(' · ') })),
   ];
 }
 
@@ -167,6 +180,7 @@ const PAGES = {
 export async function render(ctx) {
   const sub = ctx.parts[1];
   if (sub && PAGES[sub]) {
+    rememberTab(sub === 'schedule' || sub === 'profiles' ? 'server' : 'app');
     ctx.back('#/settings', t('Настройки'));
     const mod = await PAGES[sub]();
     return mod.render(ctx);
@@ -174,6 +188,30 @@ export async function render(ctx) {
   const section = SECTIONS.find((s) => s.id === sub);
   if (section) return renderSection(ctx, section);
   return renderIndex(ctx);
+}
+
+/** Вкладки индекса настроек — те же, что в нативном окне. */
+const TABS = [
+  { value: 'server', label: 'Сервер' },
+  { value: 'net', label: 'Сеть' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'log', label: 'Журнал' },
+  { value: 'app', label: 'Приложение' },
+];
+
+function savedTab() {
+  try {
+    const v = localStorage.getItem('lmq.settingsTab');
+    return TABS.some((x) => x.value === v) ? v : 'server';
+  } catch (_) {
+    return 'server';
+  }
+}
+
+function rememberTab(v) {
+  try {
+    localStorage.setItem('lmq.settingsTab', v);
+  } catch (_) { /* без запоминания */ }
 }
 
 function renderIndex(ctx) {
@@ -187,24 +225,43 @@ function renderIndex(ctx) {
     onClick: () => ctx.go('#/settings/' + id),
   });
   const ui = s.file.ui;
-  root.append(
-    hero(t('Настройки'), t('Профиль {p} · {f}', { p: s.profile, f: s.paths.settings_file })),
-    group(t('Сервер очереди'), list(...SECTIONS.map((x) => link(x.id, x.title, x.icon)))),
-    group(t('Работа'), list(
-      link('schedule', 'Расписание', 'schedule', s.file.schedule.length ? String(s.file.schedule.length) : t('нет правил')),
-      link('profiles', 'Профили, экспорт и импорт', 'profiles', s.profile),
-    )),
-    group(t('Интерфейс'), list(
+  const body = h('div');
+  const sections = (tab) => SECTIONS.filter((x) => x.tab === tab).map((x) => link(x.id, x.title, x.icon));
+  const pages = {
+    server: () => [
+      group(t('Сервер очереди'), list(...sections('server'))),
+      group(t('Работа'), list(
+        link('schedule', 'Расписание', 'schedule', s.file.schedule.length ? String(s.file.schedule.length) : t('нет правил')),
+        link('profiles', 'Профили, экспорт и импорт', 'profiles', s.profile),
+      )),
+    ],
+    net: () => [group(t('Сеть'), list(...sections('net')))],
+    telegram: () => [group('Telegram', list(...sections('telegram')))],
+    log: () => [group(t('Журнал'), list(...sections('log')))],
+    app: () => [group(t('Интерфейс'), list(
       link('appearance', 'Оформление', 'palette', ui.skin),
       desktop ? link('application', 'Приложение', 'app', ui.mode === 'native' ? t('нативное окно') : t('веб-окно')) : null,
       link('updates', 'Обновления', 'update'),
       link('about', 'О программе', 'info'),
-    )),
+    ))],
+  };
+  const show = (tab) => {
+    rememberTab(tab);
+    clear(body).append(...pages[tab]());
+  };
+  const tab = savedTab();
+  root.append(
+    hero(t('Настройки'), t('Профиль {p} · {f}', { p: s.profile, f: s.paths.settings_file })),
+    h('div.toolbar.toolbar--tight', segmented(TABS.map((x) => ({ value: x.value, label: t(x.label) })), tab, show)),
+    body,
     s.locked.length ? group(t('Задано в окружении'), list(cell({ label: s.locked.join(', '), wrap: true })), t('Эти значения берутся из переменных окружения и перекрывают файл.')) : null,
   );
+  show(tab);
 }
 
 function renderSection(ctx, sec) {
+  // «Назад» вернёт на вкладку этого раздела, даже если он открыт ссылкой с обзора.
+  rememberTab(sec.tab);
   ctx.back('#/settings', t('Настройки'));
   ctx.title(t(sec.title));
   const root = ctx.root;
@@ -259,7 +316,12 @@ function renderSection(ctx, sec) {
         onChange: (v) => { setPath(draft, f.path, v ?? 0); touch(); } });
     } else if (f.type === 'iface' || f.type === 'proxy') {
       el = combo(value, [], { placeholder: f.placeholder ? t(f.placeholder) : '', disabled: locked, label: t(f.label), onChange: (v) => { setPath(draft, f.path, v.trim()); touch(); } });
-      netOptions().then((n) => el.setOptions(f.type === 'iface' ? ifaceOptions(n, !!f.inherit) : proxyOptions(n, !!f.inherit)));
+      netOptions().then((n) => {
+        const opts = f.type === 'iface' ? ifaceOptions(n, !!f.inherit) : proxyOptions(n, !!f.inherit);
+        // Своя подпись пустого значения (например, «авто» вместо системного маршрута).
+        if (f.empty) opts[0] = { value: '', label: t(f.empty) };
+        el.setOptions(opts);
+      });
     } else {
       el = input(value, { placeholder: f.placeholder || '', disabled: locked });
       el.addEventListener('input', () => { setPath(draft, f.path, el.value); touch(); });
@@ -270,6 +332,7 @@ function renderSection(ctx, sec) {
   root.append(hero(t(sec.title)), err, group(null, h('div.list', ...rows), sec.note ? t(sec.note) : null));
   if (sec.id === 'network') root.append(networkTools(save, () => dirty));
   if (sec.id === 'tg_relay') root.append(relayTools(ctx, save, () => dirty));
+  if (sec.id === 'socks') root.append(socksTools(ctx, save, () => dirty));
   ctx.onDestroy(() => {
     if (dirty) toast(t('Изменения не сохранены'), 'warn');
   });
@@ -372,6 +435,72 @@ function relayTools(ctx, save, isDirty) {
       field(t('Токен бота'), token, { hint: t('Для getMe через всю цепочку. Не сохраняется. Без него проверка идёт с пробным токеном.') }),
       cell({ label: t('Проверить реле'), kind: 'tint', onClick: run })),
     t('Маршрут до Telegram (DNS, соединение, внешний IP), ответ Bot API по нему и путь через адрес API LMQ.')),
+    out);
+}
+
+/** Счётчики SOCKS5-прокси с запуска (общие для раздела настроек и обзора). */
+export function socksStatRows(s) {
+  return [
+    s.listen_error ? cell({ label: t('Не слушает'), value: s.listen_error, wrap: true, extra: cstate(t('ошибка'), 'bad') }) : null,
+    cell({ label: t('Соединений'), value: fmt.num(s.connections), extra: cstate(t('открыто: {n}', { n: s.active }), s.active ? 'run' : 'off') }),
+    cell({ label: t('Не удалось подключиться'), value: fmt.num(s.failed) }),
+    cell({ label: t('Отказано'), value: fmt.num(s.rejected), extra: s.rejected ? cstate(t('есть'), 'busy') : null }),
+    cell({ label: t('Трафик'), value: `↑ ${fmt.bytes(s.bytes_up)} · ↓ ${fmt.bytes(s.bytes_down)}` }),
+    s.last_error ? cell({ label: t('Последняя ошибка'), value: `${s.last_error} · ${fmt.ago(s.last_error_at)}`, wrap: true }) : null,
+  ].filter(Boolean);
+}
+
+/** Готовые ссылки на прокси с копированием, счётчики и проверка выхода в интернет. */
+function socksTools(ctx, save, isDirty) {
+  const info = h('div');
+  const out = h('div');
+  async function load(refresh) {
+    try {
+      const r = await api('/admin/api/socks' + (refresh ? '?refresh=1' : ''));
+      if (!ctx.alive()) return;
+      const rows = r.links.map((l) => cell({
+        label: h('span.jobline', h('span.jobline__top', h('span.jobline__id', t(l.title))), h('span.jobline__meta', h('span', `${l.host}:${l.port}`))),
+        extra: h('span', { style: { display: 'inline-flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+          btn('socks5h', { inline: true, onClick: () => copy(l.url) }),
+          btn('Telegram', { inline: true, onClick: () => copy(l.telegram) })),
+      }));
+      rows.push(cell({ label: t('Обновить внешний IP'), kind: 'tint', onClick: () => load(true) }));
+      const notes = [
+        r.public_ip ? t('Внешний IP {ip} ({route}).', { ip: r.public_ip, route: r.public_route }) : null,
+        r.public_error,
+        r.local_only ? t('Прокси слушает только эту машину: для ссылок «Снаружи» и «В локальной сети» укажите адрес 0.0.0.0:порт.') : null,
+        t('Ссылки содержат логин и пароль. Снаружи прокси доступен, если на роутере проброшен порт.'),
+      ].filter(Boolean).join(' ');
+      clear(info).append(
+        group(t('Ссылки'), list(...rows), notes, { noteWarn: r.local_only || !!r.public_error }),
+        group(t('С запуска'), list(cell({ label: t('Выход через'), value: r.route, wrap: true }), ...socksStatRows(r.stats))),
+      );
+    } catch (e) {
+      clear(info).append(callout(e.message, 'error'));
+    }
+  }
+  async function run() {
+    if (isDirty()) await save();
+    clear(out).append(h('div.summary__wait', h('span.ring'), t('Проверяю прокси…')));
+    try {
+      const r = await api('/admin/api/socks/check', { method: 'POST', body: {} });
+      const rows = r.steps.map((s) => cell({
+        label: h('span.jobline',
+          h('span.jobline__top', h('span.jobline__id', t(s.title)), cstate(s.ok ? t('работает') : t('не работает'), s.ok ? 'run' : 'bad')),
+          h('span.jobline__meta', h('span', s.text))),
+        wrap: true,
+      }));
+      clear(out).append(group(r.ok ? t('Прокси работает') : t('Прокси не работает'), list(...rows), r.exit_ip ? t('выход {ip}', { ip: r.exit_ip }) : null));
+      load(false);
+    } catch (e) {
+      clear(out).append(callout(e.message, 'error'));
+    }
+  }
+  load(false);
+  return h('div',
+    info,
+    group(t('Проверка'), list(cell({ label: t('Проверить прокси'), kind: 'tint', onClick: run })),
+      t('Соединение через прокси и внешний IP — в сравнении с выбранным интерфейсом напрямую и с системным маршрутом.')),
     out);
 }
 

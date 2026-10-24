@@ -24,6 +24,7 @@ pub mod netdiag;
 pub mod queue;
 pub mod routing;
 pub mod schedule;
+pub mod socks;
 pub mod stats;
 pub mod store;
 pub mod submit;

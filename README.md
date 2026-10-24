@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.0.3-1_amd64.deb
+sudo apt install ./lmq_2.1.1-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -257,6 +257,51 @@ tg_relay:
 Счётчики реле есть на обзоре, в разделе реле и в `/metrics`: `tg_relay_requests_total`,
 `tg_relay_bytes_total`, `tg_relay_cache_hits_total`.
 
+## SOCKS5-прокси
+
+LMQ может сам быть SOCKS5-прокси. Программы, телефоны и Telegram подключаются к нему, а трафик уходит
+через выбранный интерфейс, например через VPN.
+
+```yaml
+socks:
+  enabled: true                   # SOCKS_ENABLED
+  listen: 0.0.0.0:1080            # SOCKS_LISTEN; 127.0.0.1:1080 — только эта машина
+  interface: happ-tun             # куда выводить трафик; пусто — системный маршрут
+  username: me                    # пусто — вход без пароля
+  password: '…'                   # хранится зашифрованным
+  public_interface: ''            # интерфейс без туннеля для внешнего IP ссылок; пусто — найдётся сам
+  public_host: ''                 # свой адрес для ссылок (домен, DDNS) вместо найденного IP
+```
+
+Как работает прокси:
+
+- имена разрешает сам прокси, клиенту нужен `socks5h://`;
+- поддерживается только TCP (CONNECT): UDP и звонки Telegram через него не идут;
+- DNS-запросы идут системным резолвером, а не через выбранный интерфейс.
+
+Раздел **Настройки → SOCKS5-прокси** даёт готовые ссылки для трёх адресов: снаружи (внешний IP
+интерфейса без туннеля), в локальной сети и на этой машине.
+
+Интерфейс без туннеля LMQ находит сам. Это физический адаптер (Ethernet, Wi‑Fi, модем) с основным
+шлюзом, а не TUN/TAP/WireGuard. Через системный маршрут IP определять нельзя: VPN в режиме TUN уводит
+его в туннель. Такой интерфейс помечен «выход без туннеля» в списках интерфейсов и в
+`lmq-server interfaces`.
+
+Каждую ссылку можно скопировать в двух видах:
+
+- `socks5h://логин:пароль@IP:порт` — для программ;
+- `https://t.me/socks?server=…&port=…&user=…&pass=…` — открывает настройку прокси в Telegram.
+  `t.me/proxy` — формат MTProto-прокси с `secret`, для SOCKS5 он не подходит.
+
+Чтобы прокси был доступен снаружи, нужен адрес `0.0.0.0:порт` и проброс порта на роутере. Без логина и
+пароля прокси открыт любому, кто достучится до порта.
+
+**Проверить прокси** соединяется через сам прокси и сравнивает внешний IP с выбранным интерфейсом
+напрямую и с системным маршрутом. Так видно, что трафик действительно идёт через нужный интерфейс.
+
+Счётчики прокси есть на обзоре и в `/metrics`: `socks_up`, `socks_active_connections`,
+`socks_connections_total`, `socks_bytes_total`.
+
 ## Отладка запросов
 
 - **Подробный журнал** (`logging.requests: true`, или **Настройки → Хранение и журнал**). Для каждого
@@ -296,7 +341,7 @@ tg_relay:
 
 - `ADMIN_LISTEN`, `CALLBACK_ALLOW_HTTP_PRIVATE`, `STATS_RETENTION_DAYS`, `METRICS_TOKEN`;
 - `PROTOCOL1_ENABLED`, `TELEGRAM_BOT_TOKEN`, `SECRET_KEY`;
-- `TG_RELAY_ENABLED`, `TG_RELAY_ALLOWED_BOTS`;
+- `TG_RELAY_ENABLED`, `TG_RELAY_ALLOWED_BOTS`, `SOCKS_ENABLED`, `SOCKS_LISTEN`;
 - `LMQ_HOME`, `LMQ_CONFIG_DIR`, `LMQ_DATA_DIR`.
 
 Поле, заданное окружением, панель показывает заблокированным.

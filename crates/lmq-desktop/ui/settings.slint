@@ -183,8 +183,17 @@ export component SettingsPage inherits Rectangle {
                 }
             }
 
-            SectionTitle { text: @tr("Оформление"); }
-            Card {
+            // Вкладки: 0 — сервер, 1 — сеть, 2 — Telegram, 3 — журнал, 4 — приложение.
+            // Поля вкладки (`UiData.fields`) подставляет Rust по `settings-tab-selected`.
+            Segmented {
+                max-width: 640px;
+                items: [@tr("Сервер"), @tr("Сеть"), "Telegram", @tr("Журнал"), @tr("Приложение")];
+                current <=> UiData.settings-tab;
+                selected(i) => { UiActions.settings-tab-selected(i); }
+            }
+
+            if UiData.settings-tab == 4: SectionTitle { text: @tr("Оформление"); }
+            if UiData.settings-tab == 4: Card {
                 VerticalLayout {
                     SettingRow {
                         label: @tr("Тема");
@@ -256,8 +265,8 @@ export component SettingsPage inherits Rectangle {
                 }
             }
 
-            SectionTitle { text: @tr("Приложение"); }
-            Card {
+            if UiData.settings-tab == 4: SectionTitle { text: @tr("Приложение"); }
+            if UiData.settings-tab == 4: Card {
                 VerticalLayout {
                     SettingRow {
                         label: @tr("Запускать при входе в Windows");
@@ -340,7 +349,7 @@ export component SettingsPage inherits Rectangle {
                 }
             }
 
-            HorizontalLayout {
+            if UiData.settings-tab < 4: HorizontalLayout {
                 spacing: 12px;
                 SectionTitle {
                     text: @tr("Сервер очереди");
@@ -358,23 +367,24 @@ export component SettingsPage inherits Rectangle {
                     clicked => { UiActions.settings-save(); }
                 }
             }
-            if UiData.settings-error != "": Banner {
+            if UiData.settings-tab < 4 && UiData.settings-error != "": Banner {
                 kind: "bad";
                 title: @tr("Настройки не сохранены");
                 text: UiData.settings-error;
             }
-            Card {
+            if UiData.settings-tab < 4: Card {
                 VerticalLayout {
                     padding-bottom: 8px;
-                    for f[i] in UiData.fields: FieldEditor {
+                    // Только поля текущей вкладки; правки идут в черновик по `f.def`.
+                    for f in UiData.fields: FieldEditor {
                         f: f;
-                        index: i;
+                        index: f.def;
                         narrow: narrow;
                     }
                 }
             }
 
-            Card {
+            if UiData.settings-tab == 1: Card {
                 VerticalLayout {
                     SettingRow {
                         label: @tr("Проверить маршруты");
@@ -398,7 +408,11 @@ export component SettingsPage inherits Rectangle {
                             wrap: word-wrap;
                         }
                     }
-                    Divider { }
+                }
+            }
+
+            if UiData.settings-tab == 2: Card {
+                VerticalLayout {
                     SettingRow {
                         label: @tr("Проверить реле Telegram");
                         hint: @tr("Маршрут до Telegram, ответ Bot API по нему и путь через адрес API LMQ. Проверка с токеном бота — в веб-панели.");
@@ -424,8 +438,78 @@ export component SettingsPage inherits Rectangle {
                 }
             }
 
-            SectionTitle { text: @tr("Обновления и о программе"); }
-            Card {
+            if UiData.settings-tab == 1: SectionTitle { text: @tr("SOCKS5-прокси: ссылки"); }
+            if UiData.settings-tab == 1: Card {
+                VerticalLayout {
+                    // Без `if` внутри `for` (см. поля): у первой строки разделитель просто прозрачный.
+                    for l[i] in UiData.socks-links: VerticalLayout {
+                        Divider { opacity: i > 0 ? 1 : 0; }
+                        SettingRow {
+                            label: l.title;
+                            hint: l.host;
+                            // Кнопки — по центру строки, как в остальных строках: иначе
+                            // они растягиваются по высоте и наползают на рамку карточки.
+                            VerticalLayout {
+                                alignment: center;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Button {
+                                        text: "socks5h";
+                                        clicked => { UiActions.copy(l.url); }
+                                    }
+                                    Button {
+                                        text: "Telegram";
+                                        clicked => { UiActions.copy(l.telegram); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if UiData.socks-note != "": HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 4px;
+                        Text {
+                            text: UiData.socks-note + " " + @tr("Ссылки содержат логин и пароль. Снаружи прокси доступен, если на роутере проброшен порт.");
+                            font-size: 12px;
+                            color: Theme.text-2;
+                            wrap: word-wrap;
+                        }
+                    }
+                    Divider { }
+                    SettingRow {
+                        label: @tr("Проверить прокси");
+                        hint: @tr("Соединение через прокси и внешний IP — в сравнении с выбранным интерфейсом напрямую и с системным маршрутом.");
+                        VerticalLayout {
+                            alignment: center;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Button {
+                                    text: @tr("Обновить IP");
+                                    clicked => { UiActions.socks-refresh(); }
+                                }
+                                Button {
+                                    text: UiData.sockscheck-running ? @tr("Проверяю…") : @tr("Проверить");
+                                    enabled: !UiData.sockscheck-running;
+                                    clicked => { UiActions.sockscheck(); }
+                                }
+                            }
+                        }
+                    }
+                    if UiData.sockscheck != "": HorizontalLayout {
+                        padding: 16px;
+                        padding-top: 0;
+                        Text {
+                            text: UiData.sockscheck;
+                            font-size: 12px;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+
+            if UiData.settings-tab == 4: SectionTitle { text: @tr("Обновления и о программе"); }
+            if UiData.settings-tab == 4: Card {
                 VerticalLayout {
                     SettingRow {
                         label: "LMQ " + UiData.version;

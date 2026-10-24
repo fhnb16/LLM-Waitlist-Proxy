@@ -3,7 +3,7 @@ import { t, tn } from '../i18n.js';
 import { lineChart, barChart, sparkline, bucketLabels } from '../charts.js';
 import { h, clear, hero, group, list, cell, segmented, cstate, meter, fmt, navBtn, toast, errorToast, btn } from '../ui.js';
 import { store, on } from '../store.js';
-import { relayStatRows } from './settings.js';
+import { relayStatRows, socksStatRows } from './settings.js';
 
 const RANGES = ['5m', '1h', '24h', '7d', '30d'];
 let range = (() => {
@@ -170,6 +170,13 @@ export async function render(ctx) {
       relay.append(group(t('Реле Telegram'), list(
         cell({ label: r.url || t('API не слушает'), value: r.route, wrap: true, onClick: () => ctx.go('#/settings/tg_relay') }),
         ...relayStatRows(r),
+      )));
+    }
+    if (o.socks) {
+      const s = o.socks;
+      relay.append(group(t('SOCKS5-прокси'), list(
+        cell({ label: s.url || t('не слушает'), value: s.route, wrap: true, onClick: () => ctx.go('#/settings/socks') }),
+        ...socksStatRows(s),
       )));
     }
 

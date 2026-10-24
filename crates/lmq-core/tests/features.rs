@@ -378,6 +378,55 @@ async fn telegram_relay_forwards_methods_and_files() {
 }
 
 #[tokio::test]
+async fn socks_proxy_connects_and_gives_links() {
+    let target = MockServer::start().await;
+    Mock::given(method("GET")).and(path_regex(r"^/hello$")).respond_with(ResponseTemplate::new(200).set_body_string("hi")).mount(&target).await;
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = dir.path().join("cfg");
+    std::fs::create_dir_all(&cfg).unwrap();
+    let socks = "socks:\n  enabled: true\n  listen: 127.0.0.1:0\n  username: u\n  password: 'p@ss:1'\n  public_host: proxy.example.com\n";
+    std::fs::write(cfg.join("settings.yaml"), format!("{}{socks}", settings_yaml("  {}\n"))).unwrap();
+    let env = start_in(dir, "", &[], bot_ok().await).await;
+    let app = env.core.app.clone();
+    tokio::spawn(lmq_core::socks::run(app.clone()));
+    assert!(wait_for(Duration::from_secs(5), || async { app.socks.bound().is_some() }).await, "socks proxy did not start");
+    let port = app.socks.bound().unwrap().port();
+
+    // Имя разрешает прокси (socks5h), вход по логину и паролю.
+    let via = |user: &str, pass: &str| {
+        let mut u = url::Url::parse(&format!("socks5h://127.0.0.1:{port}")).unwrap();
+        u.set_username(user).unwrap();
+        u.set_password(Some(pass)).unwrap();
+        reqwest::Client::builder().proxy(reqwest::Proxy::all(u.as_str()).unwrap()).build().unwrap()
+    };
+    let target_url = format!("http://localhost:{}/hello", target.address().port());
+    let r = via("u", "p@ss:1").get(&target_url).send().await.unwrap();
+    assert_eq!(r.text().await.unwrap(), "hi");
+    assert!(via("u", "wrong").get(&target_url).send().await.is_err());
+
+    // Счётчики меняет задача соединения — ждём её, а не полагаемся на порядок задач.
+    assert!(wait_for(Duration::from_secs(5), || async { app.socks.snapshot().rejected == 1 }).await, "wrong password must be counted");
+    assert_eq!(app.socks.snapshot().connections, 1);
+    // Байты считаются по ходу передачи: соединение ещё может быть открыто (keep-alive).
+    let s = app.socks.snapshot();
+    assert!(s.bytes_up > 0 && s.bytes_down > 0, "traffic must be counted while the connection is open: {s:?}");
+
+    // Готовые ссылки: socks5h с логином и паролем и t.me/socks для Telegram.
+    let v = lmq_core::admin::socks_view(&app, false).await;
+    let public = &v["links"][0];
+    assert_eq!(public["kind"], "public");
+    assert_eq!(public["url"], format!("socks5h://u:p%40ss%3A1@proxy.example.com:{port}"));
+    assert_eq!(public["telegram"], format!("https://t.me/socks?server=proxy.example.com&port={port}&user=u&pass=p%40ss%3A1"));
+    assert_eq!(v["local_only"], true);
+    let o = lmq_core::admin::overview(&app).await;
+    assert!(!o.socks.unwrap().url.unwrap().contains("p%40ss"), "overview must not show the password");
+
+    // Выключение останавливает слушатель.
+    lmq_core::admin::patch_settings(&app, json!({"socks": {"enabled": false}})).unwrap();
+    assert!(wait_for(Duration::from_secs(5), || async { app.socks.bound().is_none() }).await);
+}
+
+#[tokio::test]
 async fn debug_sink_receives_callbacks() {
     let up = upstream("debug answer", 0).await;
     let models = format!("  m:\n    upstreams:\n      - url: {}\n", url(&up));

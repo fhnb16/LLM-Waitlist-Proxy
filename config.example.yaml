@@ -88,6 +88,17 @@ tg_relay:
   max_body_mb: 50                 # предел тела запроса от бота (загрузка файлов)
   file_cache_mb: 32               # кэш скачанных файлов в памяти на час; 0 — без кэша
 
+# SOCKS5-прокси LMQ: слушает порт и выводит соединения через выбранный интерфейс.
+# Клиентам — socks5h:// (имена разрешает прокси). Только TCP.
+socks:
+  enabled: false                  # SOCKS_ENABLED
+  listen: 127.0.0.1:1080          # SOCKS_LISTEN; 0.0.0.0:1080 — локальная сеть и интернет (проброс порта)
+  interface: ''                   # выход: happ-tun, Ethernet, IP; пусто — системный маршрут
+  username: ''                    # пусто — вход без пароля
+  password: ''                    # секрет, хранится как enc:…
+  public_interface: ''            # интерфейс без туннеля для внешнего IP ссылок; пусто — найдётся сам (Ethernet/Wi-Fi со шлюзом)
+  public_host: ''                 # свой адрес для ссылок (домен, DDNS); пусто — найденный внешний IP
+
 protocol1:                        # старый режим: сервер сам пишет в Telegram
   enabled: false                  # PROTOCOL1_ENABLED
   telegram_bot_token: ''          # TELEGRAM_BOT_TOKEN
@@ -194,7 +205,7 @@ app:
 updates:
   auto_check: false
   channel: stable                 # stable | beta
-  repo: ''                        # owner/name на GitHub
+  repo: fhnb16/LLM-Waitlist-Proxy # owner/name на GitHub или ссылка на репозиторий; пусто — не проверять
   pubkey: ''                      # открытый ключ minisign для проверки установщика
 
 debug:                            # встроенный приёмник колбэков /admin/debug/callback

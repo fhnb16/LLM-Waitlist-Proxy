@@ -76,6 +76,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/api/network/check", post(network_check))
         .route("/admin/api/tg-relay", get(tg_relay_get))
         .route("/admin/api/tg-relay/check", post(tg_relay_check))
+        .route("/admin/api/socks", get(socks_get))
+        .route("/admin/api/socks/check", post(socks_check))
         .route("/admin/api/engines", get(engines))
         .route("/admin/api/engines/detect", post(engine_detect))
         .route("/admin/api/engines/{id}/start", post(engine_start))
@@ -485,6 +487,20 @@ struct RelayCheckReq {
 async fn tg_relay_check(State(app): State<AppState>, body: Option<Json<RelayCheckReq>>) -> Json<Value> {
     let req = body.map(|Json(b)| b).unwrap_or_default();
     Json(svc::tg_relay_check(&app, req.token).await)
+}
+
+#[derive(Deserialize, Default)]
+struct SocksQuery {
+    /// `1` — заново узнать внешний IP.
+    refresh: Option<u8>,
+}
+
+async fn socks_get(State(app): State<AppState>, Query(q): Query<SocksQuery>) -> Json<Value> {
+    Json(svc::socks_view(&app, q.refresh == Some(1)).await)
+}
+
+async fn socks_check(State(app): State<AppState>) -> Json<Value> {
+    Json(svc::socks_check(&app).await)
 }
 
 // ---------------------------------------------------------------- движки

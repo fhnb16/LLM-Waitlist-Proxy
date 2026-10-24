@@ -71,6 +71,10 @@ pub struct App {
     pub net: crate::net::NetPool,
     /// Реле Telegram Bot API: счётчики и кэш файлов.
     pub tg_relay: crate::tgrelay::Relay,
+    /// SOCKS5-прокси: адрес и счётчики.
+    pub socks: crate::socks::Socks,
+    /// Увеличивается, когда прокси нужно перезапуститься (включён, выключен, сменился адрес).
+    pub socks_epoch: watch::Sender<u64>,
     pub engines: Arc<EngineManager>,
     pub gpu: GpuMonitor,
     pub debug: DebugSink,
@@ -214,6 +218,9 @@ impl App {
                 || old.server.admin_cors_origins != new.server.admin_cors_origins)
         {
             self.listeners_epoch.send_modify(|e| *e += 1);
+        }
+        if !first && (old.socks.enabled != new.socks.enabled || old.socks.listen != new.socks.listen) {
+            self.socks_epoch.send_modify(|e| *e += 1);
         }
         if !first {
             tracing::info!(profile = %profile, "configuration applied");
@@ -394,6 +401,8 @@ impl Core {
             http,
             net: crate::net::NetPool::default(),
             tg_relay: crate::tgrelay::Relay::default(),
+            socks: crate::socks::Socks::default(),
+            socks_epoch: watch::channel(0u64).0,
             engines,
             gpu: GpuMonitor::default(),
             debug: DebugSink::default(),
@@ -450,6 +459,7 @@ impl Core {
         if opts.listeners {
             tasks.push(tokio::spawn(crate::api::serve_loop(app.clone(), crate::api::Listener::Client)));
             tasks.push(tokio::spawn(crate::api::serve_loop(app.clone(), crate::api::Listener::Admin)));
+            tasks.push(tokio::spawn(crate::socks::run(app.clone())));
         }
         app.delivery_wake.notify_one();
         Ok(Core { app, tasks, first_admin_token })

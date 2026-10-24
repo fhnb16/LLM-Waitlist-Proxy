@@ -1,6 +1,6 @@
 // Состояние окна (заполняет Rust) и действия (обрабатывает Rust).
 
-import { Kpi, Chart, ModelRow, RunRow, JobRow, EngineRow, LogLine, ClientRow, GpuRow, FieldRow, BannerRow } from "types.slint";
+import { Kpi, Chart, ModelRow, RunRow, JobRow, EngineRow, LogLine, ClientRow, GpuRow, FieldRow, BannerRow, LinkRow } from "types.slint";
 
 export global UiData {
     in-out property <int> page;
@@ -18,6 +18,7 @@ export global UiData {
     in property <[RunRow]> running;
     in property <[EngineRow]> engines;
     in property <[RunRow]> relay;
+    in property <[RunRow]> socks;
     in property <[GpuRow]> gpus;
 
     // Очередь
@@ -44,6 +45,7 @@ export global UiData {
 
     // Настройки
     in property <[FieldRow]> fields;
+    in-out property <int> settings-tab;
     in property <string> settings-error;
     in property <bool> settings-dirty;
     in property <string> settings-file;
@@ -65,6 +67,10 @@ export global UiData {
     in property <bool> netcheck-running;
     in property <string> tgcheck;
     in property <bool> tgcheck-running;
+    in property <[LinkRow]> socks-links;
+    in property <string> socks-note;
+    in property <string> sockscheck;
+    in property <bool> sockscheck-running;
 
     // Модальные окна
     in property <string> confirm-title;
@@ -110,6 +116,7 @@ export global UiActions {
     callback field-bool(int, bool);
     callback field-select(int, int);
     callback settings-save();
+    callback settings-tab-selected(int);
     callback settings-revert();
     callback set-scheme(int);
     callback set-backdrop(int);
@@ -120,6 +127,8 @@ export global UiActions {
     callback check-updates();
     callback netcheck();
     callback tgcheck();
+    callback sockscheck();
+    callback socks-refresh();
 
     callback confirm-accept();
     callback confirm-dismiss();

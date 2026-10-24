@@ -163,7 +163,8 @@ fn main() -> Result<()> {
         Some(Cmd::Interfaces) => {
             for i in lmq_core::net::interfaces() {
                 let ips: Vec<String> = i.ipv4.iter().chain(i.ipv6.iter()).map(|a| a.to_string()).collect();
-                println!("{:<32} {}", i.name, ips.join(", "));
+                let mark = if i.uplink { "  [выход без туннеля]" } else { "" };
+                println!("{:<32} {}{mark}", i.name, ips.join(", "));
             }
             Ok(())
         }

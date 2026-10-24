@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -26,6 +26,8 @@ pub struct Settings {
     pub network: NetworkCfg,
     /// Реле Telegram Bot API на адресе API.
     pub tg_relay: TgRelayCfg,
+    /// SOCKS5-прокси LMQ с выходом через выбранный интерфейс.
+    pub socks: SocksCfg,
     pub clients: Vec<ClientCfg>,
     pub models: BTreeMap<String, ModelCfg>,
     /// Алиасы моделей: `fast: qwen3-27b`.
@@ -52,6 +54,7 @@ impl Default for Settings {
             breaker: Default::default(),
             network: Default::default(),
             tg_relay: Default::default(),
+            socks: Default::default(),
             clients: Vec::new(),
             models: BTreeMap::new(),
             aliases: BTreeMap::new(),
@@ -302,6 +305,41 @@ impl Default for TgRelayCfg {
             timeout: 30,
             max_body_mb: 50,
             file_cache_mb: 32,
+        }
+    }
+}
+
+/// SOCKS5-прокси: LMQ слушает порт и выводит соединения через выбранный интерфейс.
+/// Имена разрешает сам прокси (клиенту — `socks5h://`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct SocksCfg {
+    pub enabled: bool,
+    /// `127.0.0.1:1080` — только эта машина; `0.0.0.0:1080` — вся сеть (задайте логин и пароль).
+    pub listen: String,
+    /// Интерфейс (`Ethernet`, `happ-tun`, `eth0`) или его IP. Пусто или `system` — системный маршрут.
+    pub interface: String,
+    /// Логин и пароль (RFC 1929). Пусто — вход без пароля.
+    pub username: String,
+    /// Пароль (секрет).
+    pub password: String,
+    /// Адрес для ссылок (IP или домен). Пусто — внешний IP, определённый через `public_interface`.
+    pub public_host: String,
+    /// Интерфейс без туннеля, по которому прокси виден снаружи: через него определяется внешний IP.
+    /// Пусто — системный маршрут.
+    pub public_interface: String,
+}
+
+impl Default for SocksCfg {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            listen: "127.0.0.1:1080".into(),
+            interface: String::new(),
+            username: String::new(),
+            password: String::new(),
+            public_host: String::new(),
+            public_interface: String::new(),
         }
     }
 }
@@ -631,13 +669,16 @@ impl Default for AppCfg {
     }
 }
 
+/// Репозиторий проекта: отсюда приходят обновления.
+pub const DEFAULT_UPDATES_REPO: &str = "fhnb16/LLM-Waitlist-Proxy";
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct UpdatesCfg {
     pub auto_check: bool,
     /// `stable` | `beta`.
     pub channel: String,
-    /// Репозиторий GitHub `owner/name`. Пусто — проверка выключена.
+    /// Репозиторий GitHub `owner/name` или ссылка на него. Пусто — проверка выключена.
     pub repo: String,
     /// Публичный ключ minisign для проверки подписи загрузок. Пусто — без установки, только ссылка.
     pub pubkey: String,
@@ -645,7 +686,7 @@ pub struct UpdatesCfg {
 
 impl Default for UpdatesCfg {
     fn default() -> Self {
-        Self { auto_check: true, channel: "stable".into(), repo: String::new(), pubkey: String::new() }
+        Self { auto_check: true, channel: "stable".into(), repo: DEFAULT_UPDATES_REPO.into(), pubkey: String::new() }
     }
 }
 

@@ -413,3 +413,27 @@ msgstr "Route to Telegram, the Bot API answer over it and the path through the L
 
 msgid "Реле Telegram"
 msgstr "Telegram relay"
+
+msgid "SOCKS5-прокси"
+msgstr "SOCKS5 proxy"
+
+msgid "SOCKS5-прокси: ссылки"
+msgstr "SOCKS5 proxy: links"
+
+msgid "Ссылки содержат логин и пароль. Снаружи прокси доступен, если на роутере проброшен порт."
+msgstr "The links contain the username and password. From outside the proxy is reachable if the port is forwarded on the router."
+
+msgid "Проверить прокси"
+msgstr "Check the proxy"
+
+msgid "Соединение через прокси и внешний IP — в сравнении с выбранным интерфейсом напрямую и с системным маршрутом."
+msgstr "A connection through the proxy and its external IP, compared with the chosen interface directly and with the system route."
+
+msgid "Обновить IP"
+msgstr "Refresh IP"
+
+msgid "Сервер"
+msgstr "Server"
+
+msgid "Сеть"
+msgstr "Network"

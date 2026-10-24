@@ -21,10 +21,13 @@ pub struct Iface {
     pub name: String,
     pub ipv4: Vec<IpAddr>,
     pub ipv6: Vec<IpAddr>,
+    /// Физический выход в интернет без туннеля (см. `uplinks`).
+    pub uplink: bool,
 }
 
 /// Интерфейсы с адресами, без loopback.
 pub fn interfaces() -> Vec<Iface> {
+    let up = uplinks();
     let mut out: Vec<Iface> = Vec::new();
     for i in if_addrs::get_if_addrs().unwrap_or_default() {
         if i.is_loopback() {
@@ -34,13 +37,128 @@ pub fn interfaces() -> Vec<Iface> {
         let e = match out.iter_mut().find(|x| x.name == i.name) {
             Some(e) => e,
             None => {
-                out.push(Iface { name: i.name.clone(), ipv4: Vec::new(), ipv6: Vec::new() });
+                let uplink = up.iter().any(|u| u.eq_ignore_ascii_case(&i.name));
+                out.push(Iface { name: i.name.clone(), ipv4: Vec::new(), ipv6: Vec::new(), uplink });
                 out.last_mut().unwrap()
             }
         };
         if ip.is_ipv4() { e.ipv4.push(ip) } else { e.ipv6.push(ip) }
     }
     out
+}
+
+/// Признаки туннеля VPN в имени или описании адаптера.
+const TUNNEL_MARKS: &[&str] = &["tun", "tap", "wintun", "wireguard", "wg", "vpn", "openvpn", "tailscale", "zerotier", "nordlynx", "outline", "happ"];
+
+fn looks_like_tunnel(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    TUNNEL_MARKS.iter().any(|m| n.starts_with(m) || n.contains(&format!("-{m}")) || n.contains(&format!(" {m}")) || n.contains(&format!("{m}-")))
+}
+
+/// Физические интерфейсы с основным шлюзом (Ethernet, Wi-Fi, сотовый модем), а не туннели VPN:
+/// через них машина видна снаружи, даже когда VPN в режиме TUN забирает системный маршрут.
+/// Первым — интерфейс с наименьшей метрикой маршрута.
+pub fn uplinks() -> Vec<String> {
+    let mut list = uplinks_os();
+    list.sort_by_key(|(metric, _)| *metric);
+    let mut out: Vec<String> = Vec::new();
+    for (_, name) in list {
+        if !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    out
+}
+
+/// Основной интерфейс без туннеля, если он есть.
+pub fn primary_uplink() -> Option<String> {
+    uplinks().into_iter().next()
+}
+
+#[cfg(windows)]
+fn uplinks_os() -> Vec<(u32, String)> {
+    use windows_sys::Win32::NetworkManagement::IpHelper::{
+        GAA_FLAG_INCLUDE_GATEWAYS, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_DNS_SERVER, GAA_FLAG_SKIP_MULTICAST, GetAdaptersAddresses, IP_ADAPTER_ADDRESSES_LH,
+    };
+    // Типы интерфейсов (ipifcons.h): Ethernet, Wi-Fi, мобильный широкополосный доступ.
+    const KINDS: [u32; 4] = [6, 71, 243, 244];
+    const IF_OPER_STATUS_UP: i32 = 1;
+    const ERROR_BUFFER_OVERFLOW: u32 = 111;
+    let flags = GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+    let mut size: u32 = 32 * 1024;
+    // Буфер u64: выравнивание для структур адаптеров.
+    let mut buf: Vec<u64> = Vec::new();
+    let mut ok = false;
+    for _ in 0..4 {
+        buf = vec![0u64; (size as usize).div_ceil(8)];
+        // SAFETY: буфер размером `size` байт, функция пишет в него не больше и обновляет `size`.
+        let r = unsafe { GetAdaptersAddresses(0, flags, std::ptr::null(), buf.as_mut_ptr().cast::<IP_ADAPTER_ADDRESSES_LH>(), &mut size) };
+        if r == 0 {
+            ok = true;
+            break;
+        }
+        if r != ERROR_BUFFER_OVERFLOW {
+            break;
+        }
+    }
+    if !ok {
+        return Vec::new();
+    }
+    // SAFETY: строка UTF-16 с нулём на конце из структуры адаптера, живёт вместе с `buf`.
+    let wide = |p: *mut u16| -> String {
+        if p.is_null() {
+            return String::new();
+        }
+        unsafe {
+            let mut n = 0;
+            while *p.add(n) != 0 {
+                n += 1;
+            }
+            String::from_utf16_lossy(std::slice::from_raw_parts(p, n))
+        }
+    };
+    let mut out = Vec::new();
+    let mut p = buf.as_ptr().cast::<IP_ADAPTER_ADDRESSES_LH>();
+    while !p.is_null() {
+        // SAFETY: связный список, который GetAdaptersAddresses построил внутри `buf`.
+        let a = unsafe { &*p };
+        let name = wide(a.FriendlyName);
+        let desc = wide(a.Description);
+        if a.OperStatus == IF_OPER_STATUS_UP
+            && !a.FirstGatewayAddress.is_null()
+            && KINDS.contains(&a.IfType)
+            && !looks_like_tunnel(&name)
+            && !looks_like_tunnel(&desc)
+        {
+            out.push((a.Ipv4Metric, name));
+        }
+        p = a.Next;
+    }
+    out
+}
+
+#[cfg(target_os = "linux")]
+fn uplinks_os() -> Vec<(u32, String)> {
+    default_routes(&std::fs::read_to_string("/proc/net/route").unwrap_or_default())
+}
+
+/// Интерфейсы маршрутов по умолчанию из `/proc/net/route` (Destination 00000000; столбец 6 —
+/// метрика), без туннелей и мостов контейнеров.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn default_routes(text: &str) -> Vec<(u32, String)> {
+    text.lines()
+        .skip(1)
+        .filter_map(|l| {
+            let c: Vec<&str> = l.split_whitespace().collect();
+            (c.len() > 6 && c[1] == "00000000").then(|| (c[6].parse().unwrap_or(0), c[0].to_string()))
+        })
+        .filter(|(_, n)| !looks_like_tunnel(n) && !["docker", "veth", "br-", "virbr"].iter().any(|p| n.starts_with(p)))
+        .collect()
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
+fn uplinks_os() -> Vec<(u32, String)> {
+    Vec::new()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -123,6 +241,23 @@ pub fn resolve_bind(spec: &str) -> Result<Bind, String> {
         Some(ip) => Ok(Bind::Addr(*ip)),
         None => Err(format!("у интерфейса '{spec}' нет адреса — он отключён?")),
     }
+}
+
+/// TCP-соединение с `addr` через привязку `bind` (интерфейс или его адрес).
+pub async fn connect_via(addr: std::net::SocketAddr, bind: &Bind) -> std::io::Result<tokio::net::TcpStream> {
+    let sock = if addr.is_ipv4() { tokio::net::TcpSocket::new_v4()? } else { tokio::net::TcpSocket::new_v6()? };
+    match bind {
+        Bind::System => {}
+        Bind::Addr(ip) if ip.is_ipv4() != addr.is_ipv4() => return Err(std::io::Error::other("адрес другого семейства, чем у интерфейса")),
+        Bind::Addr(ip) => sock.bind(std::net::SocketAddr::new(*ip, 0))?,
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        Bind::Device(d) => sock.bind_device(Some(d.as_bytes()))?,
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        Bind::Device(_) => {}
+    }
+    let stream = sock.connect(addr).await?;
+    let _ = stream.set_nodelay(true);
+    Ok(stream)
 }
 
 /// Прокси без пароля — для журнала.
@@ -218,6 +353,22 @@ mod tests {
         let own = RouteCfg { interface: "eth0".into(), proxy: String::new() };
         let base = RouteCfg { interface: "tun0".into(), proxy: "socks5://p:1".into() };
         assert_eq!(own.inherit(&base), RouteCfg { interface: "eth0".into(), proxy: "socks5://p:1".into() });
+    }
+
+    #[test]
+    fn tunnels_are_not_uplinks() {
+        for n in ["happ-tun", "tun0", "wg0", "Wintun Userspace Tunnel", "TAP-Windows Adapter V9", "Fortinet SSL VPN Virtual Ethernet Adapter", "tailscale0"] {
+            assert!(looks_like_tunnel(n), "{n}");
+        }
+        for n in ["Ethernet", "eth0", "enp3s0", "Wi-Fi", "Intel(R) Wi-Fi 6 AX201 160MHz", "Realtek PCIe GbE Family Controller", "Беспроводная сеть"]
+        {
+            assert!(!looks_like_tunnel(n), "{n}");
+        }
+        let route = "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\n\
+                     tun0\t00000000\t00000000\t0001\t0\t0\t0\t00000000\n\
+                     eth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\n\
+                     eth0\t0001A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\n";
+        assert_eq!(default_routes(route), vec![(100, "eth0".to_string())]);
     }
 
     #[test]

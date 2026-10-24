@@ -115,7 +115,10 @@ export struct GpuRow {
 
 /// Поле настроек. `kind`: header | note | text | number | combo | bool | select | secret.
 /// У `number` и `combo` — варианты `options` (значения), `labels` (подписи), `hints`.
+/// `def` — номер поля в описании полей (Rust): по нему идут правки. В списке — только поля
+/// текущей вкладки.
 export struct FieldRow {
+    def: int,
     kind: string,
     path: string,
     label: string,
@@ -130,6 +133,14 @@ export struct FieldRow {
     minimum: float,
     maximum: float,
     placeholder: string,
+}
+
+/// Ссылка на SOCKS5-прокси: `url` — socks5h с логином и паролем, `telegram` — t.me/socks.
+export struct LinkRow {
+    title: string,
+    host: string,
+    url: string,
+    telegram: string,
 }
 
 export struct BannerRow {

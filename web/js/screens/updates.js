@@ -18,7 +18,7 @@ export async function render(ctx) {
     }
   });
   ctx.actions(saveBtn);
-  const repo = input(u.repo, { placeholder: 'owner/LLM-Waitlist-Proxy' });
+  const repo = input(u.repo, { placeholder: 'fhnb16/LLM-Waitlist-Proxy' });
   repo.addEventListener('input', () => { u.repo = repo.value.trim(); });
   const pubkey = input(u.pubkey, { placeholder: 'RWQ…' });
   pubkey.addEventListener('input', () => { u.pubkey = pubkey.value.trim(); });
