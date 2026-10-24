@@ -82,6 +82,10 @@ fn migrate(s: &mut Settings) {
     if s.schema_version < 2 && s.updates.repo.trim().is_empty() {
         s.updates.repo = DEFAULT_UPDATES_REPO.into();
     }
+    // 2 → 3: появился ключ подписи релизов по умолчанию — без него установка из панели недоступна.
+    if s.schema_version < 3 && s.updates.pubkey.trim().is_empty() {
+        s.updates.pubkey = DEFAULT_UPDATES_PUBKEY.into();
+    }
     if s.schema_version < SCHEMA_VERSION {
         s.schema_version = SCHEMA_VERSION;
     }
@@ -503,11 +507,17 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.yaml");
         let cipher = Cipher::new(&[1u8; 32]);
-        std::fs::write(&path, "schema_version: 1\nupdates:\n  repo: ''\n").unwrap();
-        assert_eq!(load_file(&path, &cipher).unwrap().updates.repo, DEFAULT_UPDATES_REPO);
-        // В новом файле пустой репозиторий — осознанный выбор: проверка выключена.
-        std::fs::write(&path, "schema_version: 2\nupdates:\n  repo: ''\n").unwrap();
-        assert_eq!(load_file(&path, &cipher).unwrap().updates.repo, "");
+        std::fs::write(&path, "schema_version: 1\nupdates:\n  repo: ''\n  pubkey: ''\n").unwrap();
+        let s = load_file(&path, &cipher).unwrap();
+        assert_eq!((s.updates.repo.as_str(), s.updates.pubkey.as_str()), (DEFAULT_UPDATES_REPO, DEFAULT_UPDATES_PUBKEY));
+        // В новом файле пустые значения — осознанный выбор: проверка или установка выключены.
+        std::fs::write(&path, "schema_version: 3\nupdates:\n  repo: ''\n  pubkey: ''\n").unwrap();
+        let s = load_file(&path, &cipher).unwrap();
+        assert_eq!((s.updates.repo.as_str(), s.updates.pubkey.as_str()), ("", ""));
+        // Файл версии 2: репозиторий уже мог быть очищен осознанно, а ключа тогда не было.
+        std::fs::write(&path, "schema_version: 2\nupdates:\n  repo: ''\n  pubkey: ''\n").unwrap();
+        let s = load_file(&path, &cipher).unwrap();
+        assert_eq!((s.updates.repo.as_str(), s.updates.pubkey.as_str()), ("", DEFAULT_UPDATES_PUBKEY));
         assert_eq!(crate::updates::repo_slug("https://github.com/fhnb16/LLM-Waitlist-Proxy.git/"), DEFAULT_UPDATES_REPO);
         assert_eq!(crate::updates::repo_slug(" fhnb16/LLM-Waitlist-Proxy "), DEFAULT_UPDATES_REPO);
     }

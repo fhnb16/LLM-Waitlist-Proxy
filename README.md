@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.2.0-1_amd64.deb
+sudo apt install ./lmq_2.3.0-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -436,3 +436,39 @@ cargo tauri build --bundles nsis                # установщик (в crate
 - нативное окно — `crates/lmq-desktop/translations/en`.
 
 Полноту обоих переводов проверяют тесты.
+
+## Релизы и автообновление
+
+LMQ сам проверяет релизы GitHub (`updates.repo`, по умолчанию `fhnb16/LLM-Waitlist-Proxy`). Новую
+версию он скачивает и ставит из панели, только если подпись minisign установщика проверяется ключом
+`updates.pubkey`. Ключ релизов LMQ задан по умолчанию.
+
+Как выпустить версию:
+
+1. Поднять `version` в `Cargo.toml` и закоммитить.
+2. Поставить тег с той же версией и отправить его:
+
+   ```powershell
+   git tag v2.3.0
+   git push origin v2.3.0
+   ```
+
+3. CI соберёт и опубликует релиз (`.github/workflows/ci.yml`, задача «GitHub Release»).
+
+Что попадает в релиз:
+
+- `LMQ_<версия>_x64-setup.exe` — установщик Windows, его ставит автообновление;
+- `LMQ-<версия>-windows-x64-portable.zip` — `LMQ.exe`, `lmq-server.exe` и документация;
+- `lmq_<версия>-1_amd64.deb` — пакет Debian 12;
+- `lmq-server-<версия>-linux-x64.tar.gz` — сервер без пакета;
+- `SHA256SUMS.txt` и подпись `<файл>.minisig` к каждому файлу.
+
+Тег вида `v2.4.0-beta.1` публикуется как pre-release: такие версии получает только канал `beta`.
+
+Что нужно один раз:
+
+- репозиторий должен быть публичным — иначе LMQ без авторизации не видит релизы;
+- секрет репозитория `MINISIGN_SECRET_KEY` (Settings → Secrets and variables → Actions) — содержимое
+  секретного ключа minisign, пара к ключу `DEFAULT_UPDATES_PUBKEY` в `crates/lmq-core/src/config/settings.rs`.
+  Без секрета релиз выйдет без подписей, и LMQ покажет только ссылку на него. CI сверяет подписи с
+  ключом из кода: несовпадающий секрет не даст выпустить релиз.

@@ -485,9 +485,10 @@ async fn engine_runs_captures_output_and_restarts() {
     } else {
         ("sh", vec!["-c", "echo engine-line-1; echo 'error: boom' 1>&2"])
     };
+    // Аргументы — JSON-строками: это валидный YAML при любых кавычках внутри (`echo 'error: boom'`).
     let engines = format!(
         "engines:\n  - id: fake\n    kind: custom\n    exe: {exe}\n    args: [{}]\n    restart_on_crash: true\n    max_restarts_per_hour: 1\n    health_url: http://127.0.0.1:9/health\n    ready_timeout: 5\n",
-        args.iter().map(|a| format!("'{a}'")).collect::<Vec<_>>().join(", ")
+        args.iter().map(|a| serde_json::to_string(a).unwrap()).collect::<Vec<_>>().join(", ")
     );
     let dir = tempfile::tempdir().unwrap();
     let cfg = dir.path().join("cfg");

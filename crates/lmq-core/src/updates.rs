@@ -126,13 +126,20 @@ async fn fetch(app: &App, repo: &str, beta: bool) -> Result<Option<Value>> {
         .find(|r| !r.get("draft").and_then(Value::as_bool).unwrap_or(false) && (beta || !r.get("prerelease").and_then(Value::as_bool).unwrap_or(false))))
 }
 
+/// Проверяет подпись minisign (`<файл>.minisig`) файла `data` открытым ключом: строкой `RW…`
+/// или содержимым файла `.pub`.
+pub fn verify(pubkey: &str, data: &[u8], signature: &str) -> Result<()> {
+    let pk = minisign_verify::PublicKey::from_base64(pubkey.trim())
+        .or_else(|_| minisign_verify::PublicKey::decode(pubkey.trim()))
+        .map_err(|e| anyhow!("updates.pubkey: {e}"))?;
+    let sig = minisign_verify::Signature::decode(signature).map_err(|e| anyhow!("подпись: {e}"))?;
+    pk.verify(data, &sig, false).map_err(|_| anyhow!("подпись не совпадает — файл не будет установлен"))
+}
+
 /// Скачивает установщик и его подпись, проверяет подпись. Возвращает путь к файлу.
 pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<PathBuf> {
     let cfg = app.settings().updates.clone();
     let name = info.installer.clone().ok_or_else(|| anyhow!("нет подписанного установщика для этой платформы"))?;
-    let pk = minisign_verify::PublicKey::from_base64(cfg.pubkey.trim())
-        .or_else(|_| minisign_verify::PublicKey::decode(cfg.pubkey.trim()))
-        .map_err(|e| anyhow!("updates.pubkey: {e}"))?;
     let asset = info.assets.iter().find(|a| a.name == name).ok_or_else(|| anyhow!("файл {name} не найден"))?;
     let get = |u: String| async move {
         let r = app.http.get(&u).timeout(std::time::Duration::from_secs(600)).send().await?;
@@ -143,8 +150,7 @@ pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<PathBuf> 
     };
     let data = get(asset.url.clone()).await.context("загрузка установщика")?;
     let sig_text = get(format!("{}.minisig", asset.url)).await.context("загрузка подписи")?;
-    let sig = minisign_verify::Signature::decode(&String::from_utf8_lossy(&sig_text)).map_err(|e| anyhow!("подпись: {e}"))?;
-    pk.verify(&data, &sig, false).map_err(|_| anyhow!("подпись не совпадает — файл не будет установлен"))?;
+    verify(&cfg.pubkey, &data, &String::from_utf8_lossy(&sig_text))?;
     let dir = app.paths.data_dir.join("updates");
     std::fs::create_dir_all(&dir)?;
     if name.contains(['/', '\\']) || name.contains("..") {
@@ -154,4 +160,38 @@ pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<PathBuf> 
     std::fs::write(&path, &data)?;
     tracing::info!(file = %path.display(), "update downloaded and verified");
     Ok(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::DEFAULT_UPDATES_PUBKEY;
+
+    /// Подпись настоящим ключом релизов (`minisign -S`), как её кладёт CI рядом со сборкой.
+    const SAMPLE: &[u8] = b"LMQ update signature check\n";
+    const SAMPLE_SIG: &str = "untrusted comment: signature from minisign secret key
+RUTnz+w5RwAHuUlcasR6tOfR4izrimhxrbtDEKJy9wKiJrtAis7xSOxQUKUBWYu1NeHlknp2OhQ58TsZzVRZZ+OekZjyxNDePA4=
+trusted comment: LMQ test sample
+Os+ZKHH3yYuER3zQKOOJ+5cxMoP4+f51VF7l5hTXxpriGF4+4TfOpOI3hsQg9HnidC2sKvzQYdvOf0YSQC7GAQ==
+";
+
+    #[test]
+    fn release_signature_is_verified_with_default_key() {
+        verify(DEFAULT_UPDATES_PUBKEY, SAMPLE, SAMPLE_SIG).expect("подпись ключом релизов должна проходить");
+        assert!(verify(DEFAULT_UPDATES_PUBKEY, b"tampered", SAMPLE_SIG).is_err());
+    }
+
+    #[test]
+    fn release_assets_match_platform() {
+        let names: Vec<String> =
+            ["LMQ_2.3.0_x64-setup.exe", "LMQ-2.3.0-windows-x64-portable.zip", "lmq_2.3.0-1_amd64.deb", "SHA256SUMS.txt"].map(String::from).into();
+        let expect = if cfg!(windows) {
+            Some("LMQ_2.3.0_x64-setup.exe")
+        } else if cfg!(target_os = "linux") {
+            Some("lmq_2.3.0-1_amd64.deb")
+        } else {
+            None
+        };
+        assert_eq!(platform_asset(&names).as_deref(), expect);
+    }
 }

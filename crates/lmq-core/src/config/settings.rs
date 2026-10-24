@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -672,6 +672,10 @@ impl Default for AppCfg {
 /// Репозиторий проекта: отсюда приходят обновления.
 pub const DEFAULT_UPDATES_REPO: &str = "fhnb16/LLM-Waitlist-Proxy";
 
+/// Открытый ключ minisign, которым CI подписывает сборки релизов (`<файл>.minisig`).
+/// Секретная часть — в секрете репозитория `MINISIGN_SECRET_KEY`.
+pub const DEFAULT_UPDATES_PUBKEY: &str = "RWTnz+w5RwAHuW2pv8x0Baj2VDzcWYllIKbKBWcl+cPF+6taDDGcz3br";
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct UpdatesCfg {
@@ -686,7 +690,7 @@ pub struct UpdatesCfg {
 
 impl Default for UpdatesCfg {
     fn default() -> Self {
-        Self { auto_check: true, channel: "stable".into(), repo: DEFAULT_UPDATES_REPO.into(), pubkey: String::new() }
+        Self { auto_check: true, channel: "stable".into(), repo: DEFAULT_UPDATES_REPO.into(), pubkey: DEFAULT_UPDATES_PUBKEY.into() }
     }
 }
 

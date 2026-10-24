@@ -206,7 +206,7 @@ updates:
   auto_check: false
   channel: stable                 # stable | beta
   repo: fhnb16/LLM-Waitlist-Proxy # owner/name на GitHub или ссылка на репозиторий; пусто — не проверять
-  pubkey: ''                      # открытый ключ minisign для проверки установщика
+  pubkey: RWTnz+w5RwAHuW2pv8x0Baj2VDzcWYllIKbKBWcl+cPF+6taDDGcz3br  # ключ minisign релизов; пусто — без установки, только ссылка
 
 debug:                            # встроенный приёмник колбэков /admin/debug/callback
   reply: ok                       # ok | forbidden | server_error
