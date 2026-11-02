@@ -168,12 +168,13 @@ cargo run -p lmq-core --example themes_index
   формата настроек — мажорная. Несколько правок в одной сдаче — один подъём по самой крупной.
 - При смене версии обновите пример `lmq_<версия>-1_amd64.deb` в README.
 - Сборки в CI: `LMQ.exe`, `lmq-server.exe`, NSIS-установщик; `lmq-server` и `.deb` для Debian 12.
-- Релиз на GitHub публикует CI по тегу `vX.Y.Z` (= версия в `Cargo.toml`): сборки, `SHA256SUMS.txt`,
-  подписи minisign `*.minisig` (секрет `MINISIGN_SECRET_KEY`, открытый ключ — `DEFAULT_UPDATES_PUBKEY`).
-  От этого зависит автообновление (`updates.rs`): не меняйте имена файлов и ключ без правки обеих сторон.
-- Локальные релизы лежат в `dist/<версия>/`: `LMQ_<версия>_x64-setup.exe`,
-  `LMQ-<версия>-windows-x64-portable.zip`, `SHA256SUMS.txt`. Портативный режим включает файл `portable`
-  рядом с exe.
+- Релиз на GitHub публикует CI при push в `master` с новой версией в `Cargo.toml` (или по тегу `vX.Y.Z`):
+  ставит тег, выкладывает установщик, portable-zip, `.deb`, `SHA256SUMS.txt` и подписи minisign
+  `*.minisig` (секрет `MINISIGN_SECRET_KEY`, открытый ключ — `DEFAULT_UPDATES_PUBKEY`). От этого зависит
+  автообновление (`updates.rs`): не меняйте имена файлов и ключ без правки обеих сторон.
+- Локально собирайте только окно для запуска: `cargo build --release -p lmq-desktop` → `target\release\LMQ.exe`.
+  Установщик, portable-zip и `.deb` собирает CI; `dist/<версия>/` — старые локальные релизы, не трогать.
+  Портативный режим включает файл `portable` рядом с exe.
 
 ## Порядок работы для агентов
 

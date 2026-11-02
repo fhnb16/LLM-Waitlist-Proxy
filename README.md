@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.3.0-1_amd64.deb
+sudo apt install ./lmq_2.3.1-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -443,17 +443,10 @@ LMQ сам проверяет релизы GitHub (`updates.repo`, по умол
 версию он скачивает и ставит из панели, только если подпись minisign установщика проверяется ключом
 `updates.pubkey`. Ключ релизов LMQ задан по умолчанию.
 
-Как выпустить версию:
-
-1. Поднять `version` в `Cargo.toml` и закоммитить.
-2. Поставить тег с той же версией и отправить его:
-
-   ```powershell
-   git tag v2.3.0
-   git push origin v2.3.0
-   ```
-
-3. CI соберёт и опубликует релиз (`.github/workflows/ci.yml`, задача «GitHub Release»).
+Как выпустить версию: поднять `version` в `Cargo.toml` и отправить коммит в `master`. CI (задача
+«GitHub Release» в `.github/workflows/ci.yml`) сам соберёт установщик, portable-zip и `.deb`, поставит
+тег `v<версия>` и опубликует релиз. Если релиз этой версии уже есть, push без смены версии новый не
+выпускает. Можно и отправить тег `v<версия>` вручную — результат тот же.
 
 Что попадает в релиз:
 

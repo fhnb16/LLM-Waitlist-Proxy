@@ -1,8 +1,9 @@
 name: CI
 
-# Каждый push и PR: формат, clippy, тесты, сборки.
-# Тег vX.Y.Z (X.Y.Z — версия из Cargo.toml): ещё и релиз на GitHub — сборки, подписи
-# minisign (*.minisig) и SHA256SUMS.txt. По ним работает автообновление LMQ.
+# Каждый push и PR: формат, clippy, тесты, сборки (установщик, portable-zip, .deb).
+# Push в master с новой версией в Cargo.toml (или тег vX.Y.Z): ещё и релиз на GitHub — тег
+# vX.Y.Z, сборки, подписи minisign (*.minisig) и SHA256SUMS.txt. По ним работает автообновление
+# LMQ. Тег вручную ставить не нужно; если релиз этой версии уже есть, push его не трогает.
 on:
   push:
     branches: [master]
@@ -98,9 +99,13 @@ jobs:
 
   release:
     name: GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
     needs: [windows, debian]
     runs-on: ubuntu-latest
+    # Два push подряд с одной версией не должны выпускать релиз дважды.
+    concurrency:
+      group: release
+      cancel-in-progress: false
     permissions:
       contents: write
     env:
@@ -108,22 +113,36 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-      - name: Tag matches Cargo.toml
+      - name: Version
+        id: ver
         run: |
           v=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
-          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+          tag="v$v"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
             echo "::error::Тег $GITHUB_REF_NAME не совпадает с версией $v в Cargo.toml"
             exit 1
           fi
+          # Push в master без смены версии — релиз этой версии уже есть, новый не нужен.
+          skip=false
+          if [ "$GITHUB_REF_TYPE" = "branch" ] && gh release view "$tag" >/dev/null 2>&1; then
+            echo "Релиз $tag уже опубликован — поднимите версию в Cargo.toml, чтобы выпустить новый."
+            skip=true
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
+        if: steps.ver.outputs.skip != 'true'
         with:
           path: dist
           merge-multiple: true
       - name: Checksums
+        if: steps.ver.outputs.skip != 'true'
         working-directory: dist
         run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Sign (minisign)
+        if: steps.ver.outputs.skip != 'true'
         env:
+          TAG: ${{ steps.ver.outputs.tag }}
           MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
         run: |
           if [ -z "$MINISIGN_SECRET_KEY" ]; then
@@ -134,7 +153,7 @@ jobs:
           key="$RUNNER_TEMP/release.key"
           (umask 077 && printf '%s\n' "$MINISIGN_SECRET_KEY" > "$key")
           for f in dist/*; do
-            minisign -S -s "$key" -m "$f" -t "LMQ $GITHUB_REF_NAME $(basename "$f")"
+            minisign -S -s "$key" -m "$f" -t "LMQ $TAG $(basename "$f")"
           done
           rm -f "$key"
           # Подписи должны проверяться ключом, вшитым в LMQ, — иначе автообновление их отвергнет.
@@ -145,11 +164,17 @@ jobs:
           done
           ls -l dist
       - name: Publish
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
         run: |
           pre=""
-          case "$GITHUB_REF_NAME" in *-*) pre="--prerelease";; esac
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          case "$TAG" in *-*) pre="--prerelease";; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Повторный запуск по тегу: заменить файлы.
+            gh release upload "$TAG" dist/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/* --title "LMQ ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag $pre
+            # Тега может не быть (push в master) — gh создаст его на этом коммите.
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "LMQ ${TAG#v}" --generate-notes $pre
           fi
+          gh release view "$TAG" --json url,assets --jq '.url, (.assets[].name)'
