@@ -272,6 +272,23 @@ pub fn redact_proxy(p: &str) -> String {
     }
 }
 
+/// Узел адреса — сама эта машина: `localhost`, `127.x.x.x`, `::1`, `0.0.0.0`.
+pub fn is_local_url(url: &str) -> bool {
+    match reqwest::Url::parse(url.trim()).ok().as_ref().and_then(|u| u.host()) {
+        Some(url::Host::Domain(d)) => d.eq_ignore_ascii_case("localhost") || d.to_ascii_lowercase().ends_with(".localhost"),
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback() || ip.is_unspecified(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback() || ip.is_unspecified(),
+        None => false,
+    }
+}
+
+/// Маршрут к адресу: к самой этой машине — всегда напрямую. Через VPN-интерфейс или прокси
+/// до loopback не дойти: с чужого адреса Windows не соединяет с 127.0.0.1 (os error 10049),
+/// а прокси искал бы «localhost» у себя.
+pub fn route_for(url: &str, route: &RouteCfg) -> RouteCfg {
+    if is_local_url(url) { RouteCfg { interface: "system".into(), proxy: "none".into() } } else { route.clone() }
+}
+
 /// Маршрут словами: `интерфейс 192.168.1.228, прокси socks5://127.0.0.1:10808`.
 pub fn describe(route: &RouteCfg) -> String {
     let iface =
@@ -353,6 +370,20 @@ mod tests {
         let own = RouteCfg { interface: "eth0".into(), proxy: String::new() };
         let base = RouteCfg { interface: "tun0".into(), proxy: "socks5://p:1".into() };
         assert_eq!(own.inherit(&base), RouteCfg { interface: "eth0".into(), proxy: "socks5://p:1".into() });
+    }
+
+    /// Локальный сервер модели — напрямую, даже если для апстримов задан VPN-интерфейс.
+    #[test]
+    fn local_targets_go_direct() {
+        let vpn = RouteCfg { interface: "happ-tun".into(), proxy: "socks5://127.0.0.1:10808".into() };
+        let direct = RouteCfg { interface: "system".into(), proxy: "none".into() };
+        for u in ["http://127.0.0.1:8080/v1", "http://localhost:11434/v1", "http://[::1]:8000/v1", "http://0.0.0.0:8080/v1"] {
+            assert_eq!(route_for(u, &vpn), direct, "{u}");
+        }
+        for u in ["https://api.groq.com/openai/v1", "http://10.0.0.12:8080/v1", "не адрес"] {
+            assert_eq!(route_for(u, &vpn), vpn, "{u}");
+        }
+        assert_eq!(describe(&direct), "системный маршрут");
     }
 
     #[test]

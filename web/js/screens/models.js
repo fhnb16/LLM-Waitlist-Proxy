@@ -21,7 +21,8 @@ const ENDPOINTS = [
 /** `…/v1` → `…/v1/chat/completions`, голый хост → `…/v1/chat/completions`.
  *  То же делает сервер (`routing::chat_url`); здесь — чтобы в настройках лежал полный адрес. */
 export function chatUrl(raw) {
-  let s = String(raw || '').trim().replace(/\/+$/, '');
+  // 0.0.0.0 — адрес прослушивания (так пишет llama-server), подключаться надо к 127.0.0.1.
+  let s = String(raw || '').trim().replace(/\/+$/, '').replace(/^(https?:\/\/)0\.0\.0\.0(?=[:/]|$)/i, '$1127.0.0.1').replace(/^(https?:\/\/)\[::\](?=[:/]|$)/i, '$1[::1]');
   if (!s || s.endsWith('/chat/completions')) return s;
   s = s.replace(/\/models$/, '');
   try {

@@ -220,18 +220,37 @@ pub struct Routing {
 
 /// Полный адрес чата из того, что вставил человек: `…/v1` → `…/v1/chat/completions`,
 /// `…/v1/models` → `…/v1/chat/completions`, голый `http://host:port` →
-/// `http://host:port/v1/chat/completions`. Полный адрес и не-URL возвращаются как есть.
+/// `http://host:port/v1/chat/completions`. Не-URL возвращается как есть.
+///
+/// `0.0.0.0` и `[::]` (так llama-server пишет, где слушает) заменяются на `127.0.0.1` и
+/// `[::1]`: подключиться к «любому адресу» нельзя, Windows отвечает os error 10049.
 pub fn chat_url(raw: &str) -> String {
     let s = raw.trim().trim_end_matches('/');
-    if s.is_empty() || s.ends_with("/chat/completions") {
-        return s.to_string();
+    let full = if s.is_empty() || s.ends_with("/chat/completions") {
+        s.to_string()
+    } else {
+        let s = s.strip_suffix("/models").unwrap_or(s);
+        match url::Url::parse(s) {
+            Ok(u) if u.path().trim_matches('/').is_empty() => format!("{s}/v1/chat/completions"),
+            Ok(_) => format!("{s}/chat/completions"),
+            Err(_) => s.to_string(),
+        }
+    };
+    connectable(full)
+}
+
+/// Адрес прослушивания «на всех интерфейсах» → loopback этой машины.
+fn connectable(s: String) -> String {
+    let Ok(mut u) = url::Url::parse(&s) else { return s };
+    let host = match u.host() {
+        Some(url::Host::Ipv4(ip)) if ip.is_unspecified() => "127.0.0.1",
+        Some(url::Host::Ipv6(ip)) if ip.is_unspecified() => "[::1]",
+        _ => return s,
+    };
+    if u.set_host(Some(host)).is_err() {
+        return s;
     }
-    let s = s.strip_suffix("/models").unwrap_or(s);
-    match url::Url::parse(s) {
-        Ok(u) if u.path().trim_matches('/').is_empty() => format!("{s}/v1/chat/completions"),
-        Ok(_) => format!("{s}/chat/completions"),
-        Err(_) => s.to_string(),
-    }
+    u.to_string()
 }
 
 /// Адрес и число слотов апстрима, привязанного к движку.
@@ -279,6 +298,7 @@ impl Routing {
                 let health = old.map(|o| o.health.clone()).unwrap_or_default();
                 let learned_drops = old.map(|o| o.learned_drops.clone()).unwrap_or_default();
                 let own = RouteCfg { interface: u.interface.clone(), proxy: u.proxy.clone() };
+                let route = crate::net::route_for(&url, &own.inherit(&s.network.upstream));
                 ups.push(Arc::new(UpstreamRt {
                     id,
                     model: name.clone(),
@@ -292,7 +312,7 @@ impl Routing {
                     engine: (!u.engine.is_empty()).then(|| u.engine.clone()),
                     sem,
                     health,
-                    route: own.inherit(&s.network.upstream),
+                    route,
                     drop_params: u.drop_params.iter().map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect(),
                     learned_drops,
                 }));
@@ -331,6 +351,10 @@ mod tests {
         assert_eq!(chat_url("https://openrouter.ai/api/v1"), "https://openrouter.ai/api/v1/chat/completions");
         assert_eq!(chat_url(""), "");
         assert_eq!(chat_url("не адрес"), "не адрес");
+        // Адрес прослушивания из вывода llama-server.
+        assert_eq!(chat_url("http://0.0.0.0:8080"), full);
+        assert_eq!(chat_url("http://0.0.0.0:8080/v1/chat/completions"), full);
+        assert_eq!(chat_url("http://[::]:8080/v1"), "http://[::1]:8080/v1/chat/completions");
     }
 
     #[test]

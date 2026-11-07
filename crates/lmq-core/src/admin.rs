@@ -522,7 +522,7 @@ pub async fn probe_upstream(app: &App, p: UpstreamProbe) -> Value {
     } else {
         p.api_key.trim().to_string()
     };
-    let route = crate::config::RouteCfg { interface: p.interface, proxy: p.proxy }.inherit(&s.network.upstream);
+    let route = crate::net::route_for(&url, &crate::config::RouteCfg { interface: p.interface, proxy: p.proxy }.inherit(&s.network.upstream));
     let http = match app.net.client(&route, crate::net::Kind::General) {
         Ok(c) => c,
         Err(e) => return json!({ "ok": false, "url": url, "models": [], "error": e }),
