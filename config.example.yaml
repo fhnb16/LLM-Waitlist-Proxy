@@ -118,6 +118,7 @@ models:
       - engine: llama-main
         model: qwen3-27b
       # Второй сервер с той же моделью: задания делятся по свободным слотам.
+      # url можно короче: http://10.0.0.12:8080/v1 или http://10.0.0.12:8080 — LMQ допишет /v1/chat/completions.
       # - url: http://10.0.0.12:8080/v1/chat/completions
       #   model: qwen3-27b
       #   slots: 2

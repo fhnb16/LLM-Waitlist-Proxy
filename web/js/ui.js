@@ -95,6 +95,9 @@ export const ICONS = {
   stop: ['M6 6h12v12H6z'],
   back: ['M15 5l-7 7 7 7'],
   dot: ['M12 12h.01'],
+  check: ['M5 12.5l4.5 4.5L19 7.5'],
+  cross: ['M6 6l12 12', 'M18 6L6 18'],
+  alert: ['M12 3.5l9.5 16.5h-19z', 'M12 10v4', 'M12 17h.01'],
 };
 
 export function chevron() {
@@ -428,8 +431,8 @@ export function badge(text, kind) {
 }
 
 export function callout(text, kind) {
-  const icons = { ok: '✓', warn: '!', error: '×' };
-  return h('div.callout', { class: kind ? 'callout--' + kind : null }, h('span.callout__icon', icons[kind] || 'i'), h('div.callout__text', text));
+  const icons = { ok: 'check', warn: 'alert', error: 'cross' };
+  return h('div.callout', { class: kind ? 'callout--' + kind : null }, icon(icons[kind] || 'info', 'callout__icon'), h('div.callout__text', text));
 }
 
 export function state(title, text, action) {

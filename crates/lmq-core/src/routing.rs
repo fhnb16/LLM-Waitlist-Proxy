@@ -218,6 +218,22 @@ pub struct Routing {
     pub aliases: BTreeMap<String, String>,
 }
 
+/// Полный адрес чата из того, что вставил человек: `…/v1` → `…/v1/chat/completions`,
+/// `…/v1/models` → `…/v1/chat/completions`, голый `http://host:port` →
+/// `http://host:port/v1/chat/completions`. Полный адрес и не-URL возвращаются как есть.
+pub fn chat_url(raw: &str) -> String {
+    let s = raw.trim().trim_end_matches('/');
+    if s.is_empty() || s.ends_with("/chat/completions") {
+        return s.to_string();
+    }
+    let s = s.strip_suffix("/models").unwrap_or(s);
+    match url::Url::parse(s) {
+        Ok(u) if u.path().trim_matches('/').is_empty() => format!("{s}/v1/chat/completions"),
+        Ok(_) => format!("{s}/chat/completions"),
+        Err(_) => s.to_string(),
+    }
+}
+
 /// Адрес и число слотов апстрима, привязанного к движку.
 pub fn engine_endpoint(e: &EngineCfg) -> (String, u32) {
     let host = if e.llama.host.is_empty() || e.llama.host == "0.0.0.0" { "127.0.0.1" } else { &e.llama.host };
@@ -251,9 +267,9 @@ impl Routing {
                 let (url, slots) = match engine {
                     Some(e) => {
                         let (eu, es) = engine_endpoint(e);
-                        (if u.url.trim().is_empty() { eu } else { u.url.clone() }, if u.slots > 1 { u.slots } else { es })
+                        (if u.url.trim().is_empty() { eu } else { chat_url(&u.url) }, if u.slots > 1 { u.slots } else { es })
                     }
-                    None => (u.url.clone(), u.slots.max(1)),
+                    None => (chat_url(&u.url), u.slots.max(1)),
                 };
                 let old = prev.and_then(|p| p.models.get(name)).and_then(|pm| pm.upstreams.iter().find(|x| x.id == id));
                 let sem = match old {
@@ -303,6 +319,19 @@ impl Routing {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chat_url_completes_short_addresses() {
+        let full = "http://127.0.0.1:8080/v1/chat/completions";
+        assert_eq!(chat_url(full), full);
+        assert_eq!(chat_url("http://127.0.0.1:8080/v1/"), full);
+        assert_eq!(chat_url("http://127.0.0.1:8080/v1/models"), full);
+        assert_eq!(chat_url(" http://127.0.0.1:8080 "), full);
+        assert_eq!(chat_url("https://api.groq.com/openai/v1"), "https://api.groq.com/openai/v1/chat/completions");
+        assert_eq!(chat_url("https://openrouter.ai/api/v1"), "https://openrouter.ai/api/v1/chat/completions");
+        assert_eq!(chat_url(""), "");
+        assert_eq!(chat_url("не адрес"), "не адрес");
+    }
 
     #[test]
     fn breaker_opens_and_half_opens() {

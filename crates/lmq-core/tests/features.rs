@@ -527,6 +527,58 @@ async fn model_name_with_slash_in_admin_paths() {
     assert_eq!(v["ok"], true, "{v}");
 }
 
+/// Окно «Новая модель»: адрес `…/v1` дополняется до `…/v1/chat/completions`, список моделей
+/// приходит до сохранения, ключ проверяется сразу; маска берёт сохранённый ключ апстрима.
+/// Короткий адрес в настройках тоже работает.
+#[tokio::test]
+async fn upstream_probe_lists_models_before_save() {
+    use wiremock::matchers::{header, method, path};
+    let s = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/models"))
+        .and(header("authorization", "Bearer sk-good"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": [{"id": "llama-3.3-70b"}, {"id": "gemma-2-9b"}]})))
+        .with_priority(1)
+        .mount(&s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/v1/models"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({"error": {"message": "Invalid API Key"}})))
+        .with_priority(5)
+        .mount(&s)
+        .await;
+    Mock::given(method("POST")).and(path("/v1/chat/completions")).respond_with(ResponseTemplate::new(200).set_body_json(ok_answer("OK"))).mount(&s).await;
+    let models = format!("  m:\n    upstreams:\n      - url: {}/v1\n        api_key: sk-good\n", s.uri());
+    let env = start(&models, &[], bot_ok().await).await;
+    let probe = |body: serde_json::Value| call(&env.admin, "POST", "/admin/api/upstreams/probe", Some(ADMIN), Some(body));
+
+    let (st, _, v) = probe(json!({"url": format!("{}/v1/", s.uri()), "api_key": "sk-good"})).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(v["ok"], true, "{v}");
+    assert_eq!(v["url"], format!("{}/v1/chat/completions", s.uri()));
+    assert_eq!(v["models"], json!(["gemma-2-9b", "llama-3.3-70b"]));
+
+    let (_, _, v) = probe(json!({"url": format!("{}/v1", s.uri())})).await;
+    assert_eq!(v["ok"], false);
+    assert_eq!(v["need_key"], true);
+    assert_eq!(v["error"], "Сервер просит ключ");
+
+    let (_, _, v) = probe(json!({"url": format!("{}/v1", s.uri()), "api_key": "sk-bad"})).await;
+    assert_eq!(v["error"], "Ключ не подошёл", "{v}");
+
+    let (_, _, v) = probe(json!({"url": format!("{}/v1", s.uri()), "api_key": lmq_core::admin::MASK, "model": "m", "index": 0})).await;
+    assert_eq!(v["ok"], true, "{v}");
+
+    let (_, _, v) = probe(json!({"url": "ftp://x"})).await;
+    assert_eq!(v["ok"], false);
+
+    // Апстрим с адресом `…/v1` в настройках выполняет задания.
+    assert_eq!(env.core.app.routing().models["m"].upstreams[0].url, format!("{}/v1/chat/completions", s.uri()));
+    let (st, _, v) = call(&env.admin, "POST", "/admin/api/models/m/test", Some(ADMIN), Some(json!({}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(v["ok"], true, "{v}");
+}
+
 /// Апстрим отклоняет параметр (как Groq с `mirostat`): LMQ убирает его, повторяет запрос,
 /// запоминает и дальше не отправляет. Параметры из `drop_params` не уходят никогда.
 #[tokio::test]

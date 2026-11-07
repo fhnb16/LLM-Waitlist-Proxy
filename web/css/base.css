@@ -237,7 +237,7 @@ textarea { font: inherit; color: inherit; }
   min-width: 0;
 }
 .tab-bar__icon { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
-.tab-bar__label { font-size: 10px; line-height: 1.1; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tab-bar__label { font-size: 10px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .tab-bar__item--active { color: var(--tint); }
 .tab-bar__item:active { opacity: 0.5; }
 .tab-bar__badge {
@@ -253,7 +253,7 @@ textarea { font: inherit; color: inherit; }
   background: var(--danger);
   color: var(--on-danger);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 16px;
   text-align: center;
 }
@@ -311,7 +311,7 @@ textarea { font: inherit; color: inherit; }
 }
 .hot__chip:active { opacity: 0.55; }
 .hot__chip--live { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
-.hot__title { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+.hot__title { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .hot__sub { font-size: 11px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* ------------------------------------------------------------ группы/списки */
 .group { margin: 0 0 26px; }
@@ -1158,7 +1158,7 @@ select {
   height: 18px;
   padding: 0 7px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
 }
 .sp__body { display: grid; gap: 4px; padding: 5px 6px; }
@@ -1400,7 +1400,6 @@ select {
 .log__v { color: var(--text); overflow-wrap: anywhere; }
 a.log__v { color: var(--tint-text); }
 .log__kv--changed .log__v { color: var(--tint-text); font-weight: 600; }
-.log__sub { margin-top: 4px; font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
 .log__values { display: flex; flex-direction: column; gap: 3px; padding-left: 8px; border-left: 2px solid var(--sep); }
 .chips--wrap { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 var(--row-px) 12px; }
 .banner__sub { margin-top: 6px; font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
@@ -1559,7 +1558,7 @@ a.log__v { color: var(--tint-text); }
   border-bottom: var(--modal-head-border);
 }
 .modal__titles { flex: 1; min-width: 0; }
-.modal__title { margin: 0; font-family: var(--modal-title-font); font-size: 19px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
+.modal__title { margin: 0; font-family: var(--modal-title-font); font-size: 19px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
 .modal__sub {
   display: -webkit-box;
   margin: 4px 0 0;
@@ -1631,7 +1630,7 @@ a.log__v { color: var(--tint-text); }
 .toast--warn { box-shadow: inset 4px 0 0 var(--warn), 0 6px 20px var(--shadow-soft); }
 .toast--error { box-shadow: inset 4px 0 0 var(--danger), 0 6px 20px var(--shadow-soft); }
 .toast__text { flex: 1; min-width: 0; }
-.toast__action { flex: none; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.toast__action { flex: none; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 
 /* Кольцо загрузки (ring) — в строке и в окнах; не путать с прежним spinner из
    двенадцати лепестков для загрузки экрана. И прогресс. */
@@ -1658,7 +1657,7 @@ a.log__v { color: var(--tint-text); }
 }
 
 /* Бейдж. */
-.badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--tint); color: var(--on-tint); font-size: 11px; font-weight: 700; line-height: 1; vertical-align: middle; }
+.badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--tint); color: var(--on-tint); font-size: 11px; font-weight: 600; line-height: 1; vertical-align: middle; }
 .badge--muted { background: var(--surface-press); color: var(--text-2); }
 .badge--warn { background: var(--warn); color: var(--bg); }
 .badge--danger { background: var(--danger); color: var(--on-danger); }
@@ -1676,7 +1675,7 @@ a.log__v { color: var(--tint-text); }
   font-size: 14px;
   line-height: 1.45;
 }
-.callout__icon { flex: none; color: var(--callout-c); font-weight: 700; }
+.callout__icon { flex: none; width: 16px; height: 16px; margin-top: 2px; fill: none; stroke: var(--callout-c); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .callout--ok { --callout-c: var(--ok); }
 .callout--warn { --callout-c: var(--warn); }
 .callout--error { --callout-c: var(--danger); }

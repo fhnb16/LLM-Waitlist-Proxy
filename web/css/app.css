@@ -26,7 +26,7 @@ html.vibrancy body::before { opacity: var(--backdrop-opacity, 0.55); }
     align-items: center;
     gap: 10px;
     padding: 4px 12px 14px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 17px;
     color: var(--text);
   }
@@ -198,6 +198,45 @@ html.vibrancy body::before { opacity: var(--backdrop-opacity, 0.55); }
 }
 .pick__item--on { border-color: var(--tint); background: var(--tint-soft); color: var(--text); }
 .pick__item:focus-visible { outline: 2px solid var(--tint); outline-offset: 1px; }
+
+/* ------------------------------------------- проверка адреса апстрима (probe) */
+.probe { display: flex; align-items: flex-start; gap: 8px; min-height: 0; padding: 8px var(--row-px) 0; font-size: 13px; line-height: 1.4; color: var(--text-2); }
+.probe:empty { display: none; }
+.field > .probe { grid-column: 2; padding: 0 var(--field-pad) var(--field-inset); }
+.probe .ring { flex: none; width: 12px; height: 12px; margin-top: 2px; border-width: 2px; }
+.probe__dot { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--text-3); }
+.probe--ok .probe__dot { background: var(--ok); }
+.probe--error .probe__dot { background: var(--danger); }
+.probe__text { min-width: 0; }
+.probe__main { color: var(--text); }
+.probe--error .probe__main { color: var(--danger); }
+.probe__url { display: block; margin-top: 2px; font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace; font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
+
+/* ------------------------------------------------- окно «Новая модель» (mform) */
+.mform { display: flex; flex-direction: column; }
+.mform__lmq { margin-top: 20px; }
+.mpick__source { margin: 4px 0 12px; }
+.mpick { margin-top: 16px; }
+.mpick__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 var(--row-px) 8px; font-size: 13px; color: var(--text-2); }
+.mpick__count { font-variant-numeric: tabular-nums; color: var(--text-3); }
+.mpick > .field__input { margin: 0 0 8px; }
+.mpick__list {
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0.5px solid var(--sep);
+  border-radius: max(4px, calc(var(--group-r) - var(--field-inset)));
+  background: var(--group-bg, var(--surface));
+}
+.mpick__item { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 var(--row-px); border-bottom: 0.5px solid var(--sep); cursor: pointer; }
+.mpick__item:last-child { border-bottom: 0; }
+.mpick__item:hover { background: var(--focus-bg); }
+.mpick__item:has(.mpick__check:checked) .mpick__id { color: var(--text); }
+.mpick__check { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--tint); cursor: pointer; }
+.mpick__check:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+.mpick__id { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: var(--text-2); }
+.mpick__note { flex: none; font-size: 12px; color: var(--text-3); }
+.mpick__empty { margin: 0; padding: 12px var(--row-px); font-size: 13px; color: var(--text-3); }
 
 /* ------------------------------------------------------------ редактор кода */
 .code {

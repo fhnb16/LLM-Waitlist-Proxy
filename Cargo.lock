@@ -4273,7 +4273,7 @@ checksum = "4744e383959f0db86ede514b809b1c53251889093803c05267acc7d4e7030d70"
 
 [[package]]
 name = "lmq-core"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -4321,7 +4321,7 @@ dependencies = [
 
 [[package]]
 name = "lmq-desktop"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "anyhow",
  "auto-launch",
@@ -4348,7 +4348,7 @@ dependencies = [
 
 [[package]]
 name = "lmq-server"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "anyhow",
  "chrono",

@@ -1,21 +1,56 @@
 import { api } from '../api.js';
-import { t } from '../i18n.js';
 import { lineChart, barChart, sparkline } from '../charts.js';
-import { h, clear, hero, group, list, cell, field, input, combo, numberInput, select, textarea, cellSwitch, pick, btn, cstate, fmt, modal, toast, errorToast, confirmDialog, state, callout, clone, navBtn } from '../ui.js';
+import { h, clear, hero, group, list, cell, field, input, combo, numberInput, select, textarea, cellSwitch, pick, btn, cstate, fmt, modal, toast, errorToast, confirmDialog, state, callout, clone, navBtn, segmented, ring, debounce } from '../ui.js';
+import { t, tn } from '../i18n.js';
 import { store, on, saveSettings, isLocked } from '../store.js';
 import { netOptions, ifaceOptions, proxyOptions } from './settings.js';
 
-/** Адреса популярных OpenAI-совместимых серверов для списка «Адрес». */
+/** Адреса популярных OpenAI-совместимых серверов для списка «Адрес». Хвост
+ *  `/chat/completions` LMQ допишет сам. */
 const ENDPOINTS = [
-  { value: 'http://127.0.0.1:8080/v1/chat/completions', hint: 'llama.cpp' },
-  { value: 'http://127.0.0.1:11434/v1/chat/completions', hint: 'Ollama' },
-  { value: 'http://127.0.0.1:8000/v1/chat/completions', hint: 'vLLM' },
-  { value: 'http://127.0.0.1:1234/v1/chat/completions', hint: 'LM Studio' },
-  { value: 'http://127.0.0.1:5001/v1/chat/completions', hint: 'KoboldCpp' },
-  { value: 'https://api.groq.com/openai/v1/chat/completions', hint: 'Groq' },
-  { value: 'https://api.openai.com/v1/chat/completions', hint: 'OpenAI' },
-  { value: 'https://openrouter.ai/api/v1/chat/completions', hint: 'OpenRouter' },
+  { value: 'http://127.0.0.1:8080/v1', hint: 'llama.cpp' },
+  { value: 'http://127.0.0.1:11434/v1', hint: 'Ollama' },
+  { value: 'http://127.0.0.1:8000/v1', hint: 'vLLM' },
+  { value: 'http://127.0.0.1:1234/v1', hint: 'LM Studio' },
+  { value: 'http://127.0.0.1:5001/v1', hint: 'KoboldCpp' },
+  { value: 'https://api.groq.com/openai/v1', hint: 'Groq' },
+  { value: 'https://api.openai.com/v1', hint: 'OpenAI' },
+  { value: 'https://openrouter.ai/api/v1', hint: 'OpenRouter' },
 ];
+
+/** `…/v1` → `…/v1/chat/completions`, голый хост → `…/v1/chat/completions`.
+ *  То же делает сервер (`routing::chat_url`); здесь — чтобы в настройках лежал полный адрес. */
+export function chatUrl(raw) {
+  let s = String(raw || '').trim().replace(/\/+$/, '');
+  if (!s || s.endsWith('/chat/completions')) return s;
+  s = s.replace(/\/models$/, '');
+  try {
+    return new URL(s).pathname.replace(/\//g, '') === '' ? s + '/v1/chat/completions' : s + '/chat/completions';
+  } catch (_) {
+    return s;
+  }
+}
+
+/** Проверка ещё не сохранённого апстрима: полный адрес, список моделей, вердикт. */
+function probe(body) {
+  return api('/admin/api/upstreams/probe', { method: 'POST', body });
+}
+
+/** Строка состояния проверки адреса: точка, итог и адрес, на который пойдут запросы. */
+function probeLine(el, r) {
+  clear(el);
+  el.className = 'probe';
+  if (r === 'busy') {
+    el.append(ring(), h('span.probe__text', t('Проверяем адрес…')));
+    return;
+  }
+  if (!r) return;
+  el.classList.add(r.ok ? 'probe--ok' : 'probe--error');
+  const main = r.ok
+    ? (r.models.length ? t('Отвечает') + ' · ' + tn(r.models.length, 'модель', 'модели', 'моделей') : t('Отвечает, список моделей пуст')) + (r.latency_ms != null ? ' · ' + fmt.ms(r.latency_ms) : '')
+    : t(r.error) + (r.detail ? ' · ' + r.detail : '');
+  el.append(h('span.probe__dot', { 'aria-hidden': 'true' }), h('span.probe__text', h('span.probe__main', main), r.url ? h('span.probe__url', 'POST ' + r.url) : null));
+}
 
 const BREAKER = { closed: ['в работе', 'run'], open: ['исключён', 'bad'], half_open: ['проверка', 'busy'] };
 
@@ -70,42 +105,178 @@ export async function render(ctx) {
   if (ctx.params.get('new')) addModel(ctx);
 }
 
+/**
+ * «Новая модель»: адрес (можно `…/v1`) и ключ сразу, LMQ проверяет их и подтягивает
+ * список моделей апстрима. Отмеченные модели становятся моделями LMQ: одна — под
+ * своим именем, несколько — под именами апстрима.
+ */
 function addModel(ctx) {
-  const name = input('', { placeholder: 'qwen3-27b' });
-  const url = combo('http://127.0.0.1:8080/v1/chat/completions', ENDPOINTS, { placeholder: 'http://127.0.0.1:8080/v1/chat/completions', inputmode: 'url', label: t('Адрес') });
+  const engines = store.settings.file.engines || [];
+  const existing = store.settings.file.models;
+  let source = 'url';
+  let found = [];
+  let chosen = [];
+  let result = null;
+  let nameTouched = false;
   let slotsValue = 1;
+  let seq = 0;
+
+  const url = combo('', ENDPOINTS, { placeholder: 'https://api.groq.com/openai/v1', inputmode: 'url', label: t('Адрес'), onChange: () => later() });
+  const key = input('', { type: 'password', placeholder: t('не нужен для локальных'), autocomplete: 'new-password', 'aria-label': t('Ключ') });
+  const engine = select(engines.map((e) => ({ value: e.id, label: e.name || e.id })), engines[0] ? engines[0].id : '');
+  const status = h('div.probe', { role: 'status', 'aria-live': 'polite' });
+  const name = input('', { placeholder: 'qwen3-27b' });
   const slots = numberInput(1, { min: 1, max: 256, presets: [1, 2, 4, 8, 16], label: t('Слоты'), onChange: (v) => { slotsValue = v; } });
-  const engineOpts = [{ value: '', label: t('нет — адрес вручную') }, ...(store.settings.file.engines || []).map((e) => ({ value: e.id, label: e.name || e.id }))];
-  const engine = select(engineOpts, '');
-  modal({
+  const filter = input('', { type: 'search', placeholder: t('Найти'), 'aria-label': t('Найти модель') });
+  const rows = h('div.mpick__list', { role: 'group', 'aria-label': t('Модели апстрима') });
+  const count = h('span.mpick__count');
+  const pickBox = h('section.mpick', { hidden: true }, h('div.mpick__head', h('span.mpick__title', t('Модели апстрима')), count), filter, rows);
+  const nameRow = field(t('Имя в LMQ'), name, { hint: t('Его бот укажет в поле model') });
+  const manyNote = h('p.group__note', { hidden: true });
+
+  const urlRow = field(t('Адрес'), url, { hint: t('Можно вставить …/v1 — LMQ допишет /chat/completions') });
+  const keyRow = field(t('Ключ'), key, { hint: t('Проверяется сразу и сохраняется зашифрованным') });
+  const engineRow = field(t('Движок'), engine, { hint: t('Адрес и слоты возьмутся из движка') });
+  const slotsRow = field(t('Слоты'), slots, { hint: t('Одновременных запросов (--parallel у llama.cpp)') });
+
+  const sourceSwitch = engines.length
+    ? h('div.mpick__source', segmented([{ value: 'url', label: t('По адресу') }, { value: 'engine', label: t('Локальный движок') }], source, (v) => {
+        source = v;
+        paintSource();
+        run();
+      }))
+    : null;
+
+  function paintSource() {
+    urlRow.hidden = keyRow.hidden = source !== 'url';
+    engineRow.hidden = source !== 'engine';
+    slotsRow.querySelector('.field__hint').textContent = source === 'engine' ? t('1 — взять --parallel из движка') : t('Одновременных запросов (--parallel у llama.cpp)');
+  }
+
+  /** Проверка: последний ответ побеждает, устаревшие отбрасываются. */
+  async function run() {
+    const body = source === 'engine' ? { engine: engine.value } : { url: url.input.value, api_key: key.value };
+    if (source === 'url' && !url.input.value.trim()) {
+      result = null;
+      probeLine(status, null);
+      setFound([]);
+      return;
+    }
+    const my = ++seq;
+    probeLine(status, 'busy');
+    let r;
+    try {
+      r = await probe(body);
+    } catch (e) {
+      r = { ok: false, url: '', models: [], error: e.message };
+    }
+    if (my !== seq) return;
+    result = r;
+    probeLine(status, r);
+    setFound(r.ok ? r.models : []);
+    if (r.need_key && source === 'url' && !key.value) key.focus();
+  }
+  const later = debounce(run, 500);
+  url.input.addEventListener('paste', () => setTimeout(run, 0));
+  url.input.addEventListener('change', run);
+  key.addEventListener('input', later);
+  engine.addEventListener('change', run);
+
+  function setFound(ids) {
+    found = ids;
+    chosen = chosen.filter((x) => found.includes(x));
+    // Один вариант — сразу отмечен: обычно это локальный сервер с одной моделью.
+    if (found.length === 1 && !chosen.length) chosen = [found[0]];
+    pickBox.hidden = !found.length;
+    filter.hidden = found.length <= 8;
+    paintRows();
+    syncName();
+  }
+
+  function paintRows() {
+    const q = filter.value.trim().toLowerCase();
+    clear(rows);
+    const shown = found.filter((id) => !q || id.toLowerCase().includes(q));
+    for (const id of shown) {
+      const box = h('input.mpick__check', { type: 'checkbox', checked: chosen.includes(id) });
+      box.addEventListener('change', () => {
+        chosen = box.checked ? [...chosen, id] : chosen.filter((x) => x !== id);
+        paintCount();
+        syncName();
+      });
+      rows.append(h('label.mpick__item', box, h('span.mpick__id', id), existing[id] ? h('span.mpick__note', t('уже есть')) : null));
+    }
+    if (!shown.length) rows.append(h('p.mpick__empty', t('Ничего не найдено')));
+    paintCount();
+  }
+
+  function paintCount() {
+    count.textContent = chosen.length ? t('выбрано {n} из {m}', { n: chosen.length, m: found.length }) : t('всего {m}', { m: found.length });
+  }
+
+  /** Одна модель — имя подставляется из неё, пока человек его не правил; несколько — имена апстрима. */
+  function syncName() {
+    const many = chosen.length > 1;
+    nameRow.hidden = many;
+    manyNote.hidden = !many;
+    if (many) manyNote.textContent = t('Будут созданы модели с именами апстрима: {list}', { list: chosen.join(', ') });
+    if (!nameTouched && chosen.length === 1) name.value = chosen[0];
+    createBtn.textContent = many ? t('Создать {n}', { n: chosen.length }) : t('Создать');
+  }
+  name.addEventListener('input', () => { nameTouched = name.value.trim() !== ''; });
+  filter.addEventListener('input', paintRows);
+
+  const upstream = (target) => ({
+    name: '',
+    url: source === 'engine' ? '' : (result && result.url) || chatUrl(url.input.value),
+    model: target,
+    api_key: source === 'engine' ? '' : key.value.trim(),
+    slots: slotsValue || 1,
+    engine: source === 'engine' ? engine.value : '',
+    stream: false, timeout: 0, interface: '', proxy: '', drop_params: [],
+  });
+
+  async function create() {
+    // Пары «имя в LMQ → имя у апстрима».
+    const plan = chosen.length > 1 ? chosen.map((id) => [id, id]) : [[name.value.trim(), chosen[0] || '']];
+    if (!plan[0][0]) throw new Error(t('Введите имя модели'));
+    if (source === 'url' && !url.input.value.trim()) throw new Error(t('Укажите адрес'));
+    const file = clone(store.settings.file);
+    const taken = plan.map(([n]) => n).filter((n) => file.models[n]);
+    if (taken.length) throw new Error(t('Модель {n} уже есть', { n: taken.join(', ') }));
+    for (const [n, target] of plan) {
+      file.models[n] = {
+        upstreams: [upstream(target === n ? '' : target)],
+        defaults: {}, force: {}, fallback: [], max_queue: null, enabled: true, description: '', vision: false,
+      };
+    }
+    await saveSettings(file);
+    if (plan.length === 1) {
+      toast(t('Модель {n} создана', { n: plan[0][0] }), 'ok');
+      ctx.go('#/models/' + encodeURIComponent(plan[0][0]));
+    } else {
+      toast(t('Создано моделей: {n}', { n: plan.length }), 'ok');
+    }
+  }
+
+  const { panel } = modal({
     title: t('Новая модель'),
-    sub: t('Имя — то, что бот укажет в поле model.'),
-    body: h('div.list',
-      field(t('Имя'), name),
-      field(t('Движок'), engine, { hint: t('Локальный движок подставит адрес и слоты сам.') }),
-      field(t('Адрес'), url, { hint: t('…/v1/chat/completions OpenAI-совместимого сервера') }),
-      field(t('Слоты'), slots, { hint: t('Одновременных запросов (--parallel у llama.cpp)') })),
+    sub: t('Вставьте адрес сервера — LMQ проверит его и покажет модели'),
+    wide: true,
+    body: h('div.mform',
+      sourceSwitch,
+      h('div.list', urlRow, keyRow, engineRow),
+      status,
+      pickBox,
+      h('div.list.mform__lmq', nameRow, slotsRow),
+      manyNote),
     actions: [
       { label: t('Отмена') },
-      {
-        label: t('Создать'),
-        kind: 'filled',
-        onClick: async () => {
-          const n = name.value.trim();
-          if (!n) throw new Error(t('Введите имя модели'));
-          const file = clone(store.settings.file);
-          if (file.models[n]) throw new Error(t('Модель {n} уже есть', { n }));
-          file.models[n] = {
-            upstreams: [{ name: '', url: engine.value ? '' : url.input.value.trim(), model: '', api_key: '', slots: slotsValue || 1, engine: engine.value, stream: false, timeout: 0, interface: '', proxy: '', drop_params: [] }],
-            defaults: {}, force: {}, fallback: [], max_queue: null, enabled: true, description: '',
-          };
-          await saveSettings(file);
-          toast(t('Модель {n} создана', { n }), 'ok');
-          ctx.go('#/models/' + encodeURIComponent(n));
-        },
-      },
+      { label: t('Создать'), kind: 'filled', onClick: create },
     ],
   });
+  const createBtn = panel.querySelector('.modal__foot .btn--filled');
+  paintSource();
 }
 
 function jsonArea(value, onValid) {
@@ -153,6 +324,7 @@ async function renderModel(ctx, name) {
       toast(t('Исправьте JSON в параметрах'), 'error');
       return;
     }
+    for (const u of m.upstreams) if (u.url) u.url = chatUrl(u.url);
     try {
       await saveSettings(draft);
       dirty = false;
@@ -210,13 +382,30 @@ async function renderModel(ctx, name) {
     return field(t('Не отправлять параметры'), el, { hint: t('Через запятую. Отклонённые апстримом параметры LMQ убирает и сам') });
   }
 
-  /** «Имя у апстрима»: список моделей самого апстрима (по сохранённым адресу и ключу). */
+  /** «Имя у апстрима»: список моделей самого апстрима по адресу и ключу из черновика
+   *  (сохранять не нужно). `reload` — после правки адреса, ключа или маршрута. */
   function upstreamModelField(u, i) {
     const el = combo(u.model, [], { placeholder: name, label: t('Имя у апстрима'), onChange: (v) => { u.model = v.trim(); touch(); } });
-    api(`/admin/api/models/${encodeURIComponent(name)}/upstreams/${i}/models`)
-      .then((r) => el.setOptions([{ value: '', label: t('как имя модели'), hint: name }, ...r.items.map((id) => ({ value: id }))]))
-      .catch((e) => el.setOptions([{ value: '', label: t('как имя модели'), hint: name }, { value: u.model || '', label: t('Список недоступен'), hint: e.message }]));
-    return field(t('Имя у апстрима'), el, { hint: t('Что ждёт сервер модели. Пусто — имя модели') });
+    const hint = h('span.probe', { role: 'status', 'aria-live': 'polite' });
+    const asName = { value: '', label: t('как имя модели'), hint: name };
+    let seq = 0;
+    const reload = async () => {
+      const my = ++seq;
+      probeLine(hint, 'busy');
+      let r;
+      try {
+        r = await probe({ url: u.url, api_key: u.api_key, engine: u.engine, interface: u.interface, proxy: u.proxy, model: name, index: i });
+      } catch (e) {
+        r = { ok: false, url: '', models: [], error: e.message };
+      }
+      if (my !== seq) return;
+      probeLine(hint, r);
+      el.setOptions([asName, ...r.models.map((id) => ({ value: id }))]);
+    };
+    reload();
+    const row = field(t('Имя у апстрима'), el, { hint: t('Что ждёт сервер модели. Пусто — имя модели') });
+    row.append(hint);
+    return { row, reload: debounce(reload, 600) };
   }
 
   function paintUpstreams() {
@@ -237,17 +426,23 @@ async function renderModel(ctx, name) {
       const nf = (label, key, opts, hint) => field(label, numberInput(u[key], { ...opts, label, zero: opts.zero, onChange: (v) => { u[key] = v ?? 0; touch(); } }), { hint });
       const eng = select(engines, u.engine);
       eng.addEventListener('change', () => { u.engine = eng.value; touch(); paintUpstreams(); });
+      const target = upstreamModelField(u, i);
+      /** Поле, после правки которого список моделей апстрима перечитывается. */
+      const watched = (row) => {
+        for (const el of row.querySelectorAll('input')) for (const ev of ['input', 'change']) el.addEventListener(ev, target.reload);
+        return row;
+      };
       ups.append(group(t('Апстрим {n}', { n: i + 1 }) + (u.name ? ' · ' + u.name : ''), list(
         f(t('Подпись'), 'name', { placeholder: `${name}#${i}` }),
         field(t('Движок'), eng, { hint: u.engine ? t('Адрес и слоты берутся из движка, поля ниже можно оставить пустыми') : null }),
-        cf(t('Адрес'), 'url', ENDPOINTS, { placeholder: u.engine ? t('из движка') : 'http://127.0.0.1:8080/v1/chat/completions', inputmode: 'url' }),
-        upstreamModelField(u, i),
-        f(t('Ключ'), 'api_key', { type: 'password', placeholder: t('не нужен'), autocomplete: 'new-password' }, u.api_key === mask ? t('Сохранён. Введите новый, чтобы заменить') : null),
+        watched(cf(t('Адрес'), 'url', ENDPOINTS, { placeholder: u.engine ? t('из движка') : 'https://api.groq.com/openai/v1', inputmode: 'url' }, t('Можно вставить …/v1 — LMQ допишет /chat/completions'))),
+        watched(f(t('Ключ'), 'api_key', { type: 'password', placeholder: t('не нужен'), autocomplete: 'new-password' }, u.api_key === mask ? t('Сохранён. Введите новый, чтобы заменить') : null)),
+        target.row,
         nf(t('Слоты'), 'slots', { min: 1, max: 256, presets: [1, 2, 4, 8, 16] }, u.engine ? t('1 — взять --parallel из движка') : t('Одновременных запросов')),
         nf(t('Таймаут, с'), 'timeout', { min: 0, presets: [0, 30, 60, 120, 300, 600], unit: 's', zero: 'UPSTREAM_TIMEOUT' }, null),
         cellSwitch(t('Стрим к апстриму'), u.stream, (v) => { u.stream = v; touch(); }, { sub: t('Ответ собирается внутри; боту всё равно уходит целиком') }),
-        cf(t('Интерфейс'), 'interface', [], { placeholder: t('как в «Сеть и маршруты»') }, t('Ethernet, happ-tun, IP или system'), (n) => ifaceOptions(n, true)),
-        cf(t('Прокси'), 'proxy', [], { placeholder: t('как в «Сеть и маршруты»') }, t('socks5://127.0.0.1:10808, http://… или none'), (n) => proxyOptions(n, true)),
+        watched(cf(t('Интерфейс'), 'interface', [], { placeholder: t('как в «Сеть и маршруты»') }, t('Ethernet, happ-tun, IP или system'), (n) => ifaceOptions(n, true))),
+        watched(cf(t('Прокси'), 'proxy', [], { placeholder: t('как в «Сеть и маршруты»') }, t('socks5://127.0.0.1:10808, http://… или none'), (n) => proxyOptions(n, true))),
         dropField(u),
         m.upstreams.length > 1 ? cell({ label: t('Удалить апстрим'), kind: 'danger', onClick: () => { m.upstreams.splice(i, 1); touch(); paintUpstreams(); } }) : null,
       )));

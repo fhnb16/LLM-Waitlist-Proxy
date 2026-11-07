@@ -183,8 +183,17 @@ Os+ZKHH3yYuER3zQKOOJ+5cxMoP4+f51VF7l5hTXxpriGF4+4TfOpOI3hsQg9HnidC2sKvzQYdvOf0YS
 
     #[test]
     fn release_assets_match_platform() {
-        let names: Vec<String> =
-            ["LMQ_2.3.0_x64-setup.exe", "LMQ-2.3.0-windows-x64-portable.zip", "lmq_2.3.0-1_amd64.deb", "SHA256SUMS.txt"].map(String::from).into();
+        // Архивы установщика идут раньше .exe: автообновление всё равно должно взять .exe.
+        let names: Vec<String> = [
+            "LMQ-2.3.0-windows-x64-setup.rar",
+            "LMQ-2.3.0-windows-x64-setup.zip",
+            "LMQ_2.3.0_x64-setup.exe",
+            "LMQ-2.3.0-windows-x64-portable.zip",
+            "lmq_2.3.0-1_amd64.deb",
+            "SHA256SUMS.txt",
+        ]
+        .map(String::from)
+        .into();
         let expect = if cfg!(windows) {
             Some("LMQ_2.3.0_x64-setup.exe")
         } else if cfg!(target_os = "linux") {

@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.3.1-1_amd64.deb
+sudo apt install ./lmq_2.4.0-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -167,6 +167,12 @@ engines:
 
 **Слоты** — число одновременных запросов к апстриму, у llama.cpp это `--parallel`. LMQ не отдаёт апстриму
 больше заданий, чем у него слотов.
+
+**Адрес апстрима** можно указать коротко: `https://api.groq.com/openai/v1` или `http://127.0.0.1:8080`.
+LMQ сам допишет `/v1/chat/completions`. В панели модель добавляется так: «Модели» → «Добавить», вставить
+адрес и, если нужно, ключ. LMQ сразу проверит адрес, покажет модели сервера и отметит, если ключ не подошёл.
+Отметьте одну модель — она станет моделью LMQ под тем же или своим именем. Отметьте несколько — LMQ создаст
+по модели на каждую.
 
 Как LMQ управляет движком:
 
@@ -444,13 +450,15 @@ LMQ сам проверяет релизы GitHub (`updates.repo`, по умол
 `updates.pubkey`. Ключ релизов LMQ задан по умолчанию.
 
 Как выпустить версию: поднять `version` в `Cargo.toml` и отправить коммит в `master`. CI (задача
-«GitHub Release» в `.github/workflows/ci.yml`) сам соберёт установщик, portable-zip и `.deb`, поставит
+«GitHub Release» в `.github/workflows/ci.yml`) сам соберёт установщик (и он же в `.zip` и `.rar`), portable-zip и `.deb`, поставит
 тег `v<версия>` и опубликует релиз. Если релиз этой версии уже есть, push без смены версии новый не
 выпускает. Можно и отправить тег `v<версия>` вручную — результат тот же.
 
 Что попадает в релиз:
 
 - `LMQ_<версия>_x64-setup.exe` — установщик Windows, его ставит автообновление;
+- `LMQ-<версия>-windows-x64-setup.zip` и `.rar` — тот же установщик в архиве: браузер и SmartScreen
+  относятся к архиву спокойнее, чем к голому `.exe`;
 - `LMQ-<версия>-windows-x64-portable.zip` — `LMQ.exe`, `lmq-server.exe` и документация;
 - `lmq_<версия>-1_amd64.deb` — пакет Debian 12;
 - `lmq-server-<версия>-linux-x64.tar.gz` — сервер без пакета;

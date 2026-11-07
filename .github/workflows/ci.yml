@@ -1,6 +1,6 @@
 name: CI
 
-# Каждый push и PR: формат, clippy, тесты, сборки (установщик, portable-zip, .deb).
+# Каждый push и PR: формат, clippy, тесты, сборки (установщик, он же в .zip и .rar, portable-zip, .deb).
 # Push в master с новой версией в Cargo.toml (или тег vX.Y.Z): ещё и релиз на GitHub — тег
 # vX.Y.Z, сборки, подписи minisign (*.minisig) и SHA256SUMS.txt. По ним работает автообновление
 # LMQ. Тег вручную ставить не нужно; если релиз этой версии уже есть, push его не трогает.
@@ -46,9 +46,24 @@ jobs:
         run: |
           $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
           New-Item -ItemType Directory -Force out, portable | Out-Null
-          Copy-Item "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe" out/
+          $setup = "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
+          Copy-Item $setup out/
           Copy-Item target/release/LMQ.exe, target/release/lmq-server.exe, README.md, LICENSE, config.example.yaml, docs/universalbot-lmq-integration.md portable/
           Compress-Archive -Path portable/* -DestinationPath "out/LMQ-$v-windows-x64-portable.zip"
+          # Установщик ещё и в архивах: голый .exe из браузера SmartScreen и Defender встречают
+          # строже. Имена не кончаются на -setup.exe, поэтому автообновление их не выбирает.
+          Compress-Archive -Path $setup -DestinationPath "out/LMQ-$v-windows-x64-setup.zip"
+          Get-ChildItem out
+      - name: Installer in .rar
+        shell: pwsh
+        run: |
+          # RAR создаёт только WinRAR (7-Zip умеет лишь распаковывать). Не вышло — релиз без .rar.
+          $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $rar = "C:\Program Files\WinRAR\Rar.exe"
+          if (-not (Test-Path $rar)) { choco install winrar -y --no-progress | Out-Null }
+          if (-not (Test-Path $rar)) { Write-Output "::warning::WinRAR не установился — релиз без .rar"; exit 0 }
+          & $rar a -ep1 -m5 -idq "out/LMQ-$v-windows-x64-setup.rar" "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
+          if ($LASTEXITCODE -ne 0) { Write-Output "::warning::Rar.exe завершился с кодом $LASTEXITCODE — релиз без .rar"; Remove-Item "out/*.rar" -ErrorAction SilentlyContinue; exit 0 }
           Get-ChildItem out
       - uses: actions/upload-artifact@v4
         with:

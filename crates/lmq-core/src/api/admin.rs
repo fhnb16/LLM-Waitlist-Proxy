@@ -72,6 +72,7 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/api/models/{name}/test", post(model_test))
         .route("/admin/api/upstreams/{id}/reset", post(upstream_reset))
         .route("/admin/api/models/{name}/upstreams/{index}/models", get(upstream_models))
+        .route("/admin/api/upstreams/probe", post(upstream_probe))
         .route("/admin/api/network", get(network_get))
         .route("/admin/api/network/check", post(network_check))
         .route("/admin/api/tg-relay", get(tg_relay_get))
@@ -449,6 +450,10 @@ async fn upstream_reset(State(app): State<AppState>, Path(id): Path<String>) -> 
 async fn upstream_models(State(app): State<AppState>, Path((name, index)): Path<(String, usize)>) -> R<Json<Value>> {
     let ids = svc::upstream_models(&app, &name, index).await.map_err(|e| ApiError::new(502, e.to_string()))?;
     Ok(Json(json!({ "items": ids })))
+}
+
+async fn upstream_probe(State(app): State<AppState>, body: Option<Json<svc::UpstreamProbe>>) -> Json<Value> {
+    Json(svc::probe_upstream(&app, body.map(|Json(b)| b).unwrap_or_default()).await)
 }
 
 // ---------------------------------------------------------------- сеть

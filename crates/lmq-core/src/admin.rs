@@ -457,21 +457,94 @@ pub async fn upstream_models(app: &App, model: &str, index: usize) -> Result<Vec
     let routing = app.routing();
     let up = routing.models.get(model).and_then(|m| m.upstreams.get(index)).cloned().ok_or_else(|| anyhow!("апстрим не найден — сохраните модель"))?;
     let http = app.upstream_client(&up).map_err(|e| anyhow!(e))?;
-    let mut req = http.get(format!("{}/models", up.base_url())).timeout(std::time::Duration::from_secs(10));
-    if !up.api_key.is_empty() {
-        req = req.bearer_auth(&up.api_key);
+    fetch_models(&http, &up.base_url(), &up.api_key).await.map_err(|e| anyhow!(e.message))
+}
+
+/// Ошибка `GET …/models`: код ответа (0 — не дошли) и текст для человека.
+struct ModelsError {
+    status: u16,
+    message: String,
+}
+
+/// `GET {base}/models` с ключом: id моделей по алфавиту.
+async fn fetch_models(http: &reqwest::Client, base: &str, key: &str) -> std::result::Result<Vec<String>, ModelsError> {
+    let mut req = http.get(format!("{base}/models")).timeout(std::time::Duration::from_secs(10));
+    if !key.is_empty() {
+        req = req.bearer_auth(key);
     }
-    let resp = req.send().await.map_err(|e| anyhow!(crate::netdiag::error_chain(&e)))?;
+    let resp = req.send().await.map_err(|e| ModelsError { status: 0, message: crate::netdiag::error_chain(&e) })?;
     let status = resp.status();
     let body: Value = resp.json().await.unwrap_or(Value::Null);
     if !status.is_success() {
-        bail!("HTTP {}: {}", status.as_u16(), body["error"]["message"].as_str().unwrap_or(""));
+        let detail = body["error"]["message"].as_str().or(body["error"].as_str()).or(body["detail"].as_str()).unwrap_or("");
+        return Err(ModelsError { status: status.as_u16(), message: format!("HTTP {}: {detail}", status.as_u16()).trim_end_matches([' ', ':']).to_string() });
     }
     // OpenAI: {"data": [{"id"}]}; Ollama: {"models": [{"name"}]}.
     let list = body["data"].as_array().or(body["models"].as_array()).cloned().unwrap_or_default();
     let mut ids: Vec<String> = list.iter().filter_map(|m| m["id"].as_str().or(m["name"].as_str()).map(String::from)).collect();
     ids.sort();
+    ids.dedup();
     Ok(ids)
+}
+
+/// Ещё не сохранённый апстрим из окна «Новая модель» или со страницы модели.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct UpstreamProbe {
+    /// Что вставил человек: `…/v1`, `…/v1/chat/completions` или `http://host:port`.
+    pub url: String,
+    /// Ключ. Маска [`MASK`] — взять сохранённый ключ апстрима `model`/`index`.
+    pub api_key: String,
+    /// Движок: адрес берётся из него, если `url` пуст.
+    pub engine: String,
+    pub interface: String,
+    pub proxy: String,
+    pub model: String,
+    pub index: Option<usize>,
+}
+
+/// Проверка адреса и ключа до сохранения: полный адрес чата, список моделей апстрима и
+/// вердикт. Ошибки не бросаются — UI показывает их рядом с полем. Ключ в журнал не пишется.
+pub async fn probe_upstream(app: &App, p: UpstreamProbe) -> Value {
+    let s = app.settings();
+    let url = match (p.url.trim(), s.engines.iter().find(|e| !p.engine.is_empty() && e.id == p.engine)) {
+        ("", Some(e)) => crate::routing::engine_endpoint(e).0,
+        (u, _) => crate::routing::chat_url(u),
+    };
+    if url.is_empty() {
+        return json!({ "ok": false, "url": "", "models": [], "error": "Укажите адрес" });
+    }
+    if !url::Url::parse(&url).is_ok_and(|u| matches!(u.scheme(), "http" | "https")) {
+        return json!({ "ok": false, "url": url, "models": [], "error": "Нужен адрес http:// или https://" });
+    }
+    let key = if p.api_key == MASK {
+        p.index.and_then(|i| s.models.get(&p.model).and_then(|m| m.upstreams.get(i))).map(|u| u.api_key.clone()).unwrap_or_default()
+    } else {
+        p.api_key.trim().to_string()
+    };
+    let route = crate::config::RouteCfg { interface: p.interface, proxy: p.proxy }.inherit(&s.network.upstream);
+    let http = match app.net.client(&route, crate::net::Kind::General) {
+        Ok(c) => c,
+        Err(e) => return json!({ "ok": false, "url": url, "models": [], "error": e }),
+    };
+    let base = url.strip_suffix("/chat/completions").unwrap_or(&url).to_string();
+    let started = std::time::Instant::now();
+    let r = fetch_models(&http, &base, &key).await;
+    let latency_ms = started.elapsed().as_millis() as u64;
+    tracing::info!(url = %url, route = %crate::net::describe(&route), ok = r.is_ok(), latency_ms, "upstream probe");
+    match r {
+        Ok(ids) => json!({ "ok": true, "url": url, "models": ids, "latency_ms": latency_ms, "keyed": !key.is_empty() }),
+        Err(e) => {
+            let hint = match e.status {
+                401 | 403 if key.is_empty() => "Сервер просит ключ",
+                401 | 403 => "Ключ не подошёл",
+                404 => "По этому адресу нет списка моделей — проверьте путь, обычно он кончается на /v1",
+                0 => "Сервер не ответил",
+                _ => "Сервер ответил ошибкой",
+            };
+            json!({ "ok": false, "url": url, "models": [], "status": e.status, "latency_ms": latency_ms, "error": hint, "detail": e.message, "need_key": matches!(e.status, 401 | 403) })
+        }
+    }
 }
 
 // ---------------------------------------------------------------------- сеть
