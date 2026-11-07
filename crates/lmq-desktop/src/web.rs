@@ -48,8 +48,8 @@ fn open_url(url: String, d: D<'_>) {
 }
 
 #[tauri::command]
-fn run_installer(path: String, d: D<'_>) {
-    d.run_installer(&path);
+fn run_installer(path: String, confirmed: Option<bool>, d: D<'_>) {
+    d.run_installer(&path, confirmed.unwrap_or(false));
 }
 
 #[tauri::command]

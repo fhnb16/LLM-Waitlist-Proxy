@@ -152,9 +152,16 @@ impl Desktop {
         self.open_url(&format!("{}/admin/login?once={once}{suffix}", self.admin_base));
     }
 
-    pub fn run_installer(&self, path: &str) {
+    /// Запускает скачанный установщик. `confirmed` — человек согласился поставить его без
+    /// действительной подписи Authenticode (панель спрашивает об этом сама).
+    pub fn run_installer(&self, path: &str, confirmed: bool) {
         let p = std::path::Path::new(path);
         if !p.starts_with(self.app.paths.data_dir.join("updates")) || !p.is_file() {
+            return;
+        }
+        // Подпись Authenticode ещё раз — прямо перед запуском: файл могли подменить после загрузки.
+        if let Err(e) = lmq_core::authenticode::allow_run(&lmq_core::authenticode::check(p), confirmed) {
+            tracing::warn!(file = %p.display(), error = %e, "installer rejected");
             return;
         }
         if std::process::Command::new(p).spawn().is_ok() {

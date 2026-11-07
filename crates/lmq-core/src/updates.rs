@@ -1,6 +1,7 @@
 //! Проверка обновлений через GitHub Releases. Загрузка устанавливается только после
 //! проверки подписи minisign (`<файл>.minisig` в том же релизе) публичным ключом из
-//! настроек; без ключа панель показывает только ссылку на релиз.
+//! настроек; без ключа панель показывает только ссылку на релиз. На Windows установщик
+//! ещё проверяется по Authenticode (`authenticode.rs`).
 
 use std::path::PathBuf;
 
@@ -9,6 +10,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::app::{App, VERSION};
+use crate::authenticode::{self, Signature};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Asset {
@@ -136,8 +138,10 @@ pub fn verify(pubkey: &str, data: &[u8], signature: &str) -> Result<()> {
     pk.verify(data, &sig, false).map_err(|_| anyhow!("подпись не совпадает — файл не будет установлен"))
 }
 
-/// Скачивает установщик и его подпись, проверяет подпись. Возвращает путь к файлу.
-pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<PathBuf> {
+/// Скачивает установщик и его подпись, проверяет minisign, а на Windows ещё и Authenticode:
+/// повреждённая подпись — ошибка. Возвращает путь к файлу и его подпись Authenticode; без
+/// действительной подписи панель спрашивает согласие (`authenticode::verdict`).
+pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<(PathBuf, Signature)> {
     let cfg = app.settings().updates.clone();
     let name = info.installer.clone().ok_or_else(|| anyhow!("нет подписанного установщика для этой платформы"))?;
     let asset = info.assets.iter().find(|a| a.name == name).ok_or_else(|| anyhow!("файл {name} не найден"))?;
@@ -158,8 +162,14 @@ pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<PathBuf> 
     }
     let path = dir.join(&name);
     std::fs::write(&path, &data)?;
-    tracing::info!(file = %path.display(), "update downloaded and verified");
-    Ok(path)
+    let file = path.clone();
+    let sig = tokio::task::spawn_blocking(move || authenticode::check(&file)).await?;
+    tracing::info!(file = %path.display(), authenticode = %sig.describe(), "update downloaded and verified");
+    if authenticode::verdict(&sig) == authenticode::Verdict::Deny {
+        let _ = std::fs::remove_file(&path);
+        bail!("установщик не прошёл проверку Authenticode: {}", sig.describe());
+    }
+    Ok((path, sig))
 }
 
 #[cfg(test)]

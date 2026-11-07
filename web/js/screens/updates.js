@@ -1,6 +1,6 @@
 import { api, desktop, desktopCall } from '../api.js';
 import { t } from '../i18n.js';
-import { h, clear, hero, group, list, cell, field, input, cellSwitch, segmented, btn, fmt, toast, errorToast, clone, callout, navBtn } from '../ui.js';
+import { h, clear, hero, group, list, cell, field, input, cellSwitch, segmented, btn, fmt, toast, errorToast, clone, callout, navBtn, confirmDialog } from '../ui.js';
 import { store, saveSettings } from '../store.js';
 
 export async function render(ctx) {
@@ -49,7 +49,20 @@ export async function render(ctx) {
             try {
               toast(t('Загрузка и проверка подписи…'), 'ok');
               const r = await api('/admin/api/updates/download', { method: 'POST' });
-              await desktopCall('run_installer', { path: r.path });
+              // Без действительной подписи Authenticode — только с согласия: сертификат мог закончиться.
+              let confirmed = false;
+              if (r.verdict === 'confirm') {
+                const sig = r.authenticode || {};
+                const why = sig.status === 'untrusted'
+                  ? t('Windows не доверяет сертификату «{p}»', { p: sig.publisher || '—' })
+                  : t('Подписи Authenticode нет');
+                confirmed = await confirmDialog(
+                  t('Установщик без подписи Windows'),
+                  t('{why}. Подпись minisign сошлась — файл из релиза LMQ, но Defender и SmartScreen могут предупредить. Установить?', { why }),
+                  { ok: t('Установить') });
+                if (!confirmed) return;
+              }
+              await desktopCall('run_installer', { path: r.path, confirmed });
             } catch (e) {
               errorToast(e);
             }

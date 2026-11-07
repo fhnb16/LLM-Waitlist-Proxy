@@ -795,8 +795,14 @@ async fn updates_check(State(app): State<AppState>) -> Json<crate::updates::Upda
 
 async fn updates_download(State(app): State<AppState>) -> R<Json<Value>> {
     let info = crate::updates::check(&app).await;
-    let path = crate::updates::download_verified(&app, &info).await.map_err(cfg_err)?;
-    Ok(Json(json!({ "ok": true, "path": path })))
+    let (path, sig) = crate::updates::download_verified(&app, &info).await.map_err(cfg_err)?;
+    Ok(Json(json!({
+        "ok": true,
+        "path": path,
+        "authenticode": sig,
+        "authenticode_text": sig.describe(),
+        "verdict": crate::authenticode::verdict(&sig),
+    })))
 }
 
 async fn admin_token_reset(State(app): State<AppState>) -> R<Json<Value>> {

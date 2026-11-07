@@ -1,6 +1,7 @@
 name: CI
 
 # Каждый push и PR: формат, clippy, тесты, сборки (установщик, он же в .zip и .rar, portable-zip, .deb).
+# Есть сертификат в секретах — exe, установщик и деинсталлятор подписываются Authenticode (scripts/sign.ps1).
 # Push в master с новой версией в Cargo.toml (или тег vX.Y.Z): ещё и релиз на GitHub — тег
 # vX.Y.Z, сборки, подписи minisign (*.minisig) и SHA256SUMS.txt. По ним работает автообновление
 # LMQ. Тег вручную ставить не нужно; если релиз этой версии уже есть, push его не трогает.
@@ -36,11 +37,69 @@ jobs:
         run: cargo test --workspace --no-fail-fast
       - name: Release build
         run: cargo build --release --workspace
+      # Подпись Authenticode (scripts/sign.ps1), если в секретах есть сертификат: WINDOWS_SIGN_PFX
+      # (+ WINDOWS_SIGN_PFX_PASSWORD) или своя команда поставщика WINDOWS_SIGN_COMMAND (+ подготовка
+      # WINDOWS_SIGN_SETUP). Без них — сборка без подписи с предупреждением.
+      - name: Signing setup
+        id: sign
+        shell: pwsh
+        env:
+          LMQ_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
+          LMQ_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          LMQ_SIGN_SETUP: ${{ secrets.WINDOWS_SIGN_SETUP }}
+        run: |
+          if (-not $env:LMQ_SIGN_PFX -and -not $env:LMQ_SIGN_COMMAND) {
+            Write-Output "::warning::Сертификат не задан (секрет WINDOWS_SIGN_PFX или WINDOWS_SIGN_COMMAND) — exe и установщик без подписи Authenticode"
+            "enabled=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          # Подготовка поставщика: установить утилиту, войти в облако. Путь к утилите — в $env:GITHUB_PATH.
+          if ($env:LMQ_SIGN_SETUP) { Invoke-Expression $env:LMQ_SIGN_SETUP }
+          $script = (Resolve-Path scripts/sign.ps1).Path
+          @{ bundle = @{ windows = @{ signCommand = @{ cmd = 'pwsh'; args = @('-NoProfile', '-NonInteractive', '-File', $script, '%1') } } } } |
+            ConvertTo-Json -Depth 6 | Set-Content "$env:RUNNER_TEMP/tauri.sign.json" -Encoding utf8NoBOM
+          "enabled=true" >> $env:GITHUB_OUTPUT
       - name: Installer (NSIS)
+        shell: pwsh
+        env:
+          LMQ_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
+          LMQ_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
+          LMQ_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          LMQ_SIGN_TIMESTAMP: ${{ vars.WINDOWS_SIGN_TIMESTAMP }}
         run: |
           cargo install tauri-cli --version "^2" --locked
           cd crates/lmq-desktop
-          cargo tauri build --bundles nsis
+          # С подписью Tauri подписывает LMQ.exe, плагины NSIS, деинсталлятор и сам установщик.
+          $sign = @()
+          if ('${{ steps.sign.outputs.enabled }}' -eq 'true') { $sign = @('--config', "$env:RUNNER_TEMP/tauri.sign.json") }
+          cargo tauri build --bundles nsis @sign
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Exe для portable-zip. LMQ.exe тоже: Tauri подписывает копию внутри установщика, а файл в
+      # target/release после сборки остаётся без подписи.
+      - name: Sign portable exe
+        if: steps.sign.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          LMQ_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
+          LMQ_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
+          LMQ_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          LMQ_SIGN_TIMESTAMP: ${{ vars.WINDOWS_SIGN_TIMESTAMP }}
+        run: |
+          foreach ($f in 'target/release/LMQ.exe', 'target/release/lmq-server.exe') {
+            pwsh -NoProfile -File scripts/sign.ps1 $f
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Check signatures
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $files = 'target/release/LMQ.exe', 'target/release/lmq-server.exe', "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
+          $rows = $files | ForEach-Object { $s = Get-AuthenticodeSignature $_; [pscustomobject]@{ File = Split-Path $_ -Leaf; Status = $s.Status; Signer = $s.SignerCertificate.Subject } }
+          $rows | Format-Table -AutoSize | Out-String | Write-Output
+          if ('${{ steps.sign.outputs.enabled }}' -eq 'true') {
+            $bad = $rows | Where-Object { $_.Status -in 'NotSigned', 'HashMismatch', 'Incompatible' }
+            if ($bad) { Write-Output "::error::Не подписаны: $($bad.File -join ', ')"; exit 1 }
+          }
       - name: Collect
         shell: pwsh
         run: |

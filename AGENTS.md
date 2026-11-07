@@ -49,7 +49,7 @@ LMQ — сервер очереди между Telegram-ботом UniversalBot 
   `paths.rs` — где лежат файлы, `secrets.rs` — `secrets.bin`.
 - **Прочее:** `engines.rs` (запуск llama-server и др.), `stats.rs`, `metrics.rs` (Prometheus), `events.rs`
   (шина для SSE и окна), `net.rs` / `netdiag.rs` (маршруты через интерфейс или прокси), `schedule.rs`,
-  `gpu.rs` (NVML, фича `gpu`), `updates.rs` (minisign), `telegram.rs` (протокол 1, выключен по умолчанию),
+  `gpu.rs` (NVML, фича `gpu`), `updates.rs` (minisign), `authenticode.rs` (подпись установщика обновления), `telegram.rs` (протокол 1, выключен по умолчанию),
   `tgrelay.rs` (реле Telegram Bot API на адресе API, выключено по умолчанию),
   `socks.rs` (SOCKS5-прокси с выходом через выбранный интерфейс, выключен по умолчанию),
   `themes.rs`, `assets.rs` (вшитая панель), `crypto.rs`, `logging.rs`, `debug.rs` (приёмник колбэков).
@@ -65,6 +65,7 @@ cargo run -p lmq-server -- --home .\dev run     # сервер без окна, 
 cargo run -p lmq-desktop -- --home .\dev        # окно; --mode web — веб-окно
 cargo run -p lmq-core --example mock_upstream -- 127.0.0.1:18080   # фиктивный OpenAI-апстрим
 cargo run -p lmq-core --example net_probe -- <url> [интерфейс] [прокси]
+cargo run -p lmq-core --example authenticode_probe -- <файл>     # подпись глазами автообновления
 cd crates\lmq-desktop; cargo tauri build --bundles nsis             # установщик
 ```
 
@@ -211,6 +212,13 @@ cargo run -p lmq-core --example themes_index
   `*.minisig` (секрет `MINISIGN_SECRET_KEY`, открытый ключ — `DEFAULT_UPDATES_PUBKEY`). От этого зависит
   автообновление (`updates.rs`): не меняйте имена файлов и ключ без правки обеих сторон. Автообновление
   берёт файл на `-setup.exe`, архивы ему не подходят — так и должно остаться.
+- Подпись Authenticode — только через `scripts/sign.ps1` (секреты `WINDOWS_SIGN_PFX` / `WINDOWS_SIGN_COMMAND`,
+  см. README). Tauri вызывает его через `signCommand` из `--config` в CI: так подписываются `LMQ.exe` внутри
+  установщика, плагины NSIS, деинсталлятор и установщик. `target/release/LMQ.exe` после сборки Tauri
+  остаётся без подписи — для portable-zip его и `lmq-server.exe` CI подписывает отдельным шагом. В `tauri.conf.json` подпись не прописывайте — локальная сборка должна
+  идти без сертификата. Обновление на Windows проверяет подпись (`authenticode.rs`): действительная —
+  ставится (издатель может смениться), без подписи — с согласия, повреждённая — никогда. Проверка
+  дважды: после загрузки и перед запуском (`lmq-desktop/src/common.rs`, `run_installer`).
 - Локально собирайте только окно для запуска: `cargo build --release -p lmq-desktop` → `target\release\LMQ.exe`.
   Установщик, portable-zip и `.deb` собирает CI; `dist/<версия>/` — старые локальные релизы, не трогать.
   Портативный режим включает файл `portable` рядом с exe.

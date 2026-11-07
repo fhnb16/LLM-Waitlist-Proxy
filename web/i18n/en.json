@@ -869,5 +869,10 @@
   "Будут созданы модели с именами апстрима: {list}": "Models will be created with the upstream names: {list}",
   "Создать {n}": "Create {n}",
   "Создано моделей: {n}": "Models created: {n}",
-  "Вставьте адрес сервера — LMQ проверит его и покажет модели": "Paste the server address — LMQ checks it and lists the models"
+  "Вставьте адрес сервера — LMQ проверит его и покажет модели": "Paste the server address — LMQ checks it and lists the models",
+  "Windows не доверяет сертификату «{p}»": "Windows does not trust the certificate “{p}”",
+  "Подписи Authenticode нет": "There is no Authenticode signature",
+  "Установщик без подписи Windows": "Installer without a Windows signature",
+  "Установить": "Install",
+  "{why}. Подпись minisign сошлась — файл из релиза LMQ, но Defender и SmartScreen могут предупредить. Установить?": "{why}. The minisign signature matches — the file comes from an LMQ release, but Defender and SmartScreen may warn. Install it?"
 }

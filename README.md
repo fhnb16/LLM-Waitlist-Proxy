@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.4.1-1_amd64.deb
+sudo apt install ./lmq_2.5.0-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -473,3 +473,36 @@ LMQ сам проверяет релизы GitHub (`updates.repo`, по умол
   секретного ключа minisign, пара к ключу `DEFAULT_UPDATES_PUBKEY` в `crates/lmq-core/src/config/settings.rs`.
   Без секрета релиз выйдет без подписей, и LMQ покажет только ссылку на него. CI сверяет подписи с
   ключом из кода: несовпадающий секрет не даст выпустить релиз.
+
+### Подпись Authenticode
+
+Если в секретах репозитория есть сертификат, CI подписывает `LMQ.exe`, `lmq-server.exe`, установщик и
+деинсталлятор. Подписывает [scripts/sign.ps1](scripts/sign.ps1), поставщик сертификата может быть любым.
+Без сертификата сборка проходит как раньше, без подписи, а CI выводит предупреждение.
+
+Сертификат задаётся одним из двух способов (Settings → Secrets and variables → Actions):
+
+| Секрет | Что это |
+|---|---|
+| `WINDOWS_SIGN_PFX` | Сертификат `.pfx` в base64: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('cert.pfx'))`. Подписывает `signtool`. |
+| `WINDOWS_SIGN_PFX_PASSWORD` | Пароль к `.pfx`. |
+| `WINDOWS_SIGN_COMMAND` | Вместо `.pfx`: команда утилиты поставщика в синтаксисе PowerShell, `{file}` — путь к файлу. Для облачных HSM: Azure Artifact Signing, SSL.com eSigner, Certum SimplySign и т. п. Ключи доступа пишутся прямо в команде — это секрет. |
+| `WINDOWS_SIGN_SETUP` | Необязательно: команды PowerShell, которые один раз до сборки ставят утилиту поставщика или входят в его облако. Путь к утилите добавьте в `$env:GITHUB_PATH`. |
+
+Переменная репозитория `WINDOWS_SIGN_TIMESTAMP` меняет сервер меток времени (по умолчанию
+`http://timestamp.digicert.com`). С меткой времени подпись остаётся действительной и после истечения
+сертификата.
+
+Коммерческие сертификаты с 2023 года выдаются только на токене или в облачном HSM, файл `.pfx` к ним не
+получить. Для CI нужен облачный вариант, то есть способ с `WINDOWS_SIGN_COMMAND`. Самоподписанный `.pfx`
+годится, чтобы проверить механизм, но Defender и SmartScreen ему не доверяют.
+
+**Автообновление проверяет подпись.** После проверки minisign LMQ на Windows проверяет и подпись
+Authenticode скачанного установщика, а потом ещё раз прямо перед запуском:
+
+- действительная подпись — обновление ставится. Издатель может смениться вместе с сертификатом;
+- подписи нет или Windows ей не доверяет — LMQ спрашивает согласие. Если сертификат закончится или
+  пропадёт, обновления не застрянут;
+- подпись повреждена (файл изменён после подписи, сертификат отозван) — установка запрещена всегда.
+
+Посмотреть, как LMQ видит подпись файла: `cargo run -p lmq-core --example authenticode_probe -- <файл>`.

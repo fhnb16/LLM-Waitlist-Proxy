@@ -4,7 +4,7 @@ members = ["crates/lmq-core", "crates/lmq-server", "crates/lmq-desktop"]
 default-members = ["crates/lmq-core", "crates/lmq-server"]
 
 [workspace.package]
-version = "2.4.1"
+version = "2.5.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["LMQ contributors"]
