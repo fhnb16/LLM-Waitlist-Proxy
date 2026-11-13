@@ -141,10 +141,7 @@ pub fn parse_body(body: Result<Bytes, BytesRejection>) -> Result<Map<String, Val
 async fn chat(State(app): State<Arc<App>>, headers: HeaderMap, body: Result<Bytes, BytesRejection>) -> Result<Response, ApiError> {
     let client = client_auth(&app, &headers)?;
     let body = parse_body(body)?;
-    if body.get("stream").and_then(Value::as_bool) == Some(true) && body.get("chat_id").is_none_or(|c| c.as_i64() == Some(0) || c.is_null()) {
-        // Синхронный стрим сервер не отдаёт: отвечаем обычным ответом.
-        tracing::debug!(client = %client, "stream=true ignored in sync mode");
-    }
+    let wants_stream = body.get("stream").and_then(Value::as_bool) == Some(true);
     let model = body.get("model").and_then(Value::as_str).unwrap_or("").to_string();
     let res = submit::submit(&app, &client, body, SubmitOpts::default()).await.inspect_err(|e| {
         // Отказ до постановки (400, 429, 503 …) — иначе в журнале его не видно.
@@ -152,8 +149,55 @@ async fn chat(State(app): State<Arc<App>>, headers: HeaderMap, body: Result<Byte
     })?;
     match res {
         Submitted::Queued { status, body } => Ok((StatusCode::from_u16(status).unwrap_or(StatusCode::ACCEPTED), Json(body)).into_response()),
+        Submitted::Sync(body) if wants_stream => Ok(sse_answer(&body)),
         Submitted::Sync(body) => Ok(Json(body).into_response()),
     }
+}
+
+/// Синхронный ответ для клиента со `stream: true`: тот же ответ, но событиями SSE
+/// (`chat.completion.chunk` … `[DONE]`). Обычный JSON такой клиент не разберёт и покажет пустой ответ.
+/// Ответ собирается целиком, поэтому ошибки по-прежнему приходят HTTP-статусом.
+pub fn sse_answer(body: &Value) -> Response {
+    let created = body.get("created").cloned().filter(|v| !v.is_null()).unwrap_or_else(|| json!(chrono::Utc::now().timestamp()));
+    let chunk = |choices: Value| json!({"id": body["id"], "object": "chat.completion.chunk", "created": created, "model": body["model"], "choices": choices});
+    let choice = body.get("choices").and_then(|c| c.get(0));
+    let msg = choice.and_then(|c| c.get("message"));
+    let mut delta = Map::new();
+    delta.insert("role".into(), json!("assistant"));
+    if let Some(r) = msg.and_then(|m| m.get("reasoning_content").or_else(|| m.get("reasoning"))).filter(|r| !r.is_null()) {
+        delta.insert("reasoning_content".into(), r.clone());
+    }
+    delta.insert("content".into(), Value::String(crate::upstream::extract_text(body)));
+    if let Some(Value::Array(calls)) = msg.and_then(|m| m.get("tool_calls")) {
+        let calls: Vec<Value> = calls
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let mut c = c.clone();
+                if let Some(o) = c.as_object_mut() {
+                    o.entry("index").or_insert(json!(i));
+                }
+                c
+            })
+            .collect();
+        delta.insert("tool_calls".into(), Value::Array(calls));
+    }
+    let finish = choice.and_then(|c| c.get("finish_reason")).cloned().filter(|f| !f.is_null()).unwrap_or_else(|| json!("stop"));
+    let mut events =
+        vec![chunk(json!([{"index": 0, "delta": delta, "finish_reason": null}])), chunk(json!([{"index": 0, "delta": {}, "finish_reason": finish}]))];
+    if let Some(usage) = body.get("usage").filter(|u| !u.is_null()) {
+        let mut last = chunk(json!([]));
+        last["usage"] = usage.clone();
+        events.push(last);
+    }
+    let mut out = String::new();
+    for e in events {
+        out.push_str("data: ");
+        out.push_str(&e.to_string());
+        out.push_str("\n\n");
+    }
+    out.push_str("data: [DONE]\n\n");
+    ([(header::CONTENT_TYPE, "text/event-stream; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], out).into_response()
 }
 
 async fn models(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {

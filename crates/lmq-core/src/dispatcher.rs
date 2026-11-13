@@ -233,10 +233,11 @@ async fn run_async(app: &Arc<App>, model: &Arc<ModelRt>, up: Arc<UpstreamRt>, pe
         Ok((ok, up)) => {
             let (pt, ct) = upstream::usage_tokens(ok.usage.as_ref());
             if strip_think(&ok.text).trim().is_empty() {
-                let _ = app.store.finish_err(&row.job_id, "failed", "empty_answer", "model returned an empty answer", Some(ok.latency_ms), fin).await;
+                let reason = upstream::empty_answer_reason(&ok.body);
+                let _ = app.store.finish_err(&row.job_id, "failed", "empty_answer", &reason, Some(ok.latency_ms), fin).await;
                 app.record(&model.name, Some(&up.id), &row.client, chat_kind, Some("empty_answer"), Some(wait_ms), Some(ok.latency_ms), 0, 0);
                 app.emit_job(&row.job_id, "failed", &model.name, row.chat_id, Some("empty_answer"));
-                tracing::warn!(job_id = %row.job_id, model = %model.name, latency_ms = ok.latency_ms, error_code = "empty_answer", "job failed");
+                tracing::warn!(job_id = %row.job_id, model = %model.name, upstream = %up.id, latency_ms = ok.latency_ms, error_code = "empty_answer", error = %reason, "job failed");
             } else {
                 let usage = ok.usage.as_ref().map(|u| u.to_string());
                 if let Err(e) = app.store.finish_ok(&row.job_id, &ok.text, usage.as_deref(), &up.id, &model.name, ok.latency_ms, fin).await {
@@ -328,6 +329,10 @@ async fn run_sync(
             let (pt, ct) = upstream::usage_tokens(ok.usage.as_ref());
             app.record(&model.name, Some(&up.id), &ctx.client, "sync", None, Some(wait_ms), Some(ok.latency_ms), pt, ct);
             let images = crate::admin::image_count(ctx.payload.get("messages"));
+            if strip_think(&ok.text).trim().is_empty() {
+                // Синхронному клиенту ответ уходит как есть, но в журнале причина должна быть видна.
+                tracing::warn!(job_id = %item.job_id, client = %ctx.client, model = %model.name, upstream = %up.id, error = %upstream::empty_answer_reason(&ok.body), "sync answer is empty");
+            }
             tracing::info!(
                 job_id = %item.job_id, client = %ctx.client, model = %model.name, chat_id = 0, state = "done", upstream = %up.id,
                 wait_ms, latency_ms = ok.latency_ms, tokens = pt + ct, images, "sync request done"

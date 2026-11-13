@@ -622,3 +622,91 @@ async fn rejected_params_are_dropped_and_remembered() {
     let last = String::from_utf8_lossy(&reqs.last().unwrap().body).to_string();
     assert!(!last.contains("mirostat") && !last.contains("top_k"), "{last}");
 }
+
+/// Апстрим со `stream: true`, который отвечает телом `body` типа `mime`.
+async fn stream_upstream(body: &str, mime: &str) -> MockServer {
+    use wiremock::matchers::path;
+    let s = MockServer::start().await;
+    Mock::given(method("POST")).and(path("/v1/chat/completions")).respond_with(ResponseTemplate::new(200).set_body_raw(body.to_string(), mime)).mount(&s).await;
+    s
+}
+
+fn stream_models(s: &MockServer) -> String {
+    format!("  m:\n    upstreams:\n      - url: {}\n        stream: true\n", url(s))
+}
+
+/// Апстрим не соблюдает `stream: true` и отвечает обычным JSON — с заголовком JSON или без него.
+#[tokio::test]
+async fn stream_upstream_answering_plain_json() {
+    let body = ok_answer("plain json").to_string();
+    for (i, mime) in ["application/json", "text/plain"].into_iter().enumerate() {
+        let up = stream_upstream(&body, mime).await;
+        let env = start(&stream_models(&up), &[], bot_ok().await).await;
+        let id = format!("pj{i}");
+        post_job(&env, job(&id, 42, "hi")).await;
+        let b = wait_callback(&env.bot, &id, 5).await;
+        assert_eq!(b["text"], "plain json", "{mime}: {b}");
+    }
+}
+
+/// SSE без перевода строки после последнего события и с целым `message` вместо `delta`.
+#[tokio::test]
+async fn stream_tail_without_newline_and_message_chunks() {
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"}}]}\n\n",
+        "data: {\"id\":\"c1\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"думаю\"}}]}\n\n",
+        "data: {\"id\":\"c1\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Ответ\"},\"finish_reason\":\"stop\"}]}"
+    );
+    let up = stream_upstream(sse, "text/event-stream").await;
+    let env = start(&stream_models(&up), &[], bot_ok().await).await;
+    post_job(&env, job("tail", 42, "hi")).await;
+    assert_eq!(wait_callback(&env.bot, "tail", 5).await["text"], "Ответ");
+}
+
+/// Модель с размышлениями израсходовала `max_tokens` до ответа: `empty_answer` с объяснением.
+#[tokio::test]
+async fn stream_reasoning_only_is_explained() {
+    let sse = concat!(
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"долго думаю\"}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}]}\n\n",
+        "data: [DONE]\n\n"
+    );
+    let up = stream_upstream(sse, "text/event-stream").await;
+    let env = start(&stream_models(&up), &[], bot_ok().await).await;
+    post_job(&env, job("think", 42, "hi")).await;
+    let b = wait_callback(&env.bot, "think", 5).await;
+    assert_eq!(b["error_code"], "empty_answer");
+    assert!(b["error"].as_str().unwrap().contains("max_tokens"), "{b}");
+}
+
+/// Пустое тело на стрим-запрос — ошибка апстрима (переход к следующему), а не пустой ответ.
+#[tokio::test]
+async fn stream_empty_body_fails_over() {
+    let empty = stream_upstream("", "text/event-stream").await;
+    let good = upstream("from-second", 0).await;
+    let models = format!("  m:\n    upstreams:\n      - url: {}\n        stream: true\n      - url: {}\n", url(&empty), url(&good));
+    let env = start(&models, &[], bot_ok().await).await;
+    post_job(&env, job("e1", 42, "hi")).await;
+    assert_eq!(wait_callback(&env.bot, "e1", 5).await["text"], "from-second");
+}
+
+/// Синхронный клиент со `stream: true` получает SSE, а не JSON, который он не разберёт.
+#[tokio::test]
+async fn sync_stream_client_gets_sse() {
+    let up = upstream("sync streamed", 0).await;
+    let models = format!("  m:\n    upstreams:\n      - url: {}\n", url(&up));
+    let env = start(&models, &[], bot_ok().await).await;
+    let req = json!({"model": "m", "messages": [{"role": "user", "content": "ping"}], "stream": true});
+    let (st, headers, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(req)).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(headers["content-type"].to_str().unwrap().starts_with("text/event-stream"));
+    let text = body.as_str().expect("SSE text");
+    let events: Vec<serde_json::Value> =
+        text.lines().filter_map(|l| l.strip_prefix("data: ")).filter(|d| *d != "[DONE]").map(|d| serde_json::from_str(d).unwrap()).collect();
+    assert_eq!(events[0]["object"], "chat.completion.chunk");
+    assert_eq!(events[0]["choices"][0]["delta"]["content"], "sync streamed");
+    assert_eq!(events[0]["model"], "m");
+    assert_eq!(events[1]["choices"][0]["finish_reason"], "stop");
+    assert_eq!(events.last().unwrap()["usage"]["completion_tokens"], 3);
+    assert!(text.trim_end().ends_with("data: [DONE]"));
+}

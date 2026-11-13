@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.5.0-1_amd64.deb
+sudo apt install ./lmq_2.5.1-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -405,7 +405,7 @@ server {
 
 | Метод и путь | Что делает |
 |---|---|
-| `POST /v1/chat/completions` | Постановка задания (`202`) или синхронный ответ при `chat_id` 0. |
+| `POST /v1/chat/completions` | Постановка задания (`202`) или синхронный ответ при `chat_id` 0. Со `stream: true` синхронный ответ приходит событиями SSE, но целиком, когда модель закончит. |
 | `GET /v1/models` | Модели и алиасы в формате OpenAI. |
 | `GET /v1/jobs/{id}` | Статус задания, без текстов. |
 | `DELETE /v1/jobs/{id}` | Отмена задания, `cancelled`. |

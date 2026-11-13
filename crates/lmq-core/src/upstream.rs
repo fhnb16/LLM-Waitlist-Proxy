@@ -259,9 +259,14 @@ fn short_reqwest(e: &reqwest::Error) -> String {
 async fn read_json(resp: reqwest::Response) -> Result<(Value, String, Option<Value>), UpErr> {
     let bytes = resp.bytes().await.map_err(|e| UpErr::Connect(short_reqwest(&e)))?;
     let body: Value = serde_json::from_slice(&bytes).map_err(|e| UpErr::Bad(format!("not JSON: {e}")))?;
+    parse_json(body)
+}
+
+/// Ответ без стрима: `choices` обязательны, `error` — ошибка апстрима.
+fn parse_json(body: Value) -> Result<(Value, String, Option<Value>), UpErr> {
     if body.get("choices").is_none() {
-        if let Some(err) = body.get("error") {
-            return Err(UpErr::Bad(error_message(&err.to_string())));
+        if body.get("error").is_some_and(|e| !e.is_null()) {
+            return Err(UpErr::Bad(error_message(&body.to_string())));
         }
         return Err(UpErr::Bad("no choices in response".into()));
     }
@@ -270,67 +275,139 @@ async fn read_json(resp: reqwest::Response) -> Result<(Value, String, Option<Val
     Ok((body, text, usage))
 }
 
+/// Сборка ответа из событий SSE.
+#[derive(Default)]
+struct StreamAcc {
+    text: String,
+    reasoning: String,
+    usage: Option<Value>,
+    finish: Value,
+    id: Value,
+    /// Сколько строк `data:` разобрано. Ноль к концу ответа — апстрим прислал не SSE.
+    events: usize,
+}
+
+impl StreamAcc {
+    /// Одна строка SSE. `Ok(true)` — пришёл `[DONE]`.
+    fn line(&mut self, raw: &[u8], deltas: Option<&mpsc::UnboundedSender<String>>) -> Result<bool, UpErr> {
+        let line = String::from_utf8_lossy(raw);
+        let Some(data) = line.trim().strip_prefix("data:") else { return Ok(false) };
+        let data = data.trim();
+        if data == "[DONE]" {
+            self.events += 1;
+            return Ok(true);
+        }
+        let Ok(v) = serde_json::from_str::<Value>(data) else { return Ok(false) };
+        self.events += 1;
+        if v.get("error").is_some_and(|e| !e.is_null()) {
+            return Err(UpErr::Bad(error_message(&v.to_string())));
+        }
+        if self.id.is_null() {
+            self.id = v.get("id").cloned().unwrap_or(Value::Null);
+        }
+        if let Some(u) = v.get("usage").filter(|u| !u.is_null()) {
+            self.usage = Some(u.clone());
+        }
+        let Some(c) = v.get("choices").and_then(|c| c.get(0)) else { return Ok(false) };
+        // Кусок обычно в `delta`, но часть серверов шлёт целое `message` (последним событием или единственным).
+        let field = |k: &str| ["delta", "message"].iter().find_map(|f| c.get(*f).and_then(|d| d.get(k)).filter(|x| !x.is_null()));
+        let piece = field("content").and_then(content_to_string).or_else(|| c.get("text").and_then(Value::as_str).map(String::from));
+        if let Some(p) = piece.filter(|p| !p.is_empty()) {
+            if let Some(tx) = deltas {
+                let _ = tx.send(p.clone());
+            }
+            self.text.push_str(&p);
+        }
+        // Размышления (`reasoning_content` у llama-server и DeepSeek, `reasoning` у vLLM, Ollama, OpenRouter)
+        // в текст не идут (§3.1), но нужны, чтобы объяснить пустой ответ.
+        if let Some(r) = field("reasoning_content").or_else(|| field("reasoning")).and_then(Value::as_str) {
+            self.reasoning.push_str(r);
+        }
+        if let Some(fr) = c.get("finish_reason").filter(|f| !f.is_null()) {
+            self.finish = fr.clone();
+        }
+        Ok(false)
+    }
+
+    fn finish(self, model: &str) -> (Value, String, Option<Value>) {
+        let mut message = json!({"role": "assistant", "content": self.text});
+        if !self.reasoning.is_empty() {
+            message["reasoning_content"] = Value::String(self.reasoning);
+        }
+        let body = json!({
+            "id": self.id,
+            "object": "chat.completion",
+            "created": chrono::Utc::now().timestamp(),
+            "model": model,
+            "choices": [{"index": 0, "message": message, "finish_reason": if self.finish.is_null() { json!("stop") } else { self.finish }}],
+            "usage": self.usage.clone().unwrap_or(Value::Null),
+        });
+        (body, self.text, self.usage)
+    }
+}
+
+/// Ответ на запрос со `stream: true`. Не все апстримы его соблюдают: одни отвечают обычным
+/// JSON (по заголовку или без него), другие не ставят перевод строки после последнего события.
 async fn read_stream(resp: reqwest::Response, model: &str, deltas: Option<&mpsc::UnboundedSender<String>>) -> Result<(Value, String, Option<Value>), UpErr> {
-    let mut text = String::new();
-    let mut usage: Option<Value> = None;
-    let mut finish: Value = Value::Null;
-    let mut id = Value::Null;
+    let send_whole = |r: (Value, String, Option<Value>)| {
+        if let Some(tx) = deltas.filter(|_| !r.1.is_empty()) {
+            let _ = tx.send(r.1.clone());
+        }
+        r
+    };
+    let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_ascii_lowercase();
+    if content_type.contains("json") && !content_type.contains("event-stream") {
+        return read_json(resp).await.map(send_whole);
+    }
+    let mut acc = StreamAcc::default();
+    // Тело целиком, пока не встретилось ни одного события: вдруг это обычный JSON.
+    let mut raw: Vec<u8> = Vec::new();
     let mut buf: Vec<u8> = Vec::new();
     let mut stream = resp.bytes_stream();
-    let mut done = false;
-    while let Some(chunk) = stream.next().await {
+    'read: while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| UpErr::Connect(short_reqwest(&e)))?;
+        if acc.events == 0 {
+            raw.extend_from_slice(&chunk);
+        }
         buf.extend_from_slice(&chunk);
         while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
             let line: Vec<u8> = buf.drain(..=pos).collect();
-            let line = String::from_utf8_lossy(&line);
-            let line = line.trim();
-            let Some(data) = line.strip_prefix("data:") else { continue };
-            let data = data.trim();
-            if data == "[DONE]" {
-                done = true;
-                break;
-            }
-            let Ok(v) = serde_json::from_str::<Value>(data) else { continue };
-            if let Some(err) = v.get("error") {
-                return Err(UpErr::Bad(error_message(&err.to_string())));
-            }
-            if id.is_null() {
-                id = v.get("id").cloned().unwrap_or(Value::Null);
-            }
-            if let Some(u) = v.get("usage").filter(|u| !u.is_null()) {
-                usage = Some(u.clone());
-            }
-            if let Some(c) = v.get("choices").and_then(|c| c.get(0)) {
-                let piece = c
-                    .get("delta")
-                    .and_then(|d| d.get("content"))
-                    .and_then(content_to_string)
-                    .or_else(|| c.get("text").and_then(Value::as_str).map(String::from));
-                if let Some(p) = piece.filter(|p| !p.is_empty()) {
-                    if let Some(tx) = deltas {
-                        let _ = tx.send(p.clone());
-                    }
-                    text.push_str(&p);
-                }
-                if let Some(fr) = c.get("finish_reason").filter(|f| !f.is_null()) {
-                    finish = fr.clone();
-                }
+            if acc.line(&line, deltas)? {
+                break 'read;
             }
         }
-        if done {
-            break;
+        if acc.events > 0 && !raw.is_empty() {
+            raw = Vec::new();
         }
     }
-    let body = json!({
-        "id": id,
-        "object": "chat.completion",
-        "created": chrono::Utc::now().timestamp(),
-        "model": model,
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": if finish.is_null() { json!("stop") } else { finish }}],
-        "usage": usage.clone().unwrap_or(Value::Null),
-    });
-    Ok((body, text, usage))
+    // Последняя строка без перевода строки.
+    if !buf.is_empty() {
+        acc.line(&buf, deltas)?;
+    }
+    if acc.events == 0 {
+        return match serde_json::from_slice::<Value>(&raw) {
+            Ok(body) => parse_json(body).map(send_whole),
+            Err(_) if raw.iter().all(u8::is_ascii_whitespace) => Err(UpErr::Bad("empty response to a stream request".into())),
+            Err(_) => Err(UpErr::Bad(format!("neither SSE nor JSON: {}", truncate(String::from_utf8_lossy(&raw).trim(), 300)))),
+        };
+    }
+    Ok(acc.finish(model))
+}
+
+/// Подробность к `empty_answer`: чем модель была занята вместо ответа.
+pub fn empty_answer_reason(body: &Value) -> String {
+    let choice = body.get("choices").and_then(|c| c.get(0));
+    let finish = choice.and_then(|c| c.get("finish_reason")).and_then(Value::as_str).unwrap_or("");
+    let msg = choice.and_then(|c| c.get("message"));
+    let reasoned = msg.and_then(|m| m.get("reasoning_content").or_else(|| m.get("reasoning"))).and_then(Value::as_str).is_some_and(|s| !s.trim().is_empty())
+        || extract_text(body).contains("<think>");
+    let base = "model returned an empty answer";
+    match (reasoned, finish) {
+        (true, "length") => format!("{base}: reasoning used up max_tokens, raise max_tokens or turn thinking off"),
+        (true, _) => format!("{base}: only reasoning, no content"),
+        (false, "") | (false, "stop") => base.to_string(),
+        (false, f) => format!("{base} (finish_reason: {f})"),
+    }
 }
 
 /// Фоновая проверка доступности: `GET {base}/models`. Любой ответ, кроме 5xx и обрыва, —
