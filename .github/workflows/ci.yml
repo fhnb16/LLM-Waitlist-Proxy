@@ -1,10 +1,15 @@
 name: CI
 
-# Каждый push и PR: формат, clippy, тесты, сборки (установщик, он же в .zip и .rar, portable-zip, .deb).
+# Каждый push и PR: формат, clippy, тесты, сборки (portable-zip, установщик, он же в .zip и .rar, .deb).
 # Есть сертификат в секретах — exe, установщик и деинсталлятор подписываются Authenticode (scripts/sign.ps1).
-# Push в master с новой версией в Cargo.toml (или тег vX.Y.Z): ещё и релиз на GitHub — тег
-# vX.Y.Z, сборки, подписи minisign (*.minisig) и SHA256SUMS.txt. По ним работает автообновление
-# LMQ. Тег вручную ставить не нужно; если релиз этой версии уже есть, push его не трогает.
+#
+# Проверки и сборки идут параллельно, на разных машинах. Push в master с новой версией в Cargo.toml
+# (или тег vX.Y.Z) выпускает релиз vX.Y.Z по частям: каждая сборка выкладывается, как только готова
+# и прошли её тесты (первая создаёт релиз), в конце пересчитывается SHA256SUMS.txt. Файлы подписаны
+# minisign (*.minisig) — по ним работает автообновление; оно берёт только -setup.exe с подписью,
+# поэтому релиз без установщика LMQ показывает ссылкой и сам не ставит.
+# Тег вручную ставить не нужно. Релиз этой версии уже полный — push его не трогает; неполный
+# (сборка упала) — push с исправлением доложит недостающее.
 on:
   push:
     branches: [master]
@@ -20,8 +25,50 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  windows:
-    name: Windows (LMQ.exe, lmq-server.exe, установщик)
+  version:
+    name: Версия и релиз
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      publish: ${{ steps.ver.outputs.publish }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: ver
+        run: |
+          v=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
+          tag="v$v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          publish=false
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && { [ "$GITHUB_REF" = "refs/heads/master" ] || [ "$GITHUB_REF_TYPE" = "tag" ]; }; then
+            publish=true
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::Тег $GITHUB_REF_NAME не совпадает с версией $v в Cargo.toml"
+            exit 1
+          fi
+          # Push в master без смены версии: полный релиз не трогаем, неполный докладываем.
+          if [ "$publish" = true ] && [ "$GITHUB_REF_TYPE" = "branch" ] && names=$(gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null); then
+            missing=""
+            for f in "LMQ_${v}_x64-setup.exe" "LMQ-$v-windows-x64-portable.zip" "lmq_${v}-1_amd64.deb"; do
+              grep -qxF "$f" <<<"$names" || missing="$missing $f"
+            done
+            if [ -z "$missing" ]; then
+              echo "Релиз $tag уже опубликован — поднимите версию в Cargo.toml, чтобы выпустить новый."
+              publish=false
+            else
+              echo "::notice::Релиз $tag неполный, не хватает:$missing — доложим"
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+  windows-checks:
+    name: Windows — fmt, clippy, тесты
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +82,14 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
         run: cargo test --workspace --no-fail-fast
+
+  windows-portable:
+    name: Windows — LMQ.exe, lmq-server.exe, portable-zip
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Release build
         run: cargo build --release --workspace
       # Подпись Authenticode (scripts/sign.ps1), если в секретах есть сертификат: WINDOWS_SIGN_PFX
@@ -49,34 +104,14 @@ jobs:
           LMQ_SIGN_SETUP: ${{ secrets.WINDOWS_SIGN_SETUP }}
         run: |
           if (-not $env:LMQ_SIGN_PFX -and -not $env:LMQ_SIGN_COMMAND) {
-            Write-Output "::warning::Сертификат не задан (секрет WINDOWS_SIGN_PFX или WINDOWS_SIGN_COMMAND) — exe и установщик без подписи Authenticode"
+            Write-Output "::warning::Сертификат не задан (секрет WINDOWS_SIGN_PFX или WINDOWS_SIGN_COMMAND) — exe без подписи Authenticode"
             "enabled=false" >> $env:GITHUB_OUTPUT
             exit 0
           }
           # Подготовка поставщика: установить утилиту, войти в облако. Путь к утилите — в $env:GITHUB_PATH.
           if ($env:LMQ_SIGN_SETUP) { Invoke-Expression $env:LMQ_SIGN_SETUP }
-          $script = (Resolve-Path scripts/sign.ps1).Path
-          @{ bundle = @{ windows = @{ signCommand = @{ cmd = 'pwsh'; args = @('-NoProfile', '-NonInteractive', '-File', $script, '%1') } } } } |
-            ConvertTo-Json -Depth 6 | Set-Content "$env:RUNNER_TEMP/tauri.sign.json" -Encoding utf8NoBOM
           "enabled=true" >> $env:GITHUB_OUTPUT
-      - name: Installer (NSIS)
-        shell: pwsh
-        env:
-          LMQ_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
-          LMQ_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
-          LMQ_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
-          LMQ_SIGN_TIMESTAMP: ${{ vars.WINDOWS_SIGN_TIMESTAMP }}
-        run: |
-          cargo install tauri-cli --version "^2" --locked
-          cd crates/lmq-desktop
-          # С подписью Tauri подписывает LMQ.exe, плагины NSIS, деинсталлятор и сам установщик.
-          $sign = @()
-          if ('${{ steps.sign.outputs.enabled }}' -eq 'true') { $sign = @('--config', "$env:RUNNER_TEMP/tauri.sign.json") }
-          cargo tauri build --bundles nsis @sign
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # Exe для portable-zip. LMQ.exe тоже: Tauri подписывает копию внутри установщика, а файл в
-      # target/release после сборки остаётся без подписи.
-      - name: Sign portable exe
+      - name: Sign exe
         if: steps.sign.outputs.enabled == 'true'
         shell: pwsh
         env:
@@ -92,9 +127,7 @@ jobs:
       - name: Check signatures
         shell: pwsh
         run: |
-          $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-          $files = 'target/release/LMQ.exe', 'target/release/lmq-server.exe', "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
-          $rows = $files | ForEach-Object { $s = Get-AuthenticodeSignature $_; [pscustomobject]@{ File = Split-Path $_ -Leaf; Status = $s.Status; Signer = $s.SignerCertificate.Subject } }
+          $rows = 'target/release/LMQ.exe', 'target/release/lmq-server.exe' | ForEach-Object { $s = Get-AuthenticodeSignature $_; [pscustomobject]@{ File = Split-Path $_ -Leaf; Status = $s.Status; Signer = $s.SignerCertificate.Subject } }
           $rows | Format-Table -AutoSize | Out-String | Write-Output
           if ('${{ steps.sign.outputs.enabled }}' -eq 'true') {
             $bad = $rows | Where-Object { $_.Status -in 'NotSigned', 'HashMismatch', 'Incompatible' }
@@ -105,10 +138,74 @@ jobs:
         run: |
           $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
           New-Item -ItemType Directory -Force out, portable | Out-Null
-          $setup = "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
-          Copy-Item $setup out/
           Copy-Item target/release/LMQ.exe, target/release/lmq-server.exe, README.md, LICENSE, config.example.yaml, docs/universalbot-lmq-integration.md portable/
           Compress-Archive -Path portable/* -DestinationPath "out/LMQ-$v-windows-x64-portable.zip"
+          Get-ChildItem out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmq-windows-portable
+          path: out/*
+          if-no-files-found: error
+
+  windows-installer:
+    name: Windows — установщик (NSIS, .zip, .rar)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Готовый бинарник tauri-cli вместо сборки из исходников; нет готового — cargo-binstall соберёт сам.
+      - uses: cargo-bins/cargo-binstall@main
+      - name: tauri-cli
+        run: cargo binstall tauri-cli --version "^2" --no-confirm --locked
+      - name: Signing setup
+        id: sign
+        shell: pwsh
+        env:
+          LMQ_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
+          LMQ_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          LMQ_SIGN_SETUP: ${{ secrets.WINDOWS_SIGN_SETUP }}
+        run: |
+          if (-not $env:LMQ_SIGN_PFX -and -not $env:LMQ_SIGN_COMMAND) {
+            Write-Output "::warning::Сертификат не задан (секрет WINDOWS_SIGN_PFX или WINDOWS_SIGN_COMMAND) — установщик без подписи Authenticode"
+            "enabled=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          if ($env:LMQ_SIGN_SETUP) { Invoke-Expression $env:LMQ_SIGN_SETUP }
+          $script = (Resolve-Path scripts/sign.ps1).Path
+          @{ bundle = @{ windows = @{ signCommand = @{ cmd = 'pwsh'; args = @('-NoProfile', '-NonInteractive', '-File', $script, '%1') } } } } |
+            ConvertTo-Json -Depth 6 | Set-Content "$env:RUNNER_TEMP/tauri.sign.json" -Encoding utf8NoBOM
+          "enabled=true" >> $env:GITHUB_OUTPUT
+      - name: Installer (NSIS)
+        shell: pwsh
+        env:
+          LMQ_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
+          LMQ_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
+          LMQ_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          LMQ_SIGN_TIMESTAMP: ${{ vars.WINDOWS_SIGN_TIMESTAMP }}
+        run: |
+          cd crates/lmq-desktop
+          # С подписью Tauri подписывает LMQ.exe, плагины NSIS, деинсталлятор и сам установщик.
+          $sign = @()
+          if ('${{ steps.sign.outputs.enabled }}' -eq 'true') { $sign = @('--config', "$env:RUNNER_TEMP/tauri.sign.json") }
+          cargo tauri build --bundles nsis @sign
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check signature
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $s = Get-AuthenticodeSignature "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
+          Write-Output "LMQ_${v}_x64-setup.exe: $($s.Status) $($s.SignerCertificate.Subject)"
+          if ('${{ steps.sign.outputs.enabled }}' -eq 'true' -and $s.Status -in 'NotSigned', 'HashMismatch', 'Incompatible') {
+            Write-Output "::error::Установщик не подписан"; exit 1
+          }
+      - name: Collect
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          New-Item -ItemType Directory -Force out | Out-Null
+          $setup = "target/release/bundle/nsis/LMQ_${v}_x64-setup.exe"
+          Copy-Item $setup out/
           # Установщик ещё и в архивах: голый .exe из браузера SmartScreen и Defender встречают
           # строже. Имена не кончаются на -setup.exe, поэтому автообновление их не выбирает.
           Compress-Archive -Path $setup -DestinationPath "out/LMQ-$v-windows-x64-setup.zip"
@@ -126,7 +223,7 @@ jobs:
           Get-ChildItem out
       - uses: actions/upload-artifact@v4
         with:
-          name: lmq-windows-x64
+          name: lmq-windows-installer
           path: out/*
           if-no-files-found: error
 
@@ -144,6 +241,9 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: cargo-bins/cargo-binstall@main
+      - name: cargo-deb
+        run: cargo binstall cargo-deb --no-confirm --locked
       - name: Clippy
         run: cargo clippy -p lmq-core -p lmq-server --all-targets -- -D warnings
       - name: Tests
@@ -151,9 +251,7 @@ jobs:
       - name: Release build
         run: cargo build --release -p lmq-server
       - name: Package (.deb)
-        run: |
-          cargo install cargo-deb --locked
-          cargo deb -p lmq-server --no-build
+        run: cargo deb -p lmq-server --no-build
       - name: Smoke test
         run: |
           ./target/release/lmq-server --version
@@ -171,84 +269,72 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-  release:
-    name: GitHub Release
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
-    needs: [windows, debian]
+  # Публикация: каждая сборка — сразу, как готова. Windows-сборки ждут ещё и своих тестов,
+  # Debian проверяет себя сам.
+  publish-portable:
+    name: Релиз — portable-zip
+    needs: [version, windows-checks, windows-portable]
+    if: needs.version.outputs.publish == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      artifact: lmq-windows-portable
+      tag: ${{ needs.version.outputs.tag }}
+    secrets:
+      MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+
+  publish-installer:
+    name: Релиз — установщик
+    needs: [version, windows-checks, windows-installer]
+    if: needs.version.outputs.publish == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      artifact: lmq-windows-installer
+      tag: ${{ needs.version.outputs.tag }}
+    secrets:
+      MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+
+  publish-debian:
+    name: Релиз — Debian
+    needs: [version, debian]
+    if: needs.version.outputs.publish == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      artifact: lmq-debian-x64
+      tag: ${{ needs.version.outputs.tag }}
+    secrets:
+      MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+
+  # SHA256SUMS.txt — по всему, что успело попасть в релиз, даже если одна из сборок упала.
+  checksums:
+    name: Релиз — SHA256SUMS.txt
+    needs: [version, publish-portable, publish-installer, publish-debian]
+    if: always() && needs.version.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    # Два push подряд с одной версией не должны выпускать релиз дважды.
-    concurrency:
-      group: release
-      cancel-in-progress: false
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-      - name: Version
-        id: ver
-        run: |
-          v=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
-          tag="v$v"
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
-            echo "::error::Тег $GITHUB_REF_NAME не совпадает с версией $v в Cargo.toml"
-            exit 1
-          fi
-          # Push в master без смены версии — релиз этой версии уже есть, новый не нужен.
-          skip=false
-          if [ "$GITHUB_REF_TYPE" = "branch" ] && gh release view "$tag" >/dev/null 2>&1; then
-            echo "Релиз $tag уже опубликован — поднимите версию в Cargo.toml, чтобы выпустить новый."
-            skip=true
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "skip=$skip" >> "$GITHUB_OUTPUT"
-      - uses: actions/download-artifact@v4
-        if: steps.ver.outputs.skip != 'true'
-        with:
-          path: dist
-          merge-multiple: true
       - name: Checksums
-        if: steps.ver.outputs.skip != 'true'
-        working-directory: dist
-        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - name: Sign (minisign)
-        if: steps.ver.outputs.skip != 'true'
         env:
-          TAG: ${{ steps.ver.outputs.tag }}
           MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
         run: |
-          if [ -z "$MINISIGN_SECRET_KEY" ]; then
-            echo "::warning::Секрет MINISIGN_SECRET_KEY не задан: релиз без подписей, LMQ покажет только ссылку и не установит обновление сам"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::warning::Релиза $TAG нет — ни одна сборка не опубликована"
             exit 0
           fi
-          sudo apt-get update && sudo apt-get install -y minisign
-          key="$RUNNER_TEMP/release.key"
-          (umask 077 && printf '%s\n' "$MINISIGN_SECRET_KEY" > "$key")
-          for f in dist/*; do
-            minisign -S -s "$key" -m "$f" -t "LMQ $TAG $(basename "$f")"
-          done
-          rm -f "$key"
-          # Подписи должны проверяться ключом, вшитым в LMQ, — иначе автообновление их отвергнет.
-          pk=$(sed -n 's/.*DEFAULT_UPDATES_PUBKEY: &str = "\(.*\)";/\1/p' crates/lmq-core/src/config/settings.rs)
-          for f in dist/*; do
-            case "$f" in *.minisig) continue;; esac
-            minisign -V -P "$pk" -m "$f" -q
-          done
-          ls -l dist
-      - name: Publish
-        if: steps.ver.outputs.skip != 'true'
-        env:
-          TAG: ${{ steps.ver.outputs.tag }}
-        run: |
-          pre=""
-          case "$TAG" in *-*) pre="--prerelease";; esac
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            # Повторный запуск по тегу: заменить файлы.
-            gh release upload "$TAG" dist/* --clobber
-          else
-            # Тега может не быть (push в master) — gh создаст его на этом коммите.
-            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "LMQ ${TAG#v}" --generate-notes $pre
-          fi
-          gh release view "$TAG" --json url,assets --jq '.url, (.assets[].name)'
+          gh release download "$TAG" -D assets
+          rm -f assets/*.minisig assets/SHA256SUMS.txt
+          mkdir -p sums
+          (cd assets && sha256sum * > ../sums/SHA256SUMS.txt)
+          cat sums/SHA256SUMS.txt
+          bash scripts/release-publish.sh sums

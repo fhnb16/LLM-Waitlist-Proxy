@@ -12,7 +12,7 @@ use crate::engines::EngineStatus;
 use crate::queue::{QItem, SyncCtx, SyncResult, TIER_GROUP, TIER_PRIVATE, TIER_SYNC};
 use crate::routing::ModelRt;
 use crate::store::{NewJob, SyncRecord};
-use crate::upstream::QUEUE_FIELDS;
+use crate::upstream::{Delta, DeltaTx, QUEUE_FIELDS};
 use crate::util::{now_ms, random_hex, valid_job_id};
 
 #[derive(Debug, Clone)]
@@ -44,8 +44,9 @@ pub enum Submitted {
 pub struct SubmitOpts {
     /// Колбэк в обход белого списка (встроенный приёмник отладки): (url, token).
     pub internal_callback: Option<(String, String)>,
-    /// Песочница: куски ответа по мере генерации.
-    pub deltas: Option<mpsc::UnboundedSender<String>>,
+    /// Синхронный запрос: куски ответа по мере генерации (песочница, клиент со `stream: true`).
+    /// Тогда `SYNC_TIMEOUT` ограничивает ожидание первого куска, а не весь ответ.
+    pub deltas: Option<DeltaTx>,
 }
 
 fn as_i64(v: Option<&Value>) -> Option<i64> {
@@ -291,11 +292,14 @@ async fn submit_sync(
     requested: &str,
     model: &Arc<ModelRt>,
     payload: Map<String, Value>,
-    deltas: Option<mpsc::UnboundedSender<String>>,
+    deltas: Option<DeltaTx>,
 ) -> Result<Submitted, ApiError> {
     let cfg = app.settings();
     let job_id = format!("sync-{}", random_hex(8));
-    let (tx, rx) = oneshot::channel::<SyncResult>();
+    let (tx, mut rx) = oneshot::channel::<SyncResult>();
+    // Куски идут через свой канал: первый снимает SYNC_TIMEOUT (ответ пошёл, дальше следит
+    // UPSTREAM_TIMEOUT), а ушедший клиент отменяет запрос, чтобы модель не работала впустую.
+    let (inner_tx, mut inner_rx) = mpsc::unbounded_channel::<Delta>();
     let created_at = now_ms();
     app.queue.push(
         &model.name,
@@ -305,16 +309,54 @@ async fn submit_sync(
             chat_id: 0,
             created_at,
             client: client.to_string(),
-            sync: Some(SyncCtx { payload, tx: Some(tx), deltas, client: client.to_string(), requested_model: requested.to_string() }),
+            sync: Some(SyncCtx {
+                payload,
+                tx: Some(tx),
+                deltas: deltas.is_some().then_some(inner_tx),
+                client: client.to_string(),
+                requested_model: requested.to_string(),
+            }),
         },
     );
     app.emit_job(&job_id, "queued", &model.name, 0, None);
-    tracing::debug!(job_id = %job_id, client, model = %model.name, "sync request queued");
-    match tokio::time::timeout(Duration::from_secs(cfg.queue.sync_timeout.max(1)), rx).await {
-        Ok(Ok(Ok(body))) => Ok(Submitted::Sync(body)),
-        Ok(Ok(Err((status, code, msg)))) => Err(ApiError::new(status, format!("{code}: {msg}"))),
-        Ok(Err(_)) => Err(ApiError::new(502, "request dropped")),
-        Err(_) => {
+    tracing::debug!(job_id = %job_id, client, model = %model.name, stream = deltas.is_some(), "sync request queued");
+    let deadline = tokio::time::sleep(Duration::from_secs(cfg.queue.sync_timeout.max(1)));
+    tokio::pin!(deadline);
+    let gone = async {
+        match &deltas {
+            Some(out) => out.closed().await,
+            None => std::future::pending().await,
+        }
+    };
+    tokio::pin!(gone);
+    let (mut started, mut forwarding) = (false, deltas.is_some());
+    let res = loop {
+        tokio::select! {
+            biased;
+            d = inner_rx.recv(), if forwarding => match (d, &deltas) {
+                (Some(d), Some(out)) => {
+                    started = true;
+                    let _ = out.send(d);
+                }
+                _ => forwarding = false,
+            },
+            r = &mut rx => break Some(r),
+            _ = &mut gone, if forwarding => {
+                // Клиент закрыл соединение: дальше генерировать некому.
+                forwarding = false;
+                tracing::info!(job_id = %job_id, client, model = %model.name, "stream client disconnected, request cancelled");
+                if !app.queue.remove_sync(&job_id) {
+                    app.queue.cancel_running(&job_id);
+                }
+            }
+            _ = &mut deadline, if !started => break None,
+        }
+    };
+    match res {
+        Some(Ok(Ok(body))) => Ok(Submitted::Sync(body)),
+        Some(Ok(Err((status, code, msg)))) => Err(ApiError::new(status, format!("{code}: {msg}"))),
+        Some(Err(_)) => Err(ApiError::new(502, "request dropped")),
+        None => {
             // Запись — до отмены: отменённый запрос потом не перезапишет её «cancelled».
             let rec = SyncRecord {
                 job_id: &job_id,

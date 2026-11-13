@@ -640,14 +640,15 @@ async fn sandbox(State(app): State<AppState>, Json(req): Json<SandboxReq>) -> R<
         body.insert("messages".into(), Value::Array(req.messages.clone()));
         body.insert("chat_id".into(), json!(0));
         tokio::spawn(async move {
-            let (dtx, mut drx) = mpsc::unbounded_channel::<String>();
+            let (dtx, mut drx) = mpsc::unbounded_channel::<crate::upstream::Delta>();
             let started = now_ms();
             let first_token = Arc::new(Mutex::new(None::<i64>));
             let fwd_tx = tx.clone();
             let fwd_model = model.clone();
             let ft = first_token.clone();
             let fwd = tokio::spawn(async move {
-                while let Some(piece) = drx.recv().await {
+                while let Some(d) = drx.recv().await {
+                    let crate::upstream::Delta::Text(piece) = d else { continue };
                     ft.lock().get_or_insert(now_ms() - started);
                     let _ = fwd_tx.send(("delta".into(), json!({ "model": fwd_model, "text": piece })));
                 }

@@ -22,10 +22,24 @@ pub struct UpOk {
     pub latency_ms: i64,
 }
 
+/// Кусок ответа по мере генерации — для песочницы и клиентов со `stream: true`.
+#[derive(Debug, Clone)]
+pub enum Delta {
+    Text(String),
+    /// `reasoning_content` / `reasoning`: в итоговый текст не идёт, но клиенту со стримом нужен.
+    Reasoning(String),
+    /// `delta.tool_calls` как прислал апстрим.
+    ToolCalls(Value),
+}
+
+pub type DeltaTx = mpsc::UnboundedSender<Delta>;
+
 #[derive(Debug, Clone)]
 pub enum UpErr {
     /// Соединение не установлено или оборвано.
     Connect(String),
+    /// Стрим оборвался, когда клиенту уже ушла часть ответа: другой апстрим начал бы заново.
+    Interrupted(String),
     /// Апстрим ответил ошибкой.
     Status(u16, String),
     Timeout(u64),
@@ -43,6 +57,7 @@ impl UpErr {
     pub fn message(&self) -> String {
         match self {
             UpErr::Connect(e) => format!("upstream connection error: {e}"),
+            UpErr::Interrupted(e) => format!("upstream stream broke off mid-answer: {e}"),
             UpErr::Status(s, b) => format!("upstream HTTP {s}: {b}"),
             UpErr::Timeout(t) => format!("upstream timeout after {t}s"),
             UpErr::Cancelled => "cancelled".into(),
@@ -165,8 +180,6 @@ fn error_message(body: &str) -> String {
         .unwrap_or_else(|| truncate(body.trim(), 300))
 }
 
-/// Один запрос к апстриму. `deltas` — куда слать куски текста (песочница); при нём
-/// запрос идёт стримом, даже если апстрим настроен без стрима.
 /// Как писать в журнал запрос к апстриму (`logging.requests`, `logging.content`).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Trace<'a> {
@@ -175,6 +188,9 @@ pub struct Trace<'a> {
     pub content: bool,
 }
 
+/// Один запрос к апстриму. `deltas` — куда слать куски ответа (песочница, клиент со стримом);
+/// при нём запрос идёт стримом, даже если апстрим настроен без стрима: не умеющий стрим
+/// апстрим ответит обычным JSON, и он уйдёт одним куском.
 #[allow(clippy::too_many_arguments)]
 pub async fn call(
     http: &reqwest::Client,
@@ -183,7 +199,7 @@ pub async fn call(
     model: &ModelCfg,
     timeout: Duration,
     cancel: &CancellationToken,
-    deltas: Option<&mpsc::UnboundedSender<String>>,
+    deltas: Option<&DeltaTx>,
     trace: Trace<'_>,
 ) -> Result<UpOk, UpErr> {
     let stream = up.stream || deltas.is_some();
@@ -283,13 +299,48 @@ struct StreamAcc {
     usage: Option<Value>,
     finish: Value,
     id: Value,
+    /// Вызовы инструментов, собранные из `delta.tool_calls` по `index`.
+    tools: Vec<Value>,
     /// Сколько строк `data:` разобрано. Ноль к концу ответа — апстрим прислал не SSE.
     events: usize,
+    /// Ушёл ли получателю хоть один кусок.
+    emitted: bool,
 }
 
 impl StreamAcc {
+    fn emit(&mut self, deltas: Option<&DeltaTx>, d: Delta) {
+        if let Some(tx) = deltas {
+            let _ = tx.send(d);
+            self.emitted = true;
+        }
+    }
+
+    /// Дописывает куски `delta.tool_calls`: `id`, `type`, имя — как пришли, `arguments` — склейкой.
+    fn add_tools(&mut self, calls: &[Value]) {
+        for (pos, tc) in calls.iter().enumerate() {
+            let idx = tc.get("index").and_then(Value::as_u64).map(|i| i as usize).unwrap_or(pos);
+            while self.tools.len() <= idx {
+                self.tools.push(json!({"id": "", "type": "function", "function": {"name": "", "arguments": ""}}));
+            }
+            let slot = &mut self.tools[idx];
+            for k in ["id", "type"] {
+                if let Some(v) = tc.get(k).and_then(Value::as_str).filter(|s| !s.is_empty()) {
+                    slot[k] = json!(v);
+                }
+            }
+            if let Some(f) = tc.get("function") {
+                for k in ["name", "arguments"] {
+                    if let Some(piece) = f.get(k).and_then(Value::as_str) {
+                        let joined = format!("{}{piece}", slot["function"][k].as_str().unwrap_or(""));
+                        slot["function"][k] = json!(joined);
+                    }
+                }
+            }
+        }
+    }
+
     /// Одна строка SSE. `Ok(true)` — пришёл `[DONE]`.
-    fn line(&mut self, raw: &[u8], deltas: Option<&mpsc::UnboundedSender<String>>) -> Result<bool, UpErr> {
+    fn line(&mut self, raw: &[u8], deltas: Option<&DeltaTx>) -> Result<bool, UpErr> {
         let line = String::from_utf8_lossy(raw);
         let Some(data) = line.trim().strip_prefix("data:") else { return Ok(false) };
         let data = data.trim();
@@ -312,19 +363,25 @@ impl StreamAcc {
         // Кусок обычно в `delta`, но часть серверов шлёт целое `message` (последним событием или единственным).
         let field = |k: &str| ["delta", "message"].iter().find_map(|f| c.get(*f).and_then(|d| d.get(k)).filter(|x| !x.is_null()));
         let piece = field("content").and_then(content_to_string).or_else(|| c.get("text").and_then(Value::as_str).map(String::from));
-        if let Some(p) = piece.filter(|p| !p.is_empty()) {
-            if let Some(tx) = deltas {
-                let _ = tx.send(p.clone());
-            }
-            self.text.push_str(&p);
-        }
         // Размышления (`reasoning_content` у llama-server и DeepSeek, `reasoning` у vLLM, Ollama, OpenRouter)
-        // в текст не идут (§3.1), но нужны, чтобы объяснить пустой ответ.
-        if let Some(r) = field("reasoning_content").or_else(|| field("reasoning")).and_then(Value::as_str) {
-            self.reasoning.push_str(r);
+        // в текст для бота не идут (§3.1), но клиенту со стримом нужны, а пустой ответ ими объясняется.
+        let reasoning = field("reasoning_content").or_else(|| field("reasoning")).and_then(Value::as_str).filter(|r| !r.is_empty()).map(String::from);
+        let tools = field("tool_calls").and_then(Value::as_array).filter(|a| !a.is_empty()).cloned();
+        let finish = c.get("finish_reason").filter(|f| !f.is_null()).cloned();
+        if let Some(r) = reasoning {
+            self.reasoning.push_str(&r);
+            self.emit(deltas, Delta::Reasoning(r));
         }
-        if let Some(fr) = c.get("finish_reason").filter(|f| !f.is_null()) {
-            self.finish = fr.clone();
+        if let Some(p) = piece.filter(|p| !p.is_empty()) {
+            self.text.push_str(&p);
+            self.emit(deltas, Delta::Text(p));
+        }
+        if let Some(calls) = tools {
+            self.add_tools(&calls);
+            self.emit(deltas, Delta::ToolCalls(Value::Array(calls)));
+        }
+        if let Some(fr) = finish {
+            self.finish = fr;
         }
         Ok(false)
     }
@@ -333,6 +390,9 @@ impl StreamAcc {
         let mut message = json!({"role": "assistant", "content": self.text});
         if !self.reasoning.is_empty() {
             message["reasoning_content"] = Value::String(self.reasoning);
+        }
+        if !self.tools.is_empty() {
+            message["tool_calls"] = Value::Array(self.tools);
         }
         let body = json!({
             "id": self.id,
@@ -348,10 +408,13 @@ impl StreamAcc {
 
 /// Ответ на запрос со `stream: true`. Не все апстримы его соблюдают: одни отвечают обычным
 /// JSON (по заголовку или без него), другие не ставят перевод строки после последнего события.
-async fn read_stream(resp: reqwest::Response, model: &str, deltas: Option<&mpsc::UnboundedSender<String>>) -> Result<(Value, String, Option<Value>), UpErr> {
+async fn read_stream(resp: reqwest::Response, model: &str, deltas: Option<&DeltaTx>) -> Result<(Value, String, Option<Value>), UpErr> {
+    // Обычный JSON вместо стрима уходит получателю одним куском.
     let send_whole = |r: (Value, String, Option<Value>)| {
-        if let Some(tx) = deltas.filter(|_| !r.1.is_empty()) {
-            let _ = tx.send(r.1.clone());
+        if let Some(tx) = deltas {
+            for d in message_deltas(&r.0) {
+                let _ = tx.send(d);
+            }
         }
         r
     };
@@ -360,11 +423,28 @@ async fn read_stream(resp: reqwest::Response, model: &str, deltas: Option<&mpsc:
         return read_json(resp).await.map(send_whole);
     }
     let mut acc = StreamAcc::default();
-    // Тело целиком, пока не встретилось ни одного события: вдруг это обычный JSON.
+    let raw = match read_events(resp, &mut acc, deltas).await {
+        Ok(raw) => raw,
+        // Часть ответа уже у получателя: повтор на другом апстриме склеил бы два ответа.
+        Err(e @ (UpErr::Connect(_) | UpErr::Bad(_))) if acc.emitted => return Err(UpErr::Interrupted(e.message())),
+        Err(e) => return Err(e),
+    };
+    if acc.events == 0 {
+        return match serde_json::from_slice::<Value>(&raw) {
+            Ok(body) => parse_json(body).map(send_whole),
+            Err(_) if raw.iter().all(u8::is_ascii_whitespace) => Err(UpErr::Bad("empty response to a stream request".into())),
+            Err(_) => Err(UpErr::Bad(format!("neither SSE nor JSON: {}", truncate(String::from_utf8_lossy(&raw).trim(), 300)))),
+        };
+    }
+    Ok(acc.finish(model))
+}
+
+/// Читает события SSE в `acc`. Возвращает тело целиком, если событий не нашлось (вдруг это JSON).
+async fn read_events(resp: reqwest::Response, acc: &mut StreamAcc, deltas: Option<&DeltaTx>) -> Result<Vec<u8>, UpErr> {
     let mut raw: Vec<u8> = Vec::new();
     let mut buf: Vec<u8> = Vec::new();
     let mut stream = resp.bytes_stream();
-    'read: while let Some(chunk) = stream.next().await {
+    while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| UpErr::Connect(short_reqwest(&e)))?;
         if acc.events == 0 {
             raw.extend_from_slice(&chunk);
@@ -373,7 +453,7 @@ async fn read_stream(resp: reqwest::Response, model: &str, deltas: Option<&mpsc:
         while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
             let line: Vec<u8> = buf.drain(..=pos).collect();
             if acc.line(&line, deltas)? {
-                break 'read;
+                return Ok(Vec::new());
             }
         }
         if acc.events > 0 && !raw.is_empty() {
@@ -384,14 +464,35 @@ async fn read_stream(resp: reqwest::Response, model: &str, deltas: Option<&mpsc:
     if !buf.is_empty() {
         acc.line(&buf, deltas)?;
     }
-    if acc.events == 0 {
-        return match serde_json::from_slice::<Value>(&raw) {
-            Ok(body) => parse_json(body).map(send_whole),
-            Err(_) if raw.iter().all(u8::is_ascii_whitespace) => Err(UpErr::Bad("empty response to a stream request".into())),
-            Err(_) => Err(UpErr::Bad(format!("neither SSE nor JSON: {}", truncate(String::from_utf8_lossy(&raw).trim(), 300)))),
-        };
+    Ok(raw)
+}
+
+/// Куски, которыми целый ответ (`choices[0].message`) уходит получателю стрима.
+pub fn message_deltas(body: &Value) -> Vec<Delta> {
+    let msg = body.get("choices").and_then(|c| c.get(0)).and_then(|c| c.get("message"));
+    let mut out = Vec::new();
+    if let Some(r) = msg.and_then(|m| m.get("reasoning_content").or_else(|| m.get("reasoning"))).and_then(Value::as_str).filter(|r| !r.is_empty()) {
+        out.push(Delta::Reasoning(r.to_string()));
     }
-    Ok(acc.finish(model))
+    let text = extract_text(body);
+    if !text.is_empty() {
+        out.push(Delta::Text(text));
+    }
+    if let Some(calls) = msg.and_then(|m| m.get("tool_calls")).and_then(Value::as_array).filter(|a| !a.is_empty()) {
+        let calls = calls
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let mut c = c.clone();
+                if let Some(o) = c.as_object_mut() {
+                    o.entry("index").or_insert(json!(i));
+                }
+                c
+            })
+            .collect();
+        out.push(Delta::ToolCalls(Value::Array(calls)));
+    }
+    out
 }
 
 /// Подробность к `empty_answer`: чем модель была занята вместо ответа.

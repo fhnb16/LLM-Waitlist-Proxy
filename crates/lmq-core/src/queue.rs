@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use parking_lot::Mutex;
 use serde::Serialize;
 use serde_json::{Map, Value};
-use tokio::sync::{Notify, mpsc, oneshot};
+use tokio::sync::{Notify, oneshot};
 use tokio_util::sync::CancellationToken;
 
 pub const TIER_SYNC: u8 = 0;
@@ -22,8 +22,8 @@ pub type SyncResult = Result<Value, (u16, String, String)>;
 pub struct SyncCtx {
     pub payload: Map<String, Value>,
     pub tx: Option<oneshot::Sender<SyncResult>>,
-    /// Куски текста по мере генерации (песочница).
-    pub deltas: Option<mpsc::UnboundedSender<String>>,
+    /// Куски ответа по мере генерации (песочница, клиент со стримом).
+    pub deltas: Option<crate::upstream::DeltaTx>,
     pub client: String,
     pub requested_model: String,
 }

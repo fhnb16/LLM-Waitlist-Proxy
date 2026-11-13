@@ -1,24 +1,27 @@
 //! Клиентский API (§2, §4): то, что вызывает бот.
 
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::body::Bytes;
+use axum::body::{Body, Bytes};
 use axum::extract::rejection::BytesRejection;
 use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Request, State};
-use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
+use axum::http::{HeaderMap, HeaderName, Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
 use serde_json::{Map, Value, json};
+use tokio::sync::mpsc;
 use tower::ServiceExt;
 use tower_http::timeout::RequestBodyTimeoutLayer;
 
 use super::{bearer, client_auth};
 use crate::app::App;
 use crate::submit::{self, ApiError, SubmitOpts, Submitted};
+use crate::upstream::Delta;
 use crate::util::ct_eq;
 
 pub fn router(app: Arc<App>) -> Router {
@@ -143,60 +146,126 @@ async fn chat(State(app): State<Arc<App>>, headers: HeaderMap, body: Result<Byte
     let body = parse_body(body)?;
     let wants_stream = body.get("stream").and_then(Value::as_bool) == Some(true);
     let model = body.get("model").and_then(Value::as_str).unwrap_or("").to_string();
-    let res = submit::submit(&app, &client, body, SubmitOpts::default()).await.inspect_err(|e| {
-        // Отказ до постановки (400, 429, 503 …) — иначе в журнале его не видно.
-        tracing::info!(client = %client, model = %model, status = e.status, error = %e.message, "request rejected");
-    })?;
+    if wants_stream {
+        return chat_stream(app, client, body, model).await;
+    }
+    let res = submit::submit(&app, &client, body, SubmitOpts::default()).await.inspect_err(|e| log_rejected(&client, &model, e))?;
+    Ok(plain_response(res, false))
+}
+
+/// Отказ до постановки (400, 429, 503 …) — иначе в журнале его не видно.
+fn log_rejected(client: &str, model: &str, e: &ApiError) {
+    tracing::info!(client = %client, model = %model, status = e.status, error = %e.message, "request rejected");
+}
+
+fn plain_response(res: Submitted, stream: bool) -> Response {
     match res {
-        Submitted::Queued { status, body } => Ok((StatusCode::from_u16(status).unwrap_or(StatusCode::ACCEPTED), Json(body)).into_response()),
-        Submitted::Sync(body) if wants_stream => Ok(sse_answer(&body)),
-        Submitted::Sync(body) => Ok(Json(body).into_response()),
+        Submitted::Queued { status, body } => (StatusCode::from_u16(status).unwrap_or(StatusCode::ACCEPTED), Json(body)).into_response(),
+        Submitted::Sync(body) if stream => sse_answer(&body),
+        Submitted::Sync(body) => Json(body).into_response(),
     }
 }
 
-/// Синхронный ответ для клиента со `stream: true`: тот же ответ, но событиями SSE
-/// (`chat.completion.chunk` … `[DONE]`). Обычный JSON такой клиент не разберёт и покажет пустой ответ.
-/// Ответ собирается целиком, поэтому ошибки по-прежнему приходят HTTP-статусом.
+/// Клиент со `stream: true`. Синхронный запрос (`chat_id` 0) ретранслируется по мере генерации:
+/// куски апстрима (текст, размышления, вызовы инструментов) уходят клиенту сразу, как пришли.
+/// Пока первого куска нет, ответ не начат: отказ, ошибка апстрима или переход к другому апстриму
+/// приходят обычным HTTP-статусом. После начала ошибка приходит событием `error` и `[DONE]`.
+async fn chat_stream(app: Arc<App>, client: String, body: Map<String, Value>, model: String) -> Result<Response, ApiError> {
+    let (dtx, mut drx) = mpsc::unbounded_channel::<Delta>();
+    let mut task = tokio::spawn({
+        let (app, client) = (app.clone(), client.clone());
+        async move { submit::submit(&app, &client, body, SubmitOpts { deltas: Some(dtx), ..Default::default() }).await }
+    });
+    // Отправитель живёт в submit до его конца: `None` значит, что ответ готов без кусков.
+    let first = tokio::select! {
+        biased;
+        Some(d) = drx.recv() => d,
+        r = &mut task => {
+            let res = r.map_err(|e| ApiError::new(500, format!("request task failed: {e}")))?.inspect_err(|e| log_rejected(&client, &model, e))?;
+            return Ok(plain_response(res, true));
+        }
+    };
+    let chunks = Chunks { id: format!("chatcmpl-{}", crate::util::random_hex(12)), created: chrono::Utc::now().timestamp(), model };
+    let stream = async_stream::stream! {
+        yield Ok::<String, Infallible>(chunks.delta(&first, true));
+        while let Some(d) = drx.recv().await {
+            yield Ok(chunks.delta(&d, false));
+        }
+        let tail = match task.await {
+            Ok(Ok(Submitted::Sync(b))) => chunks.tail(&b),
+            Ok(Ok(Submitted::Queued { .. })) => chunks.error(500, "unexpected queued answer"),
+            Ok(Err(e)) => chunks.error(e.status, &e.message),
+            Err(e) => chunks.error(500, &format!("request task failed: {e}")),
+        };
+        yield Ok(tail);
+    };
+    Ok((
+        [(header::CONTENT_TYPE, "text/event-stream; charset=utf-8"), (header::CACHE_CONTROL, "no-cache"), (HeaderName::from_static("x-accel-buffering"), "no")],
+        Body::from_stream(stream),
+    )
+        .into_response())
+}
+
+/// События `chat.completion.chunk` одного ответа.
+struct Chunks {
+    id: String,
+    created: i64,
+    model: String,
+}
+
+impl Chunks {
+    fn event(v: &Value) -> String {
+        format!("data: {v}\n\n")
+    }
+
+    fn chunk(&self, choices: Value) -> Value {
+        json!({"id": self.id, "object": "chat.completion.chunk", "created": self.created, "model": self.model, "choices": choices})
+    }
+
+    fn delta(&self, d: &Delta, first: bool) -> String {
+        let mut delta = match d {
+            Delta::Text(t) => json!({"content": t}),
+            Delta::Reasoning(r) => json!({"reasoning_content": r}),
+            Delta::ToolCalls(c) => json!({"tool_calls": c}),
+        };
+        if first {
+            delta["role"] = json!("assistant");
+        }
+        Self::event(&self.chunk(json!([{"index": 0, "delta": delta, "finish_reason": null}])))
+    }
+
+    /// Конец ответа: `finish_reason`, `usage` (если есть) и `[DONE]`.
+    fn tail(&self, body: &Value) -> String {
+        let finish = body.pointer("/choices/0/finish_reason").cloned().filter(|f| !f.is_null()).unwrap_or_else(|| json!("stop"));
+        let mut out = Self::event(&self.chunk(json!([{"index": 0, "delta": {}, "finish_reason": finish}])));
+        if let Some(usage) = body.get("usage").filter(|u| !u.is_null()) {
+            let mut last = self.chunk(json!([]));
+            last["usage"] = usage.clone();
+            out.push_str(&Self::event(&last));
+        }
+        out.push_str("data: [DONE]\n\n");
+        out
+    }
+
+    fn error(&self, status: u16, message: &str) -> String {
+        let kind = if status >= 500 { "upstream_error" } else { "invalid_request_error" };
+        format!("{}data: [DONE]\n\n", Self::event(&json!({"error": {"message": message, "type": kind, "code": status}})))
+    }
+}
+
+/// Готовый ответ событиями SSE — когда апстрим не прислал ни одного куска (пустой ответ).
 pub fn sse_answer(body: &Value) -> Response {
-    let created = body.get("created").cloned().filter(|v| !v.is_null()).unwrap_or_else(|| json!(chrono::Utc::now().timestamp()));
-    let chunk = |choices: Value| json!({"id": body["id"], "object": "chat.completion.chunk", "created": created, "model": body["model"], "choices": choices});
-    let choice = body.get("choices").and_then(|c| c.get(0));
-    let msg = choice.and_then(|c| c.get("message"));
-    let mut delta = Map::new();
-    delta.insert("role".into(), json!("assistant"));
-    if let Some(r) = msg.and_then(|m| m.get("reasoning_content").or_else(|| m.get("reasoning"))).filter(|r| !r.is_null()) {
-        delta.insert("reasoning_content".into(), r.clone());
+    let chunks = Chunks {
+        id: body.get("id").and_then(Value::as_str).map(String::from).unwrap_or_else(|| format!("chatcmpl-{}", crate::util::random_hex(12))),
+        created: body.get("created").and_then(Value::as_i64).unwrap_or_else(|| chrono::Utc::now().timestamp()),
+        model: body.get("model").and_then(Value::as_str).unwrap_or("").to_string(),
+    };
+    let mut parts = crate::upstream::message_deltas(body);
+    if parts.is_empty() {
+        parts.push(Delta::Text(String::new()));
     }
-    delta.insert("content".into(), Value::String(crate::upstream::extract_text(body)));
-    if let Some(Value::Array(calls)) = msg.and_then(|m| m.get("tool_calls")) {
-        let calls: Vec<Value> = calls
-            .iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let mut c = c.clone();
-                if let Some(o) = c.as_object_mut() {
-                    o.entry("index").or_insert(json!(i));
-                }
-                c
-            })
-            .collect();
-        delta.insert("tool_calls".into(), Value::Array(calls));
-    }
-    let finish = choice.and_then(|c| c.get("finish_reason")).cloned().filter(|f| !f.is_null()).unwrap_or_else(|| json!("stop"));
-    let mut events =
-        vec![chunk(json!([{"index": 0, "delta": delta, "finish_reason": null}])), chunk(json!([{"index": 0, "delta": {}, "finish_reason": finish}]))];
-    if let Some(usage) = body.get("usage").filter(|u| !u.is_null()) {
-        let mut last = chunk(json!([]));
-        last["usage"] = usage.clone();
-        events.push(last);
-    }
-    let mut out = String::new();
-    for e in events {
-        out.push_str("data: ");
-        out.push_str(&e.to_string());
-        out.push_str("\n\n");
-    }
-    out.push_str("data: [DONE]\n\n");
+    let mut out: String = parts.iter().enumerate().map(|(i, d)| chunks.delta(d, i == 0)).collect();
+    out.push_str(&chunks.tail(body));
     ([(header::CONTENT_TYPE, "text/event-stream; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], out).into_response()
 }
 

@@ -25,7 +25,8 @@ LMQ — сервер очереди между Telegram-ботом UniversalBot 
 | `crates/lmq-desktop` | Бинарник `LMQ.exe` (только Windows): нативное окно Slint или веб-окно Tauri, трей. |
 | `web/` | Веб-панель: ванильный JS (ES-модули), `css/base.css`, `css/app.css`, 26 тем, `i18n/en.json`. |
 | `packaging/debian` | Unit systemd, `/etc/default/lmq`, `settings.yaml` по умолчанию, скрипты пакета. |
-| `.github/workflows/ci.yml` | CI: Windows (fmt, clippy, тесты, NSIS) и Debian bookworm (clippy, тесты, `.deb`). |
+| `.github/workflows/ci.yml` | CI: Windows (fmt, clippy, тесты; portable и NSIS — параллельно) и Debian bookworm (clippy, тесты, `.deb`), релиз по частям. |
+| `.github/workflows/publish.yml`, `scripts/release-publish.sh` | Выкладка одной сборки в релиз: подписи minisign, создание релиза или докладка. |
 | `src/` | Остатки старого проекта на C# WPF. В `.gitignore`, не трогать и не использовать. |
 | `dist/<версия>/` | Готовые релизы (установщик, portable-zip, `SHA256SUMS.txt`). В `.gitignore`. |
 | `target/` | Сборка Cargo. |
@@ -212,6 +213,12 @@ cargo run -p lmq-core --example themes_index
   `*.minisig` (секрет `MINISIGN_SECRET_KEY`, открытый ключ — `DEFAULT_UPDATES_PUBKEY`). От этого зависит
   автообновление (`updates.rs`): не меняйте имена файлов и ключ без правки обеих сторон. Автообновление
   берёт файл на `-setup.exe`, архивы ему не подходят — так и должно остаться.
+- Релиз выходит по частям: задания `windows-checks`, `windows-portable`, `windows-installer`, `debian` идут
+  параллельно, каждая сборка выкладывается через `publish.yml` → `scripts/release-publish.sh`, как только
+  готова и прошли её тесты (первая создаёт релиз), задание `checksums` в конце пересчитывает `SHA256SUMS.txt`.
+  Файл ставьте в релиз только вместе с его `.minisig` в одной загрузке: автообновление не должно увидеть
+  `-setup.exe` без подписи. Список файлов, по которым задание `version` считает релиз полным, — в `ci.yml`;
+  меняете имена — правьте и его.
 - Подпись Authenticode — только через `scripts/sign.ps1` (секреты `WINDOWS_SIGN_PFX` / `WINDOWS_SIGN_COMMAND`,
   см. README). Tauri вызывает его через `signCommand` из `--config` в CI: так подписываются `LMQ.exe` внутри
   установщика, плагины NSIS, деинсталлятор и установщик. `target/release/LMQ.exe` после сборки Tauri

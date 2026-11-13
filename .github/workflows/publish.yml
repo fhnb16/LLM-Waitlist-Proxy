@@ -1,0 +1,39 @@
+name: Publish
+
+# Выкладывает артефакт сборки в релиз (scripts/release-publish.sh): подписи minisign, создание
+# релиза первой готовой сборкой, докладка остальных. Вызывается из ci.yml.
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: Имя артефакта сборки
+        required: true
+        type: string
+      tag:
+        description: Тег релиза vX.Y.Z
+        required: true
+        type: string
+    secrets:
+      MINISIGN_SECRET_KEY:
+        required: false
+
+jobs:
+  publish:
+    name: ${{ inputs.artifact }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: dist
+      - name: Sign and upload
+        env:
+          TAG: ${{ inputs.tag }}
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+        run: bash scripts/release-publish.sh dist

@@ -701,12 +701,160 @@ async fn sync_stream_client_gets_sse() {
     assert_eq!(st, StatusCode::OK);
     assert!(headers["content-type"].to_str().unwrap().starts_with("text/event-stream"));
     let text = body.as_str().expect("SSE text");
-    let events: Vec<serde_json::Value> =
-        text.lines().filter_map(|l| l.strip_prefix("data: ")).filter(|d| *d != "[DONE]").map(|d| serde_json::from_str(d).unwrap()).collect();
+    let events = sse_events(text);
     assert_eq!(events[0]["object"], "chat.completion.chunk");
     assert_eq!(events[0]["choices"][0]["delta"]["content"], "sync streamed");
     assert_eq!(events[0]["model"], "m");
     assert_eq!(events[1]["choices"][0]["finish_reason"], "stop");
     assert_eq!(events.last().unwrap()["usage"]["completion_tokens"], 3);
     assert!(text.trim_end().ends_with("data: [DONE]"));
+}
+
+/// События `data:` ответа SSE без `[DONE]`.
+fn sse_events(text: &str) -> Vec<serde_json::Value> {
+    text.lines().filter_map(|l| l.strip_prefix("data: ")).filter(|d| *d != "[DONE]").map(|d| serde_json::from_str(d).unwrap()).collect()
+}
+
+fn stream_req() -> serde_json::Value {
+    json!({"model": "m", "messages": [{"role": "user", "content": "ping"}], "stream": true})
+}
+
+/// Клиент со стримом получает куски апстрима как есть: размышления, текст, вызовы инструментов.
+/// К апстриму запрос уходит стримом, даже если у него `stream: false`.
+#[tokio::test]
+async fn sync_stream_relays_upstream_chunks() {
+    let sse = concat!(
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"reasoning_content\":\"хм\"}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"При\"}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"вет\"}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"t1\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n",
+        "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2}}\n\n",
+        "data: [DONE]\n\n"
+    );
+    let up = stream_upstream(sse, "text/event-stream").await;
+    let models = format!("  m:\n    upstreams:\n      - url: {}\n", url(&up));
+    let env = start(&models, &[], bot_ok().await).await;
+    let (st, headers, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(stream_req())).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    assert!(headers["content-type"].to_str().unwrap().starts_with("text/event-stream"));
+    let ev = sse_events(body.as_str().unwrap());
+    let delta = |i: usize| ev[i]["choices"][0]["delta"].clone();
+    assert_eq!((delta(0)["role"].as_str(), delta(0)["reasoning_content"].as_str()), (Some("assistant"), Some("хм")));
+    assert_eq!((delta(1)["content"].as_str(), delta(2)["content"].as_str()), (Some("При"), Some("вет")));
+    assert_eq!(delta(3)["tool_calls"][0]["function"]["name"], "f");
+    assert_eq!(ev[4]["choices"][0]["finish_reason"], "tool_calls");
+    assert_eq!(ev[5]["usage"]["completion_tokens"], 2);
+    assert!(ev.iter().all(|e| e["model"] == "m" && e["id"] == ev[0]["id"]));
+    let sent: serde_json::Value = serde_json::from_slice(&up.received_requests().await.unwrap()[0].body).unwrap();
+    assert_eq!(sent["stream"], true);
+}
+
+/// Стрим оборвался после первых кусков: клиент получает событие `error`, а не склейку с ответом
+/// другого апстрима, — второй апстрим не вызывается.
+#[tokio::test]
+async fn sync_stream_broken_midway_does_not_fail_over() {
+    let sse = concat!("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"нача\"}}]}\n\n", "data: {\"error\":{\"message\":\"backend crashed\"}}\n\n");
+    let broken = stream_upstream(sse, "text/event-stream").await;
+    let good = upstream("from-second", 0).await;
+    let models = format!("  m:\n    upstreams:\n      - url: {}\n      - url: {}\n", url(&broken), url(&good));
+    let env = start(&models, &[], bot_ok().await).await;
+    let (st, _, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(stream_req())).await;
+    assert_eq!(st, StatusCode::OK);
+    let text = body.as_str().unwrap();
+    let ev = sse_events(text);
+    assert_eq!(ev[0]["choices"][0]["delta"]["content"], "нача");
+    assert!(ev.last().unwrap()["error"]["message"].as_str().unwrap().contains("backend crashed"), "{text}");
+    assert!(!text.contains("from-second") && text.trim_end().ends_with("data: [DONE]"));
+    assert!(good.received_requests().await.unwrap().is_empty());
+}
+
+/// Ошибка до первого куска: ответ ещё не начат — обычный HTTP-статус, и работает переход к другому апстриму.
+#[tokio::test]
+async fn sync_stream_error_before_first_chunk() {
+    let bad = failing_upstream(400).await;
+    let env = start(&format!("  m:\n    upstreams:\n      - url: {}\n", url(&bad)), &[], bot_ok().await).await;
+    let (st, _, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(stream_req())).await;
+    assert_eq!(st, StatusCode::BAD_GATEWAY, "{body}");
+    assert!(body["error"]["message"].as_str().unwrap().contains("boom"), "{body}");
+
+    let down = failing_upstream(500).await;
+    let good = upstream("from-second", 0).await;
+    let env = start(&format!("  m:\n    upstreams:\n      - url: {}\n      - url: {}\n", url(&down), url(&good)), &[], bot_ok().await).await;
+    let (st, _, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(stream_req())).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(sse_events(body.as_str().unwrap())[0]["choices"][0]["delta"]["content"], "from-second");
+}
+
+/// Куски уходят клиенту сразу: первый приходит задолго до конца генерации, а не одним пакетом в конце.
+#[tokio::test]
+async fn sync_stream_is_not_buffered() {
+    use axum::body::Body;
+    use futures::StreamExt;
+    // Апстрим: кусок, пауза 600 мс, кусок, пауза 600 мс, конец.
+    let app = axum::Router::new().route(
+        "/v1/chat/completions",
+        axum::routing::post(|| async {
+            let s = async_stream::stream! {
+                for (i, piece) in ["раз", "два"].into_iter().enumerate() {
+                    if i > 0 {
+                        tokio::time::sleep(Duration::from_millis(600)).await;
+                    }
+                    yield Ok::<String, std::convert::Infallible>(format!("data: {{\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{piece}\"}}}}]}}\n\n"));
+                }
+                tokio::time::sleep(Duration::from_millis(600)).await;
+                yield Ok("data: [DONE]\n\n".to_string());
+            };
+            ([("content-type", "text/event-stream")], Body::from_stream(s))
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let models = format!("  m:\n    upstreams:\n      - url: http://{addr}/v1/chat/completions\n");
+    let env = start(&models, &[], bot_ok().await).await;
+
+    let started = std::time::Instant::now();
+    let req = axum::http::Request::builder()
+        .method("POST")
+        .uri("/v1/chat/completions")
+        .header("authorization", format!("Bearer {KEY}"))
+        .header("content-type", "application/json")
+        .body(Body::from(stream_req().to_string()))
+        .unwrap();
+    let resp = tower::ServiceExt::oneshot(env.router.clone(), req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let mut body = resp.into_body().into_data_stream();
+    let mut seen = String::new();
+    let mut first_at = None;
+    while let Some(frame) = body.next().await {
+        seen.push_str(&String::from_utf8_lossy(&frame.unwrap()));
+        if first_at.is_none() && seen.contains("раз") {
+            first_at = Some(started.elapsed());
+        }
+    }
+    let (first, total) = (first_at.expect("первый кусок не пришёл"), started.elapsed());
+    assert!(first < Duration::from_millis(500), "первый кусок через {first:?}");
+    assert!(total >= Duration::from_millis(1100), "весь ответ за {total:?}");
+    assert!(seen.contains("два") && seen.trim_end().ends_with("data: [DONE]"), "{seen}");
+}
+
+/// Из стрима собираются вызовы инструментов: аргументы, пришедшие кусками, склеиваются.
+#[tokio::test]
+async fn stream_tool_calls_are_assembled() {
+    let sse = concat!(
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"city\\\":\"}}]}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"Riga\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\n",
+        "data: [DONE]\n\n"
+    );
+    let up = stream_upstream(sse, "text/event-stream").await;
+    let env = start(&stream_models(&up), &[], bot_ok().await).await;
+    let req = json!({"model": "m", "messages": [{"role": "user", "content": "погода"}]});
+    let (st, _, body) = call(&env.router, "POST", "/v1/chat/completions", Some(KEY), Some(req)).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let call0 = &body["choices"][0]["message"]["tool_calls"][0];
+    assert_eq!((call0["id"].as_str(), call0["function"]["name"].as_str()), (Some("c1"), Some("get_weather")));
+    assert_eq!(call0["function"]["arguments"], "{\"city\":\"Riga\"}");
+    assert_eq!(body["choices"][0]["finish_reason"], "tool_calls");
 }

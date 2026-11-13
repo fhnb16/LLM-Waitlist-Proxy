@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Map, Value};
-use tokio::sync::{OwnedSemaphorePermit, mpsc};
+use tokio::sync::OwnedSemaphorePermit;
 use tokio_util::sync::CancellationToken;
 
 use crate::app::App;
@@ -147,7 +147,7 @@ pub async fn execute(
     first: (Arc<UpstreamRt>, OwnedSemaphorePermit),
     payload: &Map<String, Value>,
     cancel: &CancellationToken,
-    deltas: Option<&mpsc::UnboundedSender<String>>,
+    deltas: Option<&upstream::DeltaTx>,
 ) -> Result<(UpOk, Arc<UpstreamRt>), ExecErr> {
     let cfg = app.settings();
     let retries = cfg.queue.upstream_retries;
@@ -186,6 +186,11 @@ pub async fn execute(
                 Err(e @ UpErr::Timeout(_)) => {
                     app.note_upstream_failure(&up, &e);
                     return Err(ExecErr::Failed { code: "upstream_timeout", msg: e.message() });
+                }
+                Err(e @ UpErr::Interrupted(_)) => {
+                    // Получатель стрима уже видел часть ответа — ни следующего апстрима, ни повтора.
+                    app.note_upstream_failure(&up, &e);
+                    return Err(ExecErr::Failed { code: "upstream_error", msg: e.message() });
                 }
                 Err(e) if e.failover() => {
                     app.note_upstream_failure(&up, &e);
@@ -329,7 +334,8 @@ async fn run_sync(
             let (pt, ct) = upstream::usage_tokens(ok.usage.as_ref());
             app.record(&model.name, Some(&up.id), &ctx.client, "sync", None, Some(wait_ms), Some(ok.latency_ms), pt, ct);
             let images = crate::admin::image_count(ctx.payload.get("messages"));
-            if strip_think(&ok.text).trim().is_empty() {
+            let has_tools = ok.body.pointer("/choices/0/message/tool_calls").and_then(Value::as_array).is_some_and(|a| !a.is_empty());
+            if !has_tools && strip_think(&ok.text).trim().is_empty() {
                 // Синхронному клиенту ответ уходит как есть, но в журнале причина должна быть видна.
                 tracing::warn!(job_id = %item.job_id, client = %ctx.client, model = %model.name, upstream = %up.id, error = %upstream::empty_answer_reason(&ok.body), "sync answer is empty");
             }

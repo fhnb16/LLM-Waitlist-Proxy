@@ -28,7 +28,7 @@ queue:
   max_queue_per_chat: 5           # MAX_QUEUE_PER_CHAT
   max_wait: 300                   # MAX_WAIT, с — не начатое задание становится expired
   upstream_timeout: 120           # UPSTREAM_TIMEOUT, с
-  sync_timeout: 60                # SYNC_TIMEOUT, с — chat_id 0 («Проверить», «Песочница» бота)
+  sync_timeout: 60                # SYNC_TIMEOUT, с — chat_id 0 («Проверить», «Песочница» бота); со stream: true — до первого куска
   supersede_same_chat: false      # SUPERSEDE_SAME_CHAT
   private_first: true             # PRIVATE_FIRST — личные чаты раньше групп
   upstream_retries: 1             # UPSTREAM_RETRIES
