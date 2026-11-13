@@ -858,3 +858,16 @@ async fn stream_tool_calls_are_assembled() {
     assert_eq!(call0["function"]["arguments"], "{\"city\":\"Riga\"}");
     assert_eq!(body["choices"][0]["finish_reason"], "tool_calls");
 }
+
+/// Состояние обновлений для панели: до проверки — пусто, настройки автообновления — по умолчанию.
+#[tokio::test]
+async fn updates_state_and_defaults() {
+    let up = upstream("OK", 0).await;
+    let env = start(&format!("  m:\n    upstreams:\n      - url: {}\n", url(&up)), &[], bot_ok().await).await;
+    let (st, _, v) = call(&env.admin, "GET", "/admin/api/updates/state", Some(ADMIN), None).await;
+    assert_eq!(st, StatusCode::OK, "{v}");
+    assert_eq!((v["checking"].as_bool(), v["downloading"].as_bool()), (Some(false), Some(false)));
+    assert!(v["ready"].is_null() && v["info"].is_null(), "{v}");
+    let u = &env.core.app.settings().updates;
+    assert!(u.auto_check && u.auto_download && !u.auto_install);
+}

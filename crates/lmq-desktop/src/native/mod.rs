@@ -354,6 +354,36 @@ fn drain_inbox(s: &mut State, ui: &AppWindow, inbox: &Mutex<Inbox>) {
     }
 }
 
+/// Строка и кнопки обновлений из состояния ядра (`updates::UpdateState`).
+fn sync_updates(d: &Desktop, ui: &AppWindow) {
+    let st = d.app.updates.state();
+    let g = ui.global::<UiData>();
+    let ready = d.app.updates.ready();
+    let latest = st.info.as_ref().and_then(|i| i.latest.clone()).unwrap_or_default();
+    let text = if st.checking {
+        t("Проверяю…")
+    } else if st.downloading {
+        tf("Скачиваю версию {v}…", &[("v", &latest)])
+    } else if let Some(r) = &ready {
+        tf("Версия {v} скачана и проверена", &[("v", &r.version)])
+    } else if let Some(e) = &st.error {
+        e.clone()
+    } else if let Some(i) = st.info.as_ref().filter(|i| i.newer) {
+        if i.can_install {
+            tf("Доступна версия {v}", &[("v", &latest)])
+        } else {
+            tf("Доступна версия {v}, установщика с подписью нет", &[("v", &latest)])
+        }
+    } else if st.info.is_some() {
+        t("Установлена последняя версия")
+    } else {
+        String::new()
+    };
+    g.set_update_status(text.into());
+    g.set_update_ready(ready.is_some());
+    g.set_update_busy(st.checking || st.downloading);
+}
+
 fn load_settings(s: &mut State, ui: &AppWindow) {
     let v = admin::settings_view(&s.d.app);
     s.draft = v["file"].clone();
@@ -373,6 +403,9 @@ fn load_settings(s: &mut State, ui: &AppWindow) {
     g.set_notifications(st.app.notifications);
     g.set_server_autostart(st.app.server_autostart);
     g.set_update_auto(st.updates.auto_check);
+    g.set_update_download(st.updates.auto_download);
+    g.set_update_install(st.updates.auto_install);
+    sync_updates(&s.d, ui);
     load_socks_links(&s.d, false);
 }
 
@@ -644,6 +677,7 @@ pub fn run(d: Arc<Desktop>) -> anyhow::Result<()> {
             let range = ui.global::<UiData>().get_range();
             let every = if range == 0 { 5 } else { 15 };
             refresh_overview(&s.d, s.series.is_none() || s.ticks % every == 0, range);
+            sync_updates(&s.d, ui);
             // Тема Windows могла смениться.
             if s.d.settings().ui.scheme == ColorScheme::System && common::system_dark() != s.dark {
                 apply_look(s, ui);
@@ -657,7 +691,7 @@ pub fn run(d: Arc<Desktop>) -> anyhow::Result<()> {
         crate::single::listen(&d.rt, move || on_ui(show_window));
     }
     common::watch_notifications(&d);
-    common::check_updates_on_start(&d);
+    common::watch_updates(&d);
 
     if !d.minimized {
         ui.show()?;
@@ -1039,6 +1073,8 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
         on_ui_now(|s, ui| {
             let p = match key.as_str() {
                 "updates_auto" => json!({ "updates": { "auto_check": on } }),
+                "updates_download" => json!({ "updates": { "auto_download": on } }),
+                "updates_install" => json!({ "updates": { "auto_install": on } }),
                 k => json!({ "app": { k: on } }),
             };
             match patch(&s.d, p) {
@@ -1141,27 +1177,57 @@ fn wire_actions(ui: &AppWindow, d: &Arc<Desktop>) {
             });
         });
     });
+    // Проверка по кнопке: новую версию с подписанным установщиком сразу скачивает,
+    // без него открывает страницу релиза.
     a.on_check_updates(|| {
         on_ui_now(|s, ui| {
+            ui.global::<UiData>().set_update_busy(true);
             ui.global::<UiData>().set_update_status(t("Проверяю…").into());
             let app = s.d.app.clone();
             s.d.rt.spawn(async move {
-                let info = lmq_core::updates::check(&app).await;
-                let text = if let Some(e) = info.error {
-                    e
+                let info = lmq_core::updates::refresh(&app).await;
+                let mut url = None;
+                if info.newer && info.can_install {
+                    on_ui(|s, ui| sync_updates(&s.d, ui));
+                    if let Err(e) = lmq_core::updates::prepare(&app, &info).await {
+                        tracing::warn!(error = %format!("{e:#}"), "update download failed");
+                    }
                 } else if info.newer {
-                    tf("Доступна версия {v}", &[("v", &info.latest.clone().unwrap_or_default())])
-                } else {
-                    t("Установлена последняя версия")
-                };
-                let url = info.url.clone().filter(|_| info.newer);
+                    url = info.url.clone();
+                }
                 on_ui(move |s, ui| {
-                    ui.global::<UiData>().set_update_status(text.into());
+                    sync_updates(&s.d, ui);
                     if let Some(u) = url {
                         s.d.open_url(&u);
                     }
                 });
             });
+        });
+    });
+    a.on_install_update(|| {
+        on_ui_now(|s, ui| {
+            let Some(r) = s.d.app.updates.ready() else { return };
+            let d = s.d.clone();
+            let path = r.path.clone();
+            if r.verdict == lmq_core::authenticode::Verdict::Allow {
+                std::thread::spawn(move || d.install_update(&path, false, false));
+                return;
+            }
+            // Без действительной подписи Authenticode — только с согласия: сертификат мог закончиться.
+            let why = match &r.authenticode {
+                lmq_core::authenticode::Signature::Untrusted { publisher, .. } => tf("Windows не доверяет сертификату «{p}»", &[("p", publisher)]),
+                _ => t("Подписи Authenticode нет"),
+            };
+            confirm(
+                s,
+                ui,
+                t("Установщик без подписи Windows"),
+                tf("{why}. Подпись minisign сошлась — файл из релиза LMQ, но Defender и SmartScreen могут предупредить. Установить?", &[("why", &why)]),
+                t("Установить"),
+                move || {
+                    std::thread::spawn(move || d.install_update(&path, true, false));
+                },
+            );
         });
     });
 

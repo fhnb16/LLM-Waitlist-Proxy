@@ -446,3 +446,24 @@ msgstr "There are unsaved changes"
 
 msgid "Все изменения сохранены"
 msgstr "All changes saved"
+
+msgid "Установить и перезапустить"
+msgstr "Install and restart"
+
+msgid "Проверять обновления"
+msgstr "Check for updates"
+
+msgid "При запуске и раз в 6 часов"
+msgstr "At startup and every 6 hours"
+
+msgid "Скачивать новую версию"
+msgstr "Download new versions"
+
+msgid "В фоне, с проверкой подписи"
+msgstr "In the background, with a signature check"
+
+msgid "Ставить обновление само"
+msgstr "Install updates automatically"
+
+msgid "Когда очередь пуста, и только с подписью Windows. LMQ перезапустится в трее"
+msgstr "When the queue is empty, and only with a Windows signature. LMQ restarts in the tray"

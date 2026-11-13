@@ -155,8 +155,15 @@ impl Desktop {
     /// Запускает скачанный установщик. `confirmed` — человек согласился поставить его без
     /// действительной подписи Authenticode (панель спрашивает об этом сама).
     pub fn run_installer(&self, path: &str, confirmed: bool) {
-        let p = std::path::Path::new(path);
+        self.install_update(std::path::Path::new(path), confirmed, false);
+    }
+
+    /// Ставит обновление и перезапускает LMQ: установщик без вопросов, с окном прогресса
+    /// (`/P /UPDATE`), после установки запускает новую версию (`/R`, при `minimized` — в трее).
+    /// Возвращается, только если установщик не прошёл проверку.
+    pub fn install_update(&self, p: &std::path::Path, confirmed: bool, minimized: bool) {
         if !p.starts_with(self.app.paths.data_dir.join("updates")) || !p.is_file() {
+            tracing::warn!(file = %p.display(), "installer is not in the updates folder");
             return;
         }
         // Подпись Authenticode ещё раз — прямо перед запуском: файл могли подменить после загрузки.
@@ -164,9 +171,22 @@ impl Desktop {
             tracing::warn!(file = %p.display(), error = %e, "installer rejected");
             return;
         }
-        if std::process::Command::new(p).spawn().is_ok() {
-            self.shutdown();
-            std::process::exit(0);
+        tracing::info!(file = %p.display(), "starting update installer");
+        // Ядро — до запуска: в режиме /P установщик закрывает работающий LMQ силой, а остановка
+        // движков и сброс статистики занимают до 20 с.
+        self.shutdown();
+        let mut cmd = std::process::Command::new(p);
+        cmd.args(["/P", "/UPDATE", "/R"]);
+        if minimized {
+            cmd.args(["/ARGS", "--minimized"]);
+        }
+        match cmd.spawn() {
+            Ok(_) => std::process::exit(0),
+            Err(e) => {
+                // Ядро уже остановлено: без перезапуска LMQ остался бы без очереди.
+                tracing::error!(file = %p.display(), error = %e, "installer did not start, restarting");
+                self.restart(None);
+            }
         }
     }
 
@@ -278,18 +298,53 @@ pub fn watch_notifications(d: &Arc<Desktop>) {
     });
 }
 
-/// Проверка обновлений при запуске (если включена) — уведомлением.
-pub fn check_updates_on_start(d: &Arc<Desktop>) {
-    let app = d.app.clone();
-    d.rt.spawn(async move {
-        let s = app.settings();
-        if !s.updates.auto_check || s.updates.repo.trim().is_empty() {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_secs(20)).await;
-        let info = lmq_core::updates::check(&app).await;
-        if info.newer {
-            notify("LMQ: доступно обновление", &format!("Версия {} — Настройки → Обновления", info.latest.unwrap_or_default()));
+/// Обновления в окне: уведомления о новой и скачанной версии (проверяет и качает ядро,
+/// `updates::run`) и автоустановка (`updates.auto_install`) — когда в очереди нет заданий.
+pub fn watch_updates(d: &Arc<Desktop>) {
+    let d = d.clone();
+    let rt = d.rt.clone();
+    rt.spawn(async move {
+        let app = d.app.clone();
+        let mut rx = app.events.subscribe();
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(30));
+        loop {
+            tokio::select! {
+                ev = rx.recv() => match ev {
+                    Ok(Event::Update { state, version }) => {
+                        let s = app.settings();
+                        if s.app.notifications {
+                            match state.as_str() {
+                                "available" if !s.updates.auto_download => {
+                                    notify("LMQ: доступно обновление", &format!("Версия {version} — Настройки → Обновления"));
+                                }
+                                "ready" if auto_install_allowed(&d) => {
+                                    notify("LMQ: обновление скачано", &format!("Версия {version} установится, когда очередь опустеет"));
+                                }
+                                "ready" => notify("LMQ: обновление скачано", &format!("Версия {version} — установить: Настройки → Обновления")),
+                                _ => {}
+                            }
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    _ => {}
+                },
+                _ = tick.tick() => {}
+                _ = app.shutdown.cancelled() => break,
+            }
+            if auto_install_allowed(&d) && app.queue.total_queued() == 0 && app.queue.total_running() == 0 {
+                let Some(r) = app.updates.ready() else { continue };
+                tracing::info!(version = %r.version, "queue is empty, installing update automatically");
+                let d = d.clone();
+                // Остановка ядра блокирует поток — не в задаче рантайма.
+                let _ = tokio::task::spawn_blocking(move || d.install_update(&r.path, false, true)).await;
+            }
         }
     });
+}
+
+/// Можно ли ставить скачанное обновление без человека: включено, установщик подписан
+/// действительной подписью Authenticode, а LMQ не портативный (установщик поставил бы
+/// вторую копию в профиль пользователя).
+fn auto_install_allowed(d: &Desktop) -> bool {
+    d.settings().updates.auto_install && !d.app.paths.portable && d.app.updates.ready().is_some_and(|r| r.verdict == lmq_core::authenticode::Verdict::Allow)
 }

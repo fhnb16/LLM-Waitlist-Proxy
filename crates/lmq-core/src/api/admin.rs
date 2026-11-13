@@ -96,6 +96,7 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/admin/api/export", post(export))
         .route("/admin/api/import", post(import))
         .route("/admin/api/updates", get(updates_check))
+        .route("/admin/api/updates/state", get(updates_state))
         .route("/admin/api/updates/download", post(updates_download))
         .route("/admin/api/admin-token/reset", post(admin_token_reset))
         .route("/admin/api/about", get(about))
@@ -575,6 +576,7 @@ fn event_name(e: &Event) -> &'static str {
         Event::Upstream { .. } => "upstream",
         Event::DebugCallback(_) => "debug_callback",
         Event::Config { .. } => "config",
+        Event::Update { .. } => "update",
         Event::Tick(_) => "tick",
     }
 }
@@ -791,18 +793,28 @@ async fn import(State(app): State<AppState>, Json(req): Json<ImportReq>) -> R<Js
 // --------------------------------------------------------------- обновления
 
 async fn updates_check(State(app): State<AppState>) -> Json<crate::updates::UpdateInfo> {
-    Json(crate::updates::check(&app).await)
+    Json(crate::updates::refresh(&app).await)
 }
 
+/// Что известно сейчас: последняя проверка, идёт ли загрузка, скачанный установщик.
+async fn updates_state(State(app): State<AppState>) -> Json<crate::updates::UpdateState> {
+    Json(app.updates.state())
+}
+
+/// Скачать (или взять уже скачанный в фоне) установщик последней версии.
 async fn updates_download(State(app): State<AppState>) -> R<Json<Value>> {
-    let info = crate::updates::check(&app).await;
-    let (path, sig) = crate::updates::download_verified(&app, &info).await.map_err(cfg_err)?;
+    let info = match app.updates.state().info.filter(|i| i.newer && i.can_install) {
+        Some(i) => i,
+        None => crate::updates::refresh(&app).await,
+    };
+    let r = crate::updates::prepare(&app, &info).await.map_err(cfg_err)?;
     Ok(Json(json!({
         "ok": true,
-        "path": path,
-        "authenticode": sig,
-        "authenticode_text": sig.describe(),
-        "verdict": crate::authenticode::verdict(&sig),
+        "version": r.version,
+        "path": r.path,
+        "authenticode": r.authenticode,
+        "authenticode_text": r.authenticode_text,
+        "verdict": r.verdict,
     })))
 }
 

@@ -58,7 +58,13 @@ export global UiData {
     in-out property <bool> notifications;
     in-out property <bool> server-autostart;
     in-out property <bool> update-auto;
+    in-out property <bool> update-download;
+    in-out property <bool> update-install;
     in property <string> update-status;
+    // Установщик скачан и проверен — можно ставить.
+    in property <bool> update-ready;
+    // Идёт проверка или загрузка.
+    in property <bool> update-busy;
     in property <string> config-dir;
     in property <string> data-dir;
     in property <string> log-dir;
@@ -125,6 +131,7 @@ export global UiActions {
     callback set-app-flag(string, bool);
     callback open-folder(string);
     callback check-updates();
+    callback install-update();
     callback netcheck();
     callback tgcheck();
     callback sockscheck();

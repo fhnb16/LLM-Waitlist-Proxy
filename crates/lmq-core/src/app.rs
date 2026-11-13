@@ -90,6 +90,8 @@ pub struct App {
     /// Увеличивается, когда слушателям нужно перезапуститься (сменился адрес).
     pub listeners_epoch: watch::Sender<u64>,
     pub bound: Mutex<BoundAddrs>,
+    /// Обновления: последняя проверка и скачанный установщик.
+    pub updates: crate::updates::Updates,
     autostart_engines: AtomicBool,
     env: Option<HashMap<String, String>>,
 }
@@ -415,6 +417,7 @@ impl Core {
             desktop_token_hash: opts.desktop_token.as_deref().map(hash_admin),
             listeners_epoch: epoch_tx,
             bound: Mutex::new(BoundAddrs::default()),
+            updates: crate::updates::Updates::default(),
             autostart_engines: AtomicBool::new(false),
             env: opts.env.clone(),
         });
@@ -454,6 +457,7 @@ impl Core {
             tokio::spawn(health_checks(app.clone())),
             tokio::spawn(ticker(app.clone())),
             tokio::spawn(forward_logs(app.clone())),
+            tokio::spawn(crate::updates::run(app.clone())),
         ];
         app.gpu.spawn(Duration::from_secs(2), app.shutdown.clone());
         if opts.listeners {

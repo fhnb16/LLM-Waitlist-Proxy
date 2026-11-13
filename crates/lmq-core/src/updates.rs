@@ -1,16 +1,160 @@
-//! Проверка обновлений через GitHub Releases. Загрузка устанавливается только после
-//! проверки подписи minisign (`<файл>.minisig` в том же релизе) публичным ключом из
-//! настроек; без ключа панель показывает только ссылку на релиз. На Windows установщик
-//! ещё проверяется по Authenticode (`authenticode.rs`).
+//! Обновления через GitHub Releases: проверка раз в 6 часов, фоновая загрузка установщика,
+//! состояние для панели и окна. Загрузка годится к установке только после проверки подписи
+//! minisign (`<файл>.minisig` в том же релизе) публичным ключом из настроек; без ключа панель
+//! показывает только ссылку на релиз. На Windows установщик ещё проверяется по Authenticode
+//! (`authenticode.rs`). Запускает установщик окно (`lmq-desktop`), сервер только скачивает.
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::app::{App, VERSION};
-use crate::authenticode::{self, Signature};
+use crate::authenticode::{self, Signature, Verdict};
+use crate::events::Event;
+use crate::util::now_ms;
+
+/// Как часто проверять релизы.
+pub const CHECK_EVERY: Duration = Duration::from_secs(6 * 3600);
+/// Пауза после неудачной загрузки перед новой попыткой.
+const RETRY_DOWNLOAD: Duration = Duration::from_secs(3600);
+
+/// Скачанный и проверенный установщик.
+#[derive(Clone, Debug, Serialize)]
+pub struct Ready {
+    pub version: String,
+    pub path: PathBuf,
+    pub authenticode: Signature,
+    pub authenticode_text: String,
+    /// `allow` — ставить можно без вопросов, `confirm` — только с согласия человека.
+    pub verdict: Verdict,
+}
+
+/// Что известно об обновлениях сейчас — для панели, окна и автоустановки.
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct UpdateState {
+    pub checking: bool,
+    pub downloading: bool,
+    /// Время последней проверки, мс.
+    pub checked_at: Option<i64>,
+    pub info: Option<UpdateInfo>,
+    pub ready: Option<Ready>,
+    pub error: Option<String>,
+}
+
+#[derive(Default)]
+pub struct Updates {
+    state: parking_lot::Mutex<UpdateState>,
+    download: tokio::sync::Mutex<()>,
+}
+
+impl Updates {
+    pub fn state(&self) -> UpdateState {
+        self.state.lock().clone()
+    }
+
+    /// Скачанный установщик, если он есть и файл на месте.
+    pub fn ready(&self) -> Option<Ready> {
+        self.state.lock().ready.clone().filter(|r| r.path.is_file())
+    }
+}
+
+/// Проверка с запоминанием итога в состоянии.
+pub async fn refresh(app: &App) -> UpdateInfo {
+    app.updates.state.lock().checking = true;
+    let info = check(app).await;
+    let mut st = app.updates.state.lock();
+    st.checking = false;
+    st.checked_at = Some(now_ms());
+    st.error = info.error.clone();
+    // Вышла версия новее скачанной — старый установщик больше не нужен.
+    if st.ready.as_ref().is_some_and(|r| Some(&r.version) != info.latest.as_ref()) {
+        st.ready = None;
+    }
+    st.info = Some(info.clone());
+    info
+}
+
+/// Скачивает и проверяет установщик из `info`. Уже скачанный той же версии повторно не качает.
+pub async fn prepare(app: &App, info: &UpdateInfo) -> Result<Ready> {
+    let _one = app.updates.download.lock().await;
+    let version = info.latest.clone().unwrap_or_default();
+    if let Some(r) = app.updates.ready().filter(|r| r.version == version) {
+        return Ok(r);
+    }
+    app.updates.state.lock().downloading = true;
+    let res = download_verified(app, info).await;
+    let mut st = app.updates.state.lock();
+    st.downloading = false;
+    match res {
+        Ok((path, sig)) => {
+            let ready = Ready { version, path, authenticode_text: sig.describe(), verdict: authenticode::verdict(&sig), authenticode: sig };
+            st.ready = Some(ready.clone());
+            st.error = None;
+            drop(st);
+            app.events.emit(Event::Update { state: "ready".into(), version: ready.version.clone() });
+            Ok(ready)
+        }
+        Err(e) => {
+            st.error = Some(format!("{e:#}"));
+            Err(e)
+        }
+    }
+}
+
+/// Качать ли установщик в фоне в этом процессе: окно его поставит, сервер на Linux положит
+/// `.deb` для `apt install`. Серверу на Windows установщик окна ни к чему.
+fn downloads_here(app: &App) -> bool {
+    app.desktop_token_hash.is_some() || cfg!(target_os = "linux")
+}
+
+/// Фон: проверка через 30 с после запуска и дальше раз в `CHECK_EVERY`, загрузка новой версии
+/// (`updates.auto_download`). Настройки перечитываются раз в 10 минут.
+pub async fn run(app: Arc<App>) {
+    // Установщики прошлых запусков: либо уже стоят, либо будут скачаны заново.
+    if let Ok(dir) = std::fs::read_dir(app.paths.data_dir.join("updates")) {
+        for e in dir.flatten() {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
+    let mut first = Duration::from_secs(30);
+    let mut checked: Option<Instant> = None;
+    let mut tried: Option<Instant> = None;
+    let mut announced: Option<String> = None;
+    loop {
+        tokio::select! {
+            _ = tokio::time::sleep(first) => {}
+            _ = app.shutdown.cancelled() => break,
+        }
+        first = Duration::from_secs(600);
+        let cfg = app.settings().updates.clone();
+        if !cfg.auto_check || cfg.repo.trim().is_empty() {
+            continue;
+        }
+        if checked.is_none_or(|t| t.elapsed() >= CHECK_EVERY) {
+            checked = Some(Instant::now());
+            let info = refresh(&app).await;
+            let latest = info.latest.clone().unwrap_or_default();
+            if info.newer && announced.as_deref() != Some(latest.as_str()) {
+                tracing::info!(current = VERSION, latest = %latest, installer = ?info.installer, "update available");
+                app.events.emit(Event::Update { state: "available".into(), version: latest.clone() });
+                announced = Some(latest);
+                tried = None;
+            }
+        }
+        let Some(info) = app.updates.state().info.filter(|i| i.newer && i.can_install) else { continue };
+        if cfg.auto_download && downloads_here(&app) && app.updates.ready().is_none() && tried.is_none_or(|t| t.elapsed() >= RETRY_DOWNLOAD) {
+            tried = Some(Instant::now());
+            match prepare(&app, &info).await {
+                Ok(r) => tracing::info!(version = %r.version, file = %r.path.display(), verdict = ?r.verdict, "update downloaded"),
+                Err(e) => tracing::warn!(error = %format!("{e:#}"), "update download failed"),
+            }
+        }
+    }
+}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Asset {
@@ -161,6 +305,12 @@ pub async fn download_verified(app: &App, info: &UpdateInfo) -> Result<(PathBuf,
         bail!("недопустимое имя файла {name}");
     }
     let path = dir.join(&name);
+    // В папке — только последний установщик.
+    for e in std::fs::read_dir(&dir)?.flatten() {
+        if e.path() != path {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
     std::fs::write(&path, &data)?;
     let file = path.clone();
     let sig = tokio::task::spawn_blocking(move || authenticode::check(&file)).await?;

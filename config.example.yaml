@@ -204,7 +204,9 @@ app:
   server_autostart: true          # false — старт с выдачей заданий на паузе
 
 updates:
-  auto_check: false
+  auto_check: true                # проверять релизы: через 30 с после запуска и раз в 6 часов
+  auto_download: true             # новую версию скачать в фоне и проверить подпись
+  auto_install: false             # окно ставит скачанное само, когда очередь пуста (только с подписью Authenticode, не в портативном режиме)
   channel: stable                 # stable | beta
   repo: fhnb16/LLM-Waitlist-Proxy # owner/name на GitHub или ссылка на репозиторий; пусто — не проверять
   pubkey: RWTnz+w5RwAHuW2pv8x0Baj2VDzcWYllIKbKBWcl+cPF+6taDDGcz3br  # ключ minisign релизов; пусто — без установки, только ссылка

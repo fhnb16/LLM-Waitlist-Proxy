@@ -496,20 +496,54 @@ component AppTab inherits VerticalLayout {
                 hint: UiData.update-status;
                 VerticalLayout {
                     alignment: center;
-                    Button {
-                        text: @tr("Проверить обновления");
-                        clicked => { UiActions.check-updates(); }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        if UiData.update-ready: Button {
+                            text: @tr("Установить и перезапустить");
+                            primary: true;
+                            clicked => { UiActions.install-update(); }
+                        }
+                        Button {
+                            text: @tr("Проверить обновления");
+                            enabled: !UiData.update-busy;
+                            clicked => { UiActions.check-updates(); }
+                        }
                     }
                 }
             }
             Divider { }
             SettingRow {
-                label: @tr("Проверять при запуске");
+                label: @tr("Проверять обновления");
+                hint: @tr("При запуске и раз в 6 часов");
                 VerticalLayout {
                     alignment: center;
                     Switch {
                         checked <=> UiData.update-auto;
                         toggled => { UiActions.set-app-flag("updates_auto", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Скачивать новую версию");
+                hint: @tr("В фоне, с проверкой подписи");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.update-download;
+                        toggled => { UiActions.set-app-flag("updates_download", self.checked); }
+                    }
+                }
+            }
+            Divider { }
+            SettingRow {
+                label: @tr("Ставить обновление само");
+                hint: @tr("Когда очередь пуста, и только с подписью Windows. LMQ перезапустится в трее");
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        checked <=> UiData.update-install;
+                        toggled => { UiActions.set-app-flag("updates_install", self.checked); }
                     }
                 }
             }

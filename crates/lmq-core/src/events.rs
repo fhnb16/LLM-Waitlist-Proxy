@@ -20,6 +20,8 @@ pub enum Event {
     DebugCallback(crate::debug::Received),
     /// Конфигурация изменилась (панель перечитывает настройки).
     Config { profile: String },
+    /// Обновление: `available` — вышла новая версия, `ready` — установщик скачан и проверен.
+    Update { state: String, version: String },
     /// Сводка раз в пару секунд (для KPI-плиток и трея).
     Tick(Box<crate::admin::Overview>),
 }

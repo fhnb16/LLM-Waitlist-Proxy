@@ -679,7 +679,13 @@ pub const DEFAULT_UPDATES_PUBKEY: &str = "RWTnz+w5RwAHuW2pv8x0Baj2VDzcWYllIKbKBW
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct UpdatesCfg {
+    /// Проверять релизы: через 30 с после запуска и дальше раз в 6 часов.
     pub auto_check: bool,
+    /// Найдена новая версия — скачать установщик в фоне и проверить подпись.
+    pub auto_download: bool,
+    /// Окно ставит скачанную версию само, когда очередь пуста. Только при действительной
+    /// подписи Authenticode и не в портативном режиме; иначе — по кнопке.
+    pub auto_install: bool,
     /// `stable` | `beta`.
     pub channel: String,
     /// Репозиторий GitHub `owner/name` или ссылка на него. Пусто — проверка выключена.
@@ -690,7 +696,14 @@ pub struct UpdatesCfg {
 
 impl Default for UpdatesCfg {
     fn default() -> Self {
-        Self { auto_check: true, channel: "stable".into(), repo: DEFAULT_UPDATES_REPO.into(), pubkey: DEFAULT_UPDATES_PUBKEY.into() }
+        Self {
+            auto_check: true,
+            auto_download: true,
+            auto_install: false,
+            channel: "stable".into(),
+            repo: DEFAULT_UPDATES_REPO.into(),
+            pubkey: DEFAULT_UPDATES_PUBKEY.into(),
+        }
     }
 }
 

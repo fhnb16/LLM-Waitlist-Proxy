@@ -171,7 +171,7 @@ pub fn run(d: Arc<Desktop>) -> anyhow::Result<()> {
                 let _ = handle.run_on_main_thread(move || show_main(&h));
             });
             common::watch_notifications(&d);
-            common::check_updates_on_start(&d);
+            common::watch_updates(&d);
             Ok(())
         })
         .on_window_event(move |w, e| {

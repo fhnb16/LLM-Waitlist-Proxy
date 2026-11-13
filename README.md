@@ -71,7 +71,7 @@ lmq-server.exe --home C:\ProgramData\LMQ client add bot              # ключ 
 ### Debian 12
 
 ```bash
-sudo apt install ./lmq_2.6.0-1_amd64.deb
+sudo apt install ./lmq_2.7.0-1_amd64.deb
 sudo systemctl start lmq
 # ключ для бота и токен панели (выполняются от имени службы):
 sudo -u lmq env LMQ_CONFIG_DIR=/etc/lmq LMQ_DATA_DIR=/var/lib/lmq lmq-server client add bot
@@ -462,9 +462,20 @@ cargo tauri build --bundles nsis                # установщик (в crate
 
 ## Релизы и автообновление
 
-LMQ сам проверяет релизы GitHub (`updates.repo`, по умолчанию `fhnb16/LLM-Waitlist-Proxy`). Новую
-версию он скачивает и ставит из панели, только если подпись minisign установщика проверяется ключом
+LMQ сам проверяет релизы GitHub (`updates.repo`, по умолчанию `fhnb16/LLM-Waitlist-Proxy`): через 30 с
+после запуска и дальше раз в 6 часов (`updates.auto_check`). Новую версию он сразу скачивает в фоне
+(`updates.auto_download`) и оставляет, только если подпись minisign установщика проверяется ключом
 `updates.pubkey`. Ключ релизов LMQ задан по умолчанию.
+
+- Окно LMQ сообщает о скачанной версии уведомлением, а в «Настройки → Обновления» появляется кнопка
+  «Установить и перезапустить»: LMQ останавливает очередь и движки, установщик ставит новую версию
+  без вопросов и запускает её. Задания в очереди переживают перезапуск.
+- `updates.auto_install: true` — окно ставит скачанную версию само, когда в очереди нет заданий, и
+  перезапускается в трее. Только если у установщика действительная подпись Authenticode и LMQ не
+  портативный; иначе — по кнопке.
+- Установщик без подписи Authenticode ставится только с согласия: окно спросит.
+- Сервер без окна на Linux скачивает `.deb` в `<данные>/updates` и пишет в журнал «update downloaded»;
+  ставит его администратор (`apt install`).
 
 Как выпустить версию: поднять `version` в `Cargo.toml` и отправить коммит в `master`. CI
 (`.github/workflows/ci.yml`) сам соберёт установщик (и он же в `.zip` и `.rar`), portable-zip и `.deb`,

@@ -874,5 +874,22 @@
   "Подписи Authenticode нет": "There is no Authenticode signature",
   "Установщик без подписи Windows": "Installer without a Windows signature",
   "Установить": "Install",
-  "{why}. Подпись minisign сошлась — файл из релиза LMQ, но Defender и SmartScreen могут предупредить. Установить?": "{why}. The minisign signature matches — the file comes from an LMQ release, but Defender and SmartScreen may warn. Install it?"
+  "{why}. Подпись minisign сошлась — файл из релиза LMQ, но Defender и SmartScreen могут предупредить. Установить?": "{why}. The minisign signature matches — the file comes from an LMQ release, but Defender and SmartScreen may warn. Install it?",
+  "Скачиваем версию {v} и проверяем подпись": "Downloading version {v} and checking the signature",
+  "Версия {v} скачана и проверена": "Version {v} is downloaded and verified",
+  "Доступна версия {v}, установщика с подписью нет": "Version {v} is available, but there is no signed installer",
+  "Проверено {d}": "Checked {d}",
+  "LMQ закроется, установит версию {v} и запустится снова": "LMQ will close, install version {v} and start again",
+  "Установить и перезапустить": "Install and restart",
+  "Страница релиза": "Release page",
+  "Установщик скачан на машину с LMQ. Поставить его можно из окна LMQ": "The installer is downloaded to the LMQ machine. Install it from the LMQ window",
+  "Для установки задайте публичный ключ minisign: без проверки подписи файл не устанавливается": "Set the minisign public key to install: without a signature check the file is not installed",
+  "Автоматически": "Automatically",
+  "Проверять обновления": "Check for updates",
+  "При запуске и раз в 6 часов": "At startup and every 6 hours",
+  "Скачивать новую версию": "Download new versions",
+  "В фоне, с проверкой подписи": "In the background, with a signature check",
+  "Ставить обновление само": "Install updates automatically",
+  "Когда очередь пуста, и только с подписью Windows. LMQ перезапустится в трее": "When the queue is empty, and only with a Windows signature. LMQ restarts in the tray",
+  "Скачиваю версию {v}…": "Downloading version {v}…"
 }
